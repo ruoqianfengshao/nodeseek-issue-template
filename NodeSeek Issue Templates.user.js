@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.1.41
-// @description  在 NodeSeek 发帖页用表单生成单机转让帖，并回填 Markdown 编辑器。
+// @version      1.1.42
+// @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
-// @match        https://www.nodeseek.com/new-discussion*
+// @match        https://www.nodeseek.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -16,7 +16,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.1.41';
+  const VERSION = '1.1.42';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -1056,13 +1056,13 @@ function formValues(app) {
   }
 
 function initialize() {
-    if (!location.pathname.startsWith('/new-discussion')) return;
     const existingApps = document.querySelectorAll(`#${APP_ID}`);
     const currentApp = Array.from(existingApps).find((element) => element.dataset.nsitVersion === VERSION);
     if (currentApp) return;
     existingApps.forEach((element) => element.remove());
     const title = document.querySelector('#mde-title');
-    if (!title) return;
+    const editor = document.querySelector('#editor-body, .CodeMirror');
+    if (!title || !editor) return;
     const app = createApp();
     const hint = document.querySelector('#editor-body .window_header a[href*="runoob.com/markdown"]');
     if (hint?.parentElement) hint.parentElement.prepend(app);

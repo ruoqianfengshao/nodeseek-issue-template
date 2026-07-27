@@ -1,11 +1,11 @@
   function initialize() {
-    if (!location.pathname.startsWith('/new-discussion')) return;
     const existingApps = document.querySelectorAll(`#${APP_ID}`);
     const currentApp = Array.from(existingApps).find((element) => element.dataset.nsitVersion === VERSION);
     if (currentApp) return;
     existingApps.forEach((element) => element.remove());
     const title = document.querySelector('#mde-title');
-    if (!title) return;
+    const editor = document.querySelector('#editor-body, .CodeMirror');
+    if (!title || !editor) return;
     const app = createApp();
     const hint = document.querySelector('#editor-body .window_header a[href*="runoob.com/markdown"]');
     if (hint?.parentElement) hint.parentElement.prepend(app);

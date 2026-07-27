@@ -1,0 +1,30 @@
+name: Build userscript
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: false
+      - name: Build userscript
+        run: node tools/build.js build
+      - name: Verify generated script
+        run: |
+          node --check 'NodeSeek Issue Templates.user.js'
+          git diff --check
+          git diff --exit-code -- 'NodeSeek Issue Templates.user.js'
+      - name: Upload userscript artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NodeSeek-Issue-Templates
+          path: NodeSeek Issue Templates.user.js

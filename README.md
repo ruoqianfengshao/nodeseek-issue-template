@@ -1,0 +1,30 @@
+# NodeSeek Issue Templates
+
+NodeSeek 发帖页的油猴脚本：用表单生成单机或多机交易帖，并回填标题、Markdown 与剩余价值卡片。
+
+## 安装
+
+下载并导入 [NodeSeek Issue Templates.user.js](./NodeSeek%20Issue%20Templates.user.js) 到 Tampermonkey。脚本仅在 `https://www.nodeseek.com/new-discussion*` 页面运行。
+
+## 功能
+
+- 单机、多机书签编辑与统一标题生成
+- 剩余价值、续费金额人民币换算和实时汇率
+- 预出总价/溢价二选一校验与价格预览
+- 文本与表格两种 Markdown 格式
+- NodeImage 剩余价值卡片上传
+- 已生成 Markdown 的表单还原
+
+## 开发
+
+依赖：Node.js 20 或更高版本。
+
+```sh
+node tools/build.js build
+node --check 'NodeSeek Issue Templates.user.js'
+git diff --check
+```
+
+源码位于 `src/`，本地厂商图标在 `assets/vendors/`。不要直接编辑根目录的 userscript 构建产物；修改源码后执行构建命令。
+
+GitHub Actions 会在推送和 Pull Request 时重新构建，并验证构建产物没有未提交差异。

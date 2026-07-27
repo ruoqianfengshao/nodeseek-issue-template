@@ -1,0 +1,13 @@
+// ==UserScript==
+// @name         NodeSeek Issue Templates
+// @namespace    https://www.nodeseek.com/
+// @version      1.1.41
+// @description  在 NodeSeek 发帖页用表单生成单机转让帖，并回填 Markdown 编辑器。
+// @author       vico
+// @match        https://www.nodeseek.com/new-discussion*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @connect      api.nodeimage.com
+// @run-at       document-idle
+// ==/UserScript==

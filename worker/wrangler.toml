@@ -1,0 +1,11 @@
+name = "nsit-machine-catalog"
+main = "src/index.mjs"
+compatibility_date = "2026-07-27"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nsit-machine-catalog"
+# Run `npx wrangler d1 create nsit-machine-catalog`, then replace this value.
+database_id = "fe5aa273-95b5-4353-a41b-1a147a0d7173"
+migrations_dir = "migrations"

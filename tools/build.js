@@ -6,6 +6,7 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'NodeSeek Issue Templates.user.js');
+const minifiedOutput = path.join(root, 'NodeSeek Issue Templates.min.user.js');
 const sourceDir = path.join(root, 'src');
 const assetDir = path.join(root, 'assets', 'vendors');
 const parts = ['config.js', 'ui.js', 'logic.js', 'main.js'];
@@ -38,7 +39,7 @@ function split() {
   write(path.join(sourceDir, 'main.js'), body.slice(logicEnd));
 }
 
-function build() {
+function buildReadable() {
   const header = read(path.join(sourceDir, 'header.txt')).trimEnd();
   const body = parts.map((part) => read(path.join(sourceDir, part)).trim()).join('\n\n').replace(/__NSIT_VENDOR_ASSET__\('([^']+)'\)/g, (_, file) => {
     const asset = path.join(assetDir, file);
@@ -49,7 +50,22 @@ function build() {
   write(output, `${header}\n\n${start}${body}\n})();`);
 }
 
+async function build() {
+  buildReadable();
+  const source = read(output);
+  const headerEnd = source.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length;
+  if (headerEnd < '// ==/UserScript=='.length) throw new Error('无法识别 userscript 元数据。');
+  const { minify } = require('terser');
+  const result = await minify(source.slice(headerEnd), {
+    compress: { passes: 2 },
+    mangle: true,
+    format: { comments: false },
+  });
+  if (!result.code) throw new Error('压缩 userscript 失败。');
+  write(minifiedOutput, `${source.slice(0, headerEnd)}\n\n${result.code}`);
+}
+
 const command = process.argv[2];
 if (command === 'split') split();
-else if (command === 'build') build();
+else if (command === 'build') build().catch((error) => { throw error; });
 else throw new Error('用法：node tools/build.js <split|build>');

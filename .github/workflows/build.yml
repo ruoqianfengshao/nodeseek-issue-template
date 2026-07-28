@@ -2,7 +2,12 @@ name: Build userscript
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,16 +20,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: false
+          cache: npm
+      - name: Install build dependencies
+        run: npm ci
       - name: Build userscript
         run: node tools/build.js build
       - name: Verify generated script
         run: |
           node --check 'NodeSeek Issue Templates.user.js'
+          node --check 'NodeSeek Issue Templates.min.user.js'
           git diff --check
-          git diff --exit-code -- 'NodeSeek Issue Templates.user.js'
+          git ls-files --error-unmatch -- 'NodeSeek Issue Templates.min.user.js'
+          git diff --exit-code -- 'NodeSeek Issue Templates.user.js' 'NodeSeek Issue Templates.min.user.js'
       - name: Upload userscript artifact
         uses: actions/upload-artifact@v4
         with:
           name: NodeSeek-Issue-Templates
-          path: NodeSeek Issue Templates.user.js
+          path: |
+            NodeSeek Issue Templates.user.js
+            NodeSeek Issue Templates.min.user.js

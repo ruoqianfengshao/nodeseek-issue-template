@@ -1,11 +1,14 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.1.42';
+  const VERSION = '1.2.42';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
+  const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
   const MACHINE_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'renewalCycle', 'renewalAmount', 'currency', 'expiryDate', 'tradeDate', 'nqUrl', 'tqUrl', 'askingPrice', 'askingPremium', 'remarks'];
   const RATE_CACHE_KEY = 'nsit-cny-rates-v1';
+  const MACHINE_CATALOG_API_URL = 'https://nsit-machine-catalog.ruoqianfengshao.workers.dev';
+  const MACHINE_CATALOG_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'renewalCycle', 'renewalAmount', 'currency'];
   const CURRENCY_CODES = { 'CNY 人民币': 'CNY', 'USD 美元': 'USD', 'EUR 欧元': 'EUR', 'GBP 英镑': 'GBP', 'JPY 日元': 'JPY', 'KRW 韩元': 'KRW', 'AUD 澳元': 'AUD', 'HKD 港元': 'HKD', 'TWD 新台币': 'TWD', 'CAD 加拿大元': 'CAD', 'SGD 新加坡元': 'SGD' };
   const CYCLE_MONTHS = { '月付': 1, '季付': 3, '半年付': 6, '年付': 12, '两年付': 24, '三年付': 36, '五年付': 60 };
   const OPTIONS = {
@@ -39,7 +42,7 @@
   const fields = [
     ['postTitle', '帖子标题', 'text', '会根据填写内容自动生成，也可手动修改'],
     ['vendor', '厂商', 'list', '输入或选择厂商', 'vendors'],
-    ['model', '型号', 'text', '例如：PVM.LAX.Pro'],
+    ['model', '型号', 'text', '请输入并查询'],
     ['cpu', 'CPU', 'list', '输入或选择', 'cpu'],
     ['memory', '内存', 'list', '输入或选择', 'memory'],
     ['disk', '硬盘', 'list', '输入或选择', 'disk'],

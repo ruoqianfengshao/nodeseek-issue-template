@@ -1,13 +1,16 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.1.42
+// @version      1.2.42
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_addStyle
+// @grant        unsafeWindow
 // @connect      api.nodeimage.com
+// @connect      *.workers.dev
 // @run-at       document-idle
 // ==/UserScript==

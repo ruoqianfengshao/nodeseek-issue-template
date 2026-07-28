@@ -305,24 +305,6 @@
     setPricePreview(app, 'fair', `<span>${formatPreviewOperand(askingPrice)} ÷ ${formatPreviewOperand(remainingCny)} =</span><b>${(askingPrice / remainingCny * 10).toFixed(1)} 折</b>`);
   }
 
-  function drawCardText(context, text, x, y, maxWidth) {
-    const words = String(text || '').split('');
-    let line = '';
-    let currentY = y;
-    words.forEach((word) => {
-      const next = line + word;
-      if (context.measureText(next).width > maxWidth && line) {
-        context.fillText(line, x, currentY);
-        currentY += 34;
-        line = word;
-      } else {
-        line = next;
-      }
-    });
-    if (line) context.fillText(line, x, currentY);
-    return currentY;
-  }
-
   function createValueCard(values, app, rate = activeRate(app)) {
     const result = calculation(values);
     if (!result || !rate) throw new Error('请先填写有效的续费信息并等待汇率加载完成');
@@ -330,41 +312,74 @@
     const cny = result.value * rate.rate;
     const canvas = document.createElement('canvas');
     const cardWidth = 1200;
-    const cardHeight = 260;
-    const cardScale = 640 / cardWidth;
-    canvas.width = 640; canvas.height = Math.round(cardHeight * cardScale);
+    const cardHeight = 550;
+    canvas.width = cardWidth; canvas.height = cardHeight;
     const context = canvas.getContext('2d');
-    context.scale(cardScale, cardScale);
-    const radius = 22;
+    const roundedBox = (x, y, width, height, radius, fill, stroke = '') => {
+      context.beginPath();
+      context.roundRect(x, y, width, height, radius);
+      if (fill) { context.fillStyle = fill; context.fill(); }
+      if (stroke) { context.strokeStyle = stroke; context.lineWidth = 2; context.stroke(); }
+    };
+    const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    const date = values.tradeDate || '—';
     context.beginPath();
-    context.roundRect(2, 2, cardWidth - 4, cardHeight - 4, radius);
-    context.fillStyle = '#fffdf8'; context.fill();
-    context.strokeStyle = '#f0cf8a'; context.lineWidth = 3; context.stroke();
-    context.fillStyle = '#8b641e'; context.font = '600 27px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    context.fillText('💵 剩余价值', 38, 58);
-    context.fillStyle = '#718096'; context.font = '24px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    context.fillText('＝金额 × 剩余天数 ÷ 周期天数', 196, 58);
-    context.fillStyle = '#8b641e'; context.font = '600 26px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    context.fillText(`剩余 ${result.daysLeft} 天   周期占比 ${result.percentage.toFixed(1)}%`, 716, 58);
-    context.fillStyle = '#def0e3'; context.beginPath(); context.roundRect(1054, 42, 108, 13, 7); context.fill();
-    context.fillStyle = '#239652'; context.beginPath(); context.roundRect(1054, 42, Math.max(0, 108 * result.percentage / 100), 13, 7); context.fill();
-    context.fillStyle = '#d9961c'; context.font = '700 68px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    context.fillText(`¥${cny.toFixed(2)}`, 38, 175);
-    let previewLeft = '填写预出价格后显示价格预览';
-    let previewRight = '';
+    context.roundRect(2, 2, cardWidth - 4, cardHeight - 4, 28);
+    context.fillStyle = '#f8fafc'; context.fill();
+    context.strokeStyle = '#dbe4ef'; context.lineWidth = 3; context.stroke();
+    roundedBox(2, 2, cardWidth - 4, 108, 26, '#27334a');
+    context.fillStyle = '#fff'; context.font = `700 34px ${sans}`;
+    context.fillText('剩余价值', 42, 55);
+    context.fillStyle = '#bdc9da'; context.font = `400 21px ${sans}`;
+    context.fillText('按续费金额、周期与计算日期估算', 42, 88);
+    context.textAlign = 'right'; context.fillStyle = '#fff3d8'; context.font = `600 24px ${sans}`;
+    context.fillText(`剩余 ${result.daysLeft} 天`, 1158, 55);
+    context.fillStyle = '#bdc9da'; context.font = `400 20px ${sans}`;
+    context.fillText(`周期占比 ${result.percentage.toFixed(1)}%`, 1158, 87); context.textAlign = 'left';
+
+    const info = [
+      ['续费金额 / 周期', `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`],
+      ['到期日期', values.expiryDate || '—'],
+      ['价值计算日期', date],
+    ];
+    const infoWidth = 368;
+    info.forEach(([label, value], index) => {
+      const x = 32 + index * (infoWidth + 16);
+      roundedBox(x, 138, infoWidth, 98, 16, '#fff', '#dfe7f0');
+      context.fillStyle = '#718096'; context.font = `500 19px ${sans}`;
+      context.fillText(label, x + 20, 172);
+      context.fillStyle = '#27334a'; context.font = `650 26px ${sans}`;
+      context.fillText(value, x + 20, 210);
+    });
+
+    roundedBox(32, 264, 544, 238, 20, '#fff8e9', '#efd39a');
+    context.fillStyle = '#8b641e'; context.font = `600 22px ${sans}`;
+    context.fillText('剩余价值', 60, 305);
+    context.fillStyle = '#d9961c'; context.font = `750 76px ${sans}`;
+    context.fillText(`¥${cny.toFixed(2)}`, 60, 391);
+    context.fillStyle = '#718096'; context.font = `500 18px ${sans}`;
+    context.fillText(`${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} × ${result.daysLeft} 天 ÷ ${result.cycleDays} 天 = ${currencySymbol(values.currency)}${result.value.toFixed(2)}`, 60, 438);
+    context.fillStyle = '#95a3b8'; context.font = `400 18px ${sans}`;
+    context.fillText(`汇率：1 ${currencyCode(values.currency) || values.currency || '—'} = ${rate.rate.toFixed(4)} CNY`, 60, 476);
+
+    let previewTop = '未填写预出价格';
+    let previewBottom = '填写总价或溢价后显示预览';
     let previewColor = '#718096';
     if (Number.isFinite(askingPrice) && askingPrice >= 0) {
-      if (cny === 0) { previewLeft = ''; previewRight = `溢价 ¥${askingPrice.toFixed(2)}`; previewColor = '#c04444'; }
-      else if (askingPrice > cny) { previewLeft = `¥${askingPrice.toFixed(2)} − ¥${cny.toFixed(2)} =`; previewRight = `溢价 ¥${(askingPrice - cny).toFixed(2)}`; previewColor = '#c04444'; }
-      else if (askingPrice === cny) { previewLeft = ''; previewRight = '剩余价值出'; previewColor = '#27834a'; }
-      else { previewLeft = `¥${askingPrice.toFixed(2)} ÷ ¥${cny.toFixed(2)} =`; previewRight = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewColor = '#27834a'; }
+      if (cny === 0) { previewTop = `溢价 ¥${askingPrice.toFixed(2)}`; previewBottom = '剩余价值为 0'; previewColor = '#c04444'; }
+      else if (askingPrice > cny) { previewTop = `溢价 ¥${(askingPrice - cny).toFixed(2)}`; previewBottom = `总价 ¥${askingPrice.toFixed(2)} − 剩余价值 ¥${cny.toFixed(2)}`; previewColor = '#c04444'; }
+      else if (askingPrice === cny) { previewTop = '剩余价值出'; previewBottom = `总价 ¥${askingPrice.toFixed(2)}`; previewColor = '#27834a'; }
+      else { previewTop = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewBottom = `总价 ¥${askingPrice.toFixed(2)} ÷ 剩余价值 ¥${cny.toFixed(2)}`; previewColor = '#27834a'; }
     }
-    context.fillStyle = previewColor;
-    context.font = '700 68px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    context.textAlign = 'right'; context.fillText(previewRight, 1162, 175);
-    const rightWidth = context.measureText(previewRight).width;
-    context.font = '600 35px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    context.fillText(previewLeft, 1144 - rightWidth, 175); context.textAlign = 'left';
+    roundedBox(592, 264, 576, 238, 20, '#fff', '#dfe7f0');
+    context.fillStyle = '#52627c'; context.font = `600 22px ${sans}`;
+    context.fillText('价格预览', 620, 305);
+    context.fillStyle = previewColor; context.font = `750 65px ${sans}`;
+    context.fillText(previewTop, 620, 391);
+    context.fillStyle = '#718096'; context.font = `500 20px ${sans}`;
+    context.fillText(previewBottom, 620, 438);
+    context.fillStyle = '#95a3b8'; context.font = `400 18px ${sans}`;
+    context.fillText('价格以人民币计算', 620, 474);
     return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png'));
   }
 
@@ -452,14 +467,25 @@
   function markdown(values, cardMarkdown = '', rate = null) {
     const result = calculation(values);
     const pair = (label, value) => value ? `- ${label}：${value}` : '';
+    const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
     const basic = [[values.vendor, values.model].filter(Boolean).join(' ') ? `- 厂商&型号：${[values.vendor, values.model].filter(Boolean).join(' ')}` : '', [['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', values.traffic]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，') ? `- 配置：${[['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', values.traffic]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，')}` : ''].filter(Boolean);
-    const renewal = [pair('续费周期', values.renewalCycle), values.renewalAmount ? `- 续费金额：${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', pair('到期日期', values.expiryDate), pair('交易日期', values.tradeDate)].filter(Boolean);
-    if (result) renewal.push(`- 剩余价值：${currencySymbol(values.currency)}${result.value.toFixed(2)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`);
+    const renewal = [values.renewalAmount || values.renewalCycle ? `- 续费金额 / 周期：${[values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', values.renewalCycle].filter(Boolean).join(' / ')}` : '', pair('到期日期', values.expiryDate), pair('交易日期', values.tradeDate)].filter(Boolean);
+    if (result && rate) {
+      const cnyValue = result.value * rate.rate;
+      const originalValue = `${currencySymbol(values.currency)}${result.value.toFixed(2)}`;
+      const calculation = `¥${cnyValue.toFixed(2)}`;
+      const detail = currencyCode(values.currency) === 'CNY'
+        ? `（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`
+        : ` = ${originalValue} × ${rate.rate.toFixed(4)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`;
+      renewal.push(`- 剩余价值：${calculation}${detail}`);
+    } else if (result) {
+      renewal.push(`- 剩余价值：${currencySymbol(values.currency)}${result.value.toFixed(2)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`);
+    }
     const askingPrice = effectiveAskingPrice(values, rate);
     if (Number.isFinite(askingPrice)) renewal.push(`- 预出价格：¥${askingPrice.toFixed(2)}（人民币）`);
     if (cardMarkdown) renewal.push(cardMarkdown);
     const transfer = values.transferTags.map((tag) => `- ${tag}`);
-    const reports = [pair('NQ 地址', values.nqUrl), pair('TQ 地址', values.tqUrl), pair('TG 联系', values.tgContact)].filter(Boolean);
+    const reports = [values.nqUrl ? `- [NQ 地址](${values.nqUrl})` : '', values.tqUrl ? `- [TQ 地址](${values.tqUrl})` : '', pair('TG 联系', tgContact(values.tgContact))].filter(Boolean);
     const parts = [];
     if (basic.length) parts.push(`## 基本信息\n${basic.join('\n')}`);
     if (renewal.length) parts.push(`## 续费与价值\n${renewal.join('\n')}`);
@@ -491,17 +517,24 @@
       else price += ` · ${(askingPrice / remainingCny * 10).toFixed(1)} 折`;
     }
     const table = `| 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 测试报告 | 价格 |\n| --- | --- | --- | --- | --- | --- | --- |\n| ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${reports} | ${price} |`;
-    const other = [values.transferTags.length ? `- 转让信息：${values.transferTags.join('、')}` : '', values.tgContact ? `- TG 联系：${values.tgContact}` : '', String(values.remarks || '').trim() ? `- 单机备注：${String(values.remarks).trim()}` : '', String(values.postRemarks || '').trim() ? `- 整贴备注：${String(values.postRemarks).trim()}` : ''].filter(Boolean);
+    const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
+    const other = [values.transferTags.length ? `- 转让信息：${values.transferTags.join('、')}` : '', values.tgContact ? `- TG 联系：${tgContact(values.tgContact)}` : '', String(values.remarks || '').trim() ? `- 单机备注：${String(values.remarks).trim()}` : '', String(values.postRemarks || '').trim() ? `- 整贴备注：${String(values.postRemarks).trim()}` : ''].filter(Boolean);
     return [`## 基础信息\n${table}`, cardMarkdown ? `## 剩余价值\n${cardMarkdown}` : '', other.length ? `## 其他信息\n${other.join('\n')}` : ''].filter(Boolean).join('\n\n');
   }
 
   function textMarkdownForMachines(machines, app, cards, shared) {
+    const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
+    if (machines.length === 1) {
+      const other = [shared.tgContact ? `## 联系方式\n- TG 联系：${tgContact(shared.tgContact)}` : '', String(shared.postRemarks || '').trim() ? `## 整贴备注\n${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
+      return [markdown(machines[0], cards[0] || '', rateForValues(app, machines[0])), ...other].join('\n\n');
+    }
     const blocks = machines.map((machine, index) => `## #${index + 1} 鸡\n\n${markdown(machine, cards[index] || '', rateForValues(app, machine))}`);
-    const other = [shared.tgContact ? `## 联系方式\n- TG 联系：${shared.tgContact}` : '', String(shared.postRemarks || '').trim() ? `## 整贴备注\n${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
+    const other = [shared.tgContact ? `## 联系方式\n- TG 联系：${tgContact(shared.tgContact)}` : '', String(shared.postRemarks || '').trim() ? `## 整贴备注\n${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
     return [...blocks, ...other].filter(Boolean).join('\n\n---\n\n');
   }
 
   function tableMarkdownForMachines(machines, app, cards, shared) {
+    if (machines.length === 1) return tableMarkdown({ ...machines[0], tgContact: shared.tgContact, postRemarks: shared.postRemarks }, app, cards[0] || '');
     const rows = machines.map((values, index) => {
       const result = calculation(values);
       const rate = rateForValues(app, values);
@@ -530,13 +563,16 @@
       String(machine.remarks || '').trim() ? `- ${reference} 单机备注：${String(machine.remarks).trim()}` : '',
       ];
     }).filter(Boolean);
-    const other = [shared.tgContact ? `- TG 联系：${shared.tgContact}` : '', ...notes, String(shared.postRemarks || '').trim() ? `- 整贴备注：${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
+    const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
+    const other = [shared.tgContact ? `- TG 联系：${tgContact(shared.tgContact)}` : '', ...notes, String(shared.postRemarks || '').trim() ? `- 整贴备注：${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
     return [`## 基础信息\n${table}`, cards.filter(Boolean).length ? `## 剩余价值\n${cards.filter(Boolean).join('\n\n')}` : '', other.length ? `## 其他信息\n${other.join('\n')}` : ''].filter(Boolean).join('\n\n');
   }
 
   function saveDraft(app) {
     const values = formValues(app);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+    const tgContact = String(values.tgContact || '').trim();
+    if (tgContact) localStorage.setItem(TG_CONTACT_KEY, tgContact);
   }
 
   function restoreDraft(app) {
@@ -554,6 +590,11 @@
         if (control) control.value = value;
       });
     } catch (_) { /* 无效草稿时忽略 */ }
+    try {
+      const tgContact = localStorage.getItem(TG_CONTACT_KEY)?.trim();
+      const control = app.querySelector('[name="tgContact"]');
+      if (tgContact && control) control.value = tgContact;
+    } catch (_) { /* 存储不可用时忽略 */ }
   }
 
   function restoreCardToggle(app) {
@@ -746,6 +787,202 @@
     app.querySelector('.nsit-modal').setAttribute('aria-hidden', 'true');
   }
 
+  function catalogApiUrl(path, params = null) {
+    if (!MACHINE_CATALOG_API_URL) return '';
+    const url = new URL(path, MACHINE_CATALOG_API_URL.replace(/\/$/, '') + '/');
+    if (params) Object.entries(params).forEach(([name, value]) => {
+      if (String(value || '').trim()) url.searchParams.set(name, value);
+    });
+    return url.toString();
+  }
+
+  async function catalogRequest(path, options = {}) {
+    const url = catalogApiUrl(path);
+    if (!url) throw new Error('共享配置服务尚未配置');
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.error || `请求失败（HTTP ${response.status}）`);
+    return data;
+  }
+
+  function machineConfig(machine) {
+    return Object.fromEntries(MACHINE_CATALOG_FIELDS.map((name) => [name, String(machine[name] || '').trim()]));
+  }
+
+  function machineConfigComplete(machine) {
+    return MACHINE_CATALOG_FIELDS.every((name) => machine[name]);
+  }
+
+  function currentNodeSeekNickname() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const memberName = pageWindow.__config__?.user?.member_name;
+    if (typeof memberName === 'string' && memberName.trim() && memberName.trim().length <= 64) return memberName.trim();
+    const selectors = ['[data-user-nickname]', '[data-username]', '.navbar .username', '.user-menu .username', 'a[href^="/u/"]'];
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      const nickname = element?.dataset.userNickname || element?.dataset.username || element?.textContent?.trim();
+      if (nickname && nickname.length <= 64) return nickname;
+    }
+    return '';
+  }
+
+  function renderCatalogResults(app, records) {
+    const container = app.querySelector('[data-nsit-catalog-results]');
+    if (!records.length) {
+      container.innerHTML = '<p class="nsit-catalog-empty">没有找到匹配的共享配置。</p>';
+      return;
+    }
+    container.innerHTML = records.map((record, index) => `<button type="button" class="nsit-catalog-result" data-catalog-result="${index}"><span><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><br>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)} · ${escapeHtml(record.bandwidth)} · ${escapeHtml(record.traffic)}</span><small>首次收录：${escapeHtml(record.submittedByNickname)}</small></button>`).join('');
+    app._nsitCatalogResults = records;
+  }
+
+  function openMachineCatalog(app) {
+    const values = formValues(app);
+    const form = app.querySelector('[data-nsit-catalog-search]');
+    form.elements.catalogVendor.value = values.vendor || '';
+    form.elements.catalogModel.value = values.model || '';
+    app.classList.add('nsit-catalog-open');
+    app.querySelector('.nsit-catalog-modal').setAttribute('aria-hidden', 'false');
+    form.elements.catalogVendor.focus();
+  }
+
+  function closeMachineCatalog(app) {
+    app.classList.remove('nsit-catalog-open');
+    app.querySelector('.nsit-catalog-modal').setAttribute('aria-hidden', 'true');
+  }
+
+  function closeModelSuggestions(app) {
+    const suggest = app.querySelector('.nsit-model-suggest');
+    if (suggest) suggest.classList.remove('is-open');
+  }
+
+  function renderModelSuggestions(app, records) {
+    const suggest = app.querySelector('.nsit-model-suggest');
+    const menu = app.querySelector('[data-nsit-model-suggest-menu]');
+    if (!suggest || !menu) return;
+    if (!records.length) {
+      menu.innerHTML = '<p class="nsit-model-suggest-empty">未匹配到配置，直接输入即可，期待您贡献此配置</p>';
+    } else {
+      menu.innerHTML = records.map((record, index) => `<button type="button" class="nsit-model-suggestion" data-nsit-model-suggestion="${index}"><strong>${escapeHtml(record.model)}</strong><small>@${escapeHtml(record.submittedByNickname)}</small><span class="nsit-model-suggestion-vendor">${escapeHtml(record.vendor)}</span><span class="nsit-model-suggestion-spec">${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)}</span><span class="nsit-model-suggestion-network">流量 ${escapeHtml(record.traffic)} · 带宽 ${escapeHtml(record.bandwidth)}</span><span class="nsit-model-suggestion-renewal">${escapeHtml(currencyCode(record.currency) || record.currency)} ${escapeHtml(record.renewalAmount)} / ${escapeHtml(record.renewalCycle)}</span></button>`).join('');
+    }
+    app._nsitModelSuggestions = records;
+    suggest.classList.add('is-open');
+  }
+
+  function searchModelSuggestions(app) {
+    const values = formValues(app);
+    const vendor = String(values.vendor || '').trim();
+    const model = String(values.model || '').trim();
+    const signature = `${vendor}\u0000${model}`;
+    clearTimeout(app._nsitModelSearchTimer);
+    app._nsitModelSearchSignature = signature;
+    if (!MACHINE_CATALOG_API_URL || !model) {
+      closeModelSuggestions(app);
+      return;
+    }
+    app._nsitModelSearchTimer = setTimeout(async () => {
+      try {
+        const response = await fetch(catalogApiUrl('v1/machine-configs/search', { vendor, model }));
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || `搜索失败（HTTP ${response.status}）`);
+        if (app._nsitModelSearchSignature !== signature) return;
+        renderModelSuggestions(app, data.records || []);
+      } catch (error) {
+        if (app._nsitModelSearchSignature !== signature) return;
+        closeModelSuggestions(app);
+      }
+    }, 300);
+  }
+
+  function applyModelSuggestion(app, record) {
+    MACHINE_CATALOG_FIELDS.forEach((name) => {
+      const control = app.querySelector(`[name="${CSS.escape(name)}"]`);
+      if (control) control.value = record[name] || '';
+    });
+    refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
+    refreshTitle(app); refreshCard(app); refreshPricePreview(app); saveDraft(app);
+    saveActiveMachine(app); renderMachineTabs(app);
+    closeModelSuggestions(app);
+    setStatus(app, '已回填共享配置。');
+  }
+
+  async function searchMachineCatalog(app) {
+    const form = app.querySelector('[data-nsit-catalog-search]');
+    const vendor = form.elements.catalogVendor.value.trim();
+    const model = form.elements.catalogModel.value.trim();
+    const container = app.querySelector('[data-nsit-catalog-results]');
+    if (!vendor && !model) {
+      container.innerHTML = '<p class="nsit-catalog-empty">请至少输入厂商或型号。</p>';
+      return;
+    }
+    if (!MACHINE_CATALOG_API_URL) {
+      container.innerHTML = '<p class="nsit-catalog-empty">共享配置服务尚未配置。</p>';
+      return;
+    }
+    container.innerHTML = '<p class="nsit-catalog-empty">正在搜索…</p>';
+    try {
+      const url = catalogApiUrl('v1/machine-configs/search', { vendor, model });
+      const response = await fetch(url);
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `搜索失败（HTTP ${response.status}）`);
+      renderCatalogResults(app, data.records || []);
+    } catch (error) {
+      container.innerHTML = `<p class="nsit-catalog-empty">${escapeHtml(error.message || '搜索失败，请稍后重试。')}</p>`;
+    }
+  }
+
+  function applyCatalogRecord(app, record) {
+    MACHINE_CATALOG_FIELDS.forEach((name) => {
+      const control = app.querySelector(`[name="${CSS.escape(name)}"]`);
+      if (control) control.value = record[name] || '';
+    });
+    refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
+    refreshTitle(app); refreshCard(app); refreshPricePreview(app); saveDraft(app);
+    saveActiveMachine(app); renderMachineTabs(app);
+    closeMachineCatalog(app);
+    setStatus(app, '已回填共享配置。');
+  }
+
+  async function syncMachineCatalog(machine) {
+    if (!MACHINE_CATALOG_API_URL) return;
+    const config = machineConfig(machine);
+    if (MACHINE_CATALOG_FIELDS.some((name) => !config[name])) return;
+    const submittedByNickname = currentNodeSeekNickname();
+    if (!submittedByNickname) throw new Error('未能读取当前 NodeSeek 昵称，已跳过共享配置收录');
+    const exactUrl = catalogApiUrl('v1/machine-configs/exact', config);
+    const existingResponse = await fetch(exactUrl);
+    const existing = await existingResponse.json().catch(() => null);
+    if (!existingResponse.ok) throw new Error(existing?.error || `查询失败（HTTP ${existingResponse.status}）`);
+    if (existing?.record) return { created: false, record: existing.record };
+    const created = await catalogRequest('v1/machine-configs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...config, submittedByNickname }),
+    });
+    return { created: Boolean(created.created), record: created.record };
+  }
+
+  async function offerMissingMachineConfigs(app, machines) {
+    if (!MACHINE_CATALOG_API_URL) return;
+    const handled = new Set();
+    for (const machine of machines) {
+      const config = machineConfig(machine);
+      const signature = JSON.stringify(config);
+      if (!machineConfigComplete(config) || handled.has(signature)) continue;
+      handled.add(signature);
+      try {
+        const response = await fetch(catalogApiUrl('v1/machine-configs/exact', config));
+        const existing = await response.json().catch(() => null);
+        if (!response.ok || existing?.record) continue;
+        const outcome = await syncMachineCatalog(config);
+        console.info('[NSIT] 共享配置上报结果', outcome?.created ? 'created' : 'exists');
+      } catch (error) {
+        console.warn('[NSIT] 共享配置检查或上报失败', error);
+        setStatus(app, `配置上报失败：${error?.message || '请稍后重试'}`);
+      }
+    }
+  }
+
   async function fillPost(app, mode = 'text') {
     try {
       saveActiveMachine(app);
@@ -787,6 +1024,7 @@
       if (didFill) selectTradeCategory();
       setStatus(app, didFill ? '已回填标题和 Markdown；请检查后手动发布。' : '未找到 NodeSeek 正文编辑器，请刷新页面后重试。');
       if (didFill) closeModal(app);
+      if (didFill && app.querySelector('[name="checkMachineConfig"]').checked) offerMissingMachineConfigs(app, machines);
     } catch (error) {
       console.error('[NSIT]', '生成异常', error);
       setStatus(app, `生成失败：${error?.message || '未知错误'}`);

@@ -32,6 +32,7 @@
       if (event.target.name !== 'postTitle') refreshTitle(app);
       refreshCard(app); refreshPricePreview(app); saveDraft(app);
       saveActiveMachine(app); renderMachineTabs(app);
+      if (event.target.name === 'vendor' || event.target.name === 'model') searchModelSuggestions(app);
       if (event.target.name === 'currency') loadRate(app);
     });
     app.addEventListener('focusin', (event) => {
@@ -99,6 +100,16 @@
       }
     });
     app.addEventListener('pointerdown', (event) => {
+      const pickerInput = event.target.matches('[data-nsit-picker-input="true"]') ? event.target : null;
+      if (pickerInput) {
+        const picker = pickerInput.closest('.nsit-picker');
+        app.querySelectorAll('.nsit-picker.is-open').forEach((item) => {
+          if (item !== picker) setPickerOpen(item, false);
+        });
+        showAllPickerOptions(picker);
+        setPickerOpen(picker, true);
+        return;
+      }
       const pickerOption = event.target.closest('.nsit-picker-menu [data-nsit-picker-option]');
       if (!pickerOption) return;
       event.preventDefault();
@@ -108,6 +119,24 @@
     app.addEventListener('click', async (event) => {
       const pickerOption = event.target.closest('.nsit-picker-menu [data-nsit-picker-option]');
       if (pickerOption) {
+        return;
+      }
+      const modelSuggestionIndex = event.target.closest('[data-nsit-model-suggestion]')?.dataset.nsitModelSuggestion;
+      if (modelSuggestionIndex !== undefined) {
+        const record = app._nsitModelSuggestions?.[Number(modelSuggestionIndex)];
+        if (record) applyModelSuggestion(app, record);
+        return;
+      }
+      const pickerInput = event.target.matches('[data-nsit-picker-input="true"]') ? event.target : null;
+      if (pickerInput) {
+        const picker = pickerInput.closest('.nsit-picker');
+        if (!picker.classList.contains('is-open')) {
+          app.querySelectorAll('.nsit-picker.is-open').forEach((item) => {
+            if (item !== picker) setPickerOpen(item, false);
+          });
+          showAllPickerOptions(picker);
+          setPickerOpen(picker, true);
+        }
         return;
       }
       const pickerToggle = event.target.closest('.nsit-picker-toggle');
@@ -133,6 +162,20 @@
       }
       if (action === 'refresh-rate') {
         loadRate(app, true);
+        return;
+      }
+      if (action === 'open-machine-catalog') {
+        openMachineCatalog(app);
+        return;
+      }
+      if (action === 'close-machine-catalog') {
+        closeMachineCatalog(app);
+        return;
+      }
+      const catalogResultIndex = event.target.closest('[data-catalog-result]')?.dataset.catalogResult;
+      if (catalogResultIndex !== undefined) {
+        const record = app._nsitCatalogResults?.[Number(catalogResultIndex)];
+        if (record) applyCatalogRecord(app, record);
         return;
       }
       if (action === 'close') {
@@ -163,6 +206,10 @@
       event.stopPropagation();
       fillPost(app, 'table');
     });
+    app.querySelector('[data-nsit-catalog-search]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      searchMachineCatalog(app);
+    });
     app.querySelector('.nsit-trigger').addEventListener('click', () => {
       app.classList.add('nsit-open');
       app.querySelector('.nsit-modal').setAttribute('aria-hidden', 'false');
@@ -178,11 +225,15 @@
         closeModal(app);
       }
     });
+    app.querySelector('.nsit-catalog-modal').addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) closeMachineCatalog(app);
+    });
     document.addEventListener('click', (event) => {
       if (!app.isConnected) return;
       app.querySelectorAll('.nsit-picker.is-open').forEach((picker) => {
         if (!picker.contains(event.target)) setPickerOpen(picker, false);
       });
+      if (!app.querySelector('.nsit-model-suggest')?.contains(event.target)) closeModelSuggestions(app);
     });
   }
 

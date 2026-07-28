@@ -1,0 +1,35 @@
+name: Release userscript
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install build dependencies
+        run: npm ci
+      - name: Build userscripts
+        run: node tools/build.js build
+      - name: Verify userscripts
+        run: |
+          node --check 'NodeSeek Issue Templates.user.js'
+          node --check 'NodeSeek Issue Templates.min.user.js'
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            'NodeSeek Issue Templates.user.js' \
+            'NodeSeek Issue Templates.min.user.js' \
+            --generate-notes

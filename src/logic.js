@@ -43,7 +43,7 @@
       const price = Number.isFinite(total) ? `¥${total.toFixed(2)}` : '待定价';
       const logo = info.icon ? `<img src="${escapeHtml(info.icon)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">${escapeHtml(info.logo)}` : escapeHtml(info.logo);
       return `<button type="button" class="nsit-machine-tab${active ? ' is-active' : ''}" data-machine-index="${index}" title="${escapeHtml(info.fullName)}"><small class="nsit-machine-index">#${index + 1}</small><i class="nsit-machine-logo">${logo}</i><span class="nsit-machine-name">${escapeHtml(info.model)}</span><small class="nsit-machine-meta">${escapeHtml(price)}</small></button>`;
-    }).join('') + `<button type="button" class="nsit-machine-tab nsit-machine-add" data-action="add-machine"${machineReady(app._nsitMachines[app._nsitActiveMachine]) ? '' : ' disabled'}><i class="nsit-machine-logo">＋</i><span class="nsit-machine-name">添加单机</span></button>`;
+    }).join('') + `<button type="button" class="nsit-machine-tab nsit-machine-add" data-action="add-machine"${machineReady(app._nsitMachines[app._nsitActiveMachine]) ? '' : ' disabled'}><i class="nsit-machine-logo">＋</i><span class="nsit-machine-name">添加单机</span></button><button type="button" class="nsit-machine-tab nsit-machine-registered" data-action="open-registered-machine-configs"><i class="nsit-machine-logo">⌑</i><span class="nsit-machine-name">已注册机器配置</span></button>`;
   }
 
   function initializeMachines(app) {
@@ -849,6 +849,40 @@
   function closeMachineCatalog(app) {
     app.classList.remove('nsit-catalog-open');
     app.querySelector('.nsit-catalog-modal').setAttribute('aria-hidden', 'true');
+  }
+
+  function closeRegisteredMachineConfigs(app) {
+    app.classList.remove('nsit-registered-machine-configs-open');
+    app.querySelector('.nsit-registered-machine-configs-modal').setAttribute('aria-hidden', 'true');
+  }
+
+  function renderRegisteredMachineConfigs(app, records) {
+    const container = app.querySelector('[data-nsit-registered-machine-configs]');
+    if (!records.length) {
+      container.innerHTML = '<p class="nsit-catalog-empty">你还没有注册过机器配置。</p>';
+      return;
+    }
+    container.innerHTML = records.map((record) => `<article class="nsit-registered-machine-config"><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><span>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)} · 流量 ${escapeHtml(record.traffic)} · 带宽 ${escapeHtml(record.bandwidth)}</span><small>${escapeHtml(currencyCode(record.currency) || record.currency)} ${escapeHtml(record.renewalAmount)} / ${escapeHtml(record.renewalCycle)} · 收录于 ${escapeHtml(String(record.createdAt || '').slice(0, 10))}</small></article>`).join('');
+  }
+
+  async function openRegisteredMachineConfigs(app) {
+    const nickname = currentNodeSeekNickname();
+    const container = app.querySelector('[data-nsit-registered-machine-configs]');
+    app.classList.add('nsit-registered-machine-configs-open');
+    app.querySelector('.nsit-registered-machine-configs-modal').setAttribute('aria-hidden', 'false');
+    if (!nickname) {
+      container.innerHTML = '<p class="nsit-catalog-empty">未能读取当前 NodeSeek 昵称，无法查询已注册配置。</p>';
+      return;
+    }
+    container.innerHTML = '<p class="nsit-catalog-empty">正在查询 @' + escapeHtml(nickname) + ' 注册的配置…</p>';
+    try {
+      const response = await fetch(catalogApiUrl('v1/machine-configs/submitted', { nickname }));
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `查询失败（HTTP ${response.status}）`);
+      renderRegisteredMachineConfigs(app, data.records || []);
+    } catch (error) {
+      container.innerHTML = `<p class="nsit-catalog-empty">${escapeHtml(error.message || '查询失败，请稍后重试。')}</p>`;
+    }
   }
 
   function closeModelSuggestions(app) {

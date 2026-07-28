@@ -149,6 +149,18 @@
       #${APP_ID} .nsit-model-suggestion-spec{grid-column:2;grid-row:2;text-align:right}
       #${APP_ID} .nsit-model-suggestion-network{grid-column:1;grid-row:3;color:#52627c!important}
       #${APP_ID} .nsit-model-suggestion-renewal{grid-column:2;grid-row:3;text-align:right}
+      #${APP_ID} .nsit-machine-registered{margin-top:auto;border-color:#b9c9df;background:#f5f8fc;color:#506078}
+      #${APP_ID} .nsit-machine-registered .nsit-machine-logo{border-radius:4px 4px 2px 2px;background:#dce8f8;color:#3f6d9f}
+      #${APP_ID} .nsit-registered-machine-configs-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}
+      #${APP_ID}.nsit-registered-machine-configs-open .nsit-registered-machine-configs-modal{display:grid;place-items:center}
+      #${APP_ID} .nsit-registered-machine-configs-dialog{width:min(720px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}
+      #${APP_ID} .nsit-registered-machine-configs-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}
+      #${APP_ID} .nsit-registered-machine-configs-head h3{font-size:16px}
+      #${APP_ID} .nsit-registered-machine-configs{display:grid;gap:8px;min-height:120px;padding:14px 16px}
+      #${APP_ID} .nsit-registered-machine-config{display:grid;gap:4px;border:1px solid #e2e8f0;border-radius:8px;background:#fbfcfe;padding:11px 12px}
+      #${APP_ID} .nsit-registered-machine-config strong{color:#27334a}
+      #${APP_ID} .nsit-registered-machine-config span{color:#506078;font-size:13px;line-height:1.55}
+      #${APP_ID} .nsit-registered-machine-config small{color:#8794aa;font-size:12px}
     `;
     injectStyles(`${styles}\n${modelSuggestionStyles}`);
     app.innerHTML = `
@@ -176,6 +188,12 @@
           <header class="nsit-catalog-head"><div class="nsit-catalog-head-copy"><h3>查询历史出鸡</h3><small>如果搜不到想出的🐔，请你提交第一份配置</small></div><button type="button" class="nsit-close" data-action="close-machine-catalog" aria-label="关闭查询历史出鸡">×</button></header>
           <form class="nsit-catalog-search" data-nsit-catalog-search><input name="catalogVendor" placeholder="厂商（模糊搜索）" autocomplete="off"><input name="catalogModel" placeholder="型号（模糊搜索）" autocomplete="off"><button type="submit">搜索</button></form>
           <div class="nsit-catalog-results" data-nsit-catalog-results><p class="nsit-catalog-empty">输入厂商或型号后搜索共享配置。</p></div>
+        </section>
+      </div>
+      <div class="nsit-registered-machine-configs-modal" aria-hidden="true">
+        <section class="nsit-registered-machine-configs-dialog" role="dialog" aria-modal="true" aria-label="已注册机器配置">
+          <header class="nsit-registered-machine-configs-head"><div><h3>已注册机器配置</h3><small>仅展示当前昵称首次贡献的配置</small></div><button type="button" class="nsit-close" data-action="close-registered-machine-configs" aria-label="关闭已注册机器配置">×</button></header>
+          <div class="nsit-registered-machine-configs" data-nsit-registered-machine-configs><p class="nsit-catalog-empty">正在查询…</p></div>
         </section>
       </div>
       `;

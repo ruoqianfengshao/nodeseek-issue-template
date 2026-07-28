@@ -2,6 +2,7 @@ const CONFIG_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 
 const MAX_FIELD_LENGTH = 120;
 const MAX_NICKNAME_LENGTH = 64;
 const SEARCH_LIMIT = 30;
+const SUBMITTED_RECORDS_LIMIT = 100;
 
 function text(value, maxLength = MAX_FIELD_LENGTH) {
   const normalized = String(value ?? '').trim().replace(/\s+/g, ' ');
@@ -107,6 +108,13 @@ async function search(request, env, url) {
   return json(request, { records: result.results.map(recordFromRow) }, 200, { 'Cache-Control': 'public, max-age=60' });
 }
 
+async function submitted(request, env, url) {
+  const nickname = text(url.searchParams.get('nickname'), MAX_NICKNAME_LENGTH);
+  const result = await env.DB.prepare(`SELECT ${recordColumns} FROM machine_configs WHERE submitted_by_nickname = ? ORDER BY created_at DESC LIMIT ?`)
+    .bind(nickname, SUBMITTED_RECORDS_LIMIT).all();
+  return json(request, { records: result.results.map(recordFromRow) }, 200, { 'Cache-Control': 'public, max-age=60' });
+}
+
 async function create(request, env) {
   const body = await request.json();
   const { config, key } = normalizeConfig(body);
@@ -133,6 +141,7 @@ export default {
     try {
       if (request.method === 'GET' && url.pathname === '/v1/machine-configs/exact') return exact(request, env, url);
       if (request.method === 'GET' && url.pathname === '/v1/machine-configs/search') return search(request, env, url);
+      if (request.method === 'GET' && url.pathname === '/v1/machine-configs/submitted') return submitted(request, env, url);
       if (request.method === 'POST' && url.pathname === '/v1/machine-configs') return create(request, env);
       return json(request, { error: '未找到接口' }, 404);
     } catch (error) {

@@ -168,8 +168,16 @@
         openMachineCatalog(app);
         return;
       }
+      if (action === 'open-registered-machine-configs') {
+        openRegisteredMachineConfigs(app);
+        return;
+      }
       if (action === 'close-machine-catalog') {
         closeMachineCatalog(app);
+        return;
+      }
+      if (action === 'close-registered-machine-configs') {
+        closeRegisteredMachineConfigs(app);
         return;
       }
       const catalogResultIndex = event.target.closest('[data-catalog-result]')?.dataset.catalogResult;
@@ -227,6 +235,9 @@
     });
     app.querySelector('.nsit-catalog-modal').addEventListener('click', (event) => {
       if (event.target === event.currentTarget) closeMachineCatalog(app);
+    });
+    app.querySelector('.nsit-registered-machine-configs-modal').addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) closeRegisteredMachineConfigs(app);
     });
     document.addEventListener('click', (event) => {
       if (!app.isConnected) return;

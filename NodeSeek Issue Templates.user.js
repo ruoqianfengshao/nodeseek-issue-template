@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.2.49
+// @version      1.2.50
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,7 +19,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.2.49';
+  const VERSION = '1.2.50';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -277,7 +277,7 @@ function escapeHtml(value) {
       </div>
       <div class="nsit-registered-machine-configs-modal" aria-hidden="true">
         <section class="nsit-registered-machine-configs-dialog" role="dialog" aria-modal="true" aria-label="已注册机器配置">
-          <header class="nsit-registered-machine-configs-head"><div><h3>已注册机器配置</h3><small>仅展示当前昵称首次贡献的配置</small></div><button type="button" class="nsit-close" data-action="close-registered-machine-configs" aria-label="关闭已注册机器配置">×</button></header>
+          <header class="nsit-registered-machine-configs-head"><div><h3>已注册机器配置</h3><small>仅首次上报配置会成为贡献者</small></div><button type="button" class="nsit-close" data-action="close-registered-machine-configs" aria-label="关闭已注册机器配置">×</button></header>
           <div class="nsit-registered-machine-configs" data-nsit-registered-machine-configs><p class="nsit-catalog-empty">正在查询…</p></div>
         </section>
       </div>
@@ -330,7 +330,7 @@ function formValues(app) {
       const price = Number.isFinite(total) ? `¥${total.toFixed(2)}` : '待定价';
       const logo = info.icon ? `<img src="${escapeHtml(info.icon)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">${escapeHtml(info.logo)}` : escapeHtml(info.logo);
       return `<button type="button" class="nsit-machine-tab${active ? ' is-active' : ''}" data-machine-index="${index}" title="${escapeHtml(info.fullName)}"><small class="nsit-machine-index">#${index + 1}</small><i class="nsit-machine-logo">${logo}</i><span class="nsit-machine-name">${escapeHtml(info.model)}</span><small class="nsit-machine-meta">${escapeHtml(price)}</small></button>`;
-    }).join('') + `<button type="button" class="nsit-machine-tab nsit-machine-add" data-action="add-machine"${machineReady(app._nsitMachines[app._nsitActiveMachine]) ? '' : ' disabled'}><i class="nsit-machine-logo">＋</i><span class="nsit-machine-name">添加单机</span></button><button type="button" class="nsit-machine-tab nsit-machine-registered" data-action="open-registered-machine-configs"><i class="nsit-machine-logo">⌑</i><span class="nsit-machine-name">已注册机器配置</span></button>`;
+    }).join('') + `<button type="button" class="nsit-machine-tab nsit-machine-add" data-action="add-machine"${machineReady(app._nsitMachines[app._nsitActiveMachine]) ? '' : ' disabled'}><i class="nsit-machine-logo">＋</i><span class="nsit-machine-name">添加单机</span></button><button type="button" class="nsit-machine-tab nsit-machine-registered" data-action="open-registered-machine-configs"><i class="nsit-machine-logo">🐔</i><span class="nsit-machine-name">已注册机器配置</span></button>`;
   }
 
   function initializeMachines(app) {

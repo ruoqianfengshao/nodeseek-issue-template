@@ -192,7 +192,7 @@
       </div>
       <div class="nsit-registered-machine-configs-modal" aria-hidden="true">
         <section class="nsit-registered-machine-configs-dialog" role="dialog" aria-modal="true" aria-label="已注册机器配置">
-          <header class="nsit-registered-machine-configs-head"><div><h3>已注册机器配置</h3><small>仅展示当前昵称首次贡献的配置</small></div><button type="button" class="nsit-close" data-action="close-registered-machine-configs" aria-label="关闭已注册机器配置">×</button></header>
+          <header class="nsit-registered-machine-configs-head"><div><h3>已注册机器配置</h3><small>仅首次上报配置会成为贡献者</small></div><button type="button" class="nsit-close" data-action="close-registered-machine-configs" aria-label="关闭已注册机器配置">×</button></header>
           <div class="nsit-registered-machine-configs" data-nsit-registered-machine-configs><p class="nsit-catalog-empty">正在查询…</p></div>
         </section>
       </div>

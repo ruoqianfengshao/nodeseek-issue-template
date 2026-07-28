@@ -25,11 +25,16 @@ jobs:
         run: |
           node --check 'NodeSeek Issue Templates.user.js'
           node --check 'NodeSeek Issue Templates.min.user.js'
+      - name: Prepare release assets
+        run: |
+          mkdir release
+          cp 'NodeSeek Issue Templates.user.js' release/NodeSeek.Issue.Templates.user.js
+          cp 'NodeSeek Issue Templates.min.user.js' release/NodeSeek.Issue.Templates.min.user.js
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            'NodeSeek Issue Templates.user.js' \
-            'NodeSeek Issue Templates.min.user.js' \
+            release/NodeSeek.Issue.Templates.user.js \
+            release/NodeSeek.Issue.Templates.min.user.js \
             --generate-notes

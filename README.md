@@ -4,7 +4,7 @@ NodeSeek 交易帖模板油猴脚本：用表单生成单机或多机交易帖�
 
 ## 安装
 
-在 Tampermonkey 中点击安装：[NodeSeek Issue Templates.min.user.js](https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek%20Issue%20Templates.min.user.js)。
+在 Tampermonkey 中点击安装：[NodeSeek Issue Templates.min.user.js](https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js)。
 
 脚本覆盖 NodeSeek 全站，但只会在检测到帖子标题和 Markdown 编辑器的新帖页或编辑帖页面注入“出🐔模板”入口，不影响普通浏览页面。
 

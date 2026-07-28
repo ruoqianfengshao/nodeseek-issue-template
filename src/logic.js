@@ -161,7 +161,10 @@
     }
     const used = trafficUsageFromRemaining(total, remaining.value);
     if (usedInput) { usedInput.max = String(total.gigabytes); usedInput.value = String(used); }
-    if (slider) { slider.max = String(total.gigabytes); slider.step = '1'; slider.value = String(Math.round(used)); }
+    if (slider) {
+      slider.max = String(total.gigabytes); slider.step = '1'; slider.value = String(Math.round(used));
+      slider.style.setProperty('--nsit-traffic-used-percent', `${total.gigabytes ? used / total.gigabytes * 100 : 0}%`);
+    }
     if (unit) unit.textContent = '（G）';
     if (presets) {
       presets.innerHTML = [0, 25, 50, 75, 100].map((percent) => {

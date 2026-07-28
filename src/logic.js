@@ -30,7 +30,7 @@
       if (control) control.value = machine[name] || (name === 'currency' ? 'USD 美元' : '');
     });
     app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = (machine.transferTags || []).includes(control.value); });
-    syncPriceFields(app); refreshCard(app); refreshPricePreview(app); loadRate(app);
+    syncPriceFields(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); loadRate(app);
   }
 
   function renderMachineTabs(app) {
@@ -110,6 +110,97 @@
     if (!Number.isFinite(cycleDays) || cycleDays <= 0) return null;
     const daysLeft = differenceInDays(expiry, trade);
     return { amount, cycleDays, daysLeft, percentage: Math.min(100, daysLeft / cycleDays * 100), value: amount * daysLeft / cycleDays };
+  }
+
+  function trafficMeasurement(value) {
+    const match = String(value || '').trim().match(/^(\d+(?:\.\d+)?)\s*([gt])b?$/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+    const unit = match[2].toUpperCase();
+    return { amount, unit, gigabytes: amount * (unit === 'T' ? 1024 : 1) };
+  }
+
+  function trafficInGigabytes(value) {
+    const measurement = trafficMeasurement(value);
+    return measurement?.gigabytes ?? null;
+  }
+
+  function formatTrafficAmount(amount, unit) {
+    const value = Math.round((Math.max(0, amount) + Number.EPSILON) * 100) / 100;
+    return `${value}${unit}`;
+  }
+
+  function trafficUsageFromRemaining(total, remainingTraffic) {
+    const remaining = trafficInGigabytes(remainingTraffic);
+    if (remaining === null) return 0;
+    return Math.max(0, Math.min(total.gigabytes, total.gigabytes - remaining));
+  }
+
+  function updateTrafficUsageUi(app) {
+    const total = trafficMeasurement(app.querySelector('[name="traffic"]')?.value);
+    const trigger = app.querySelector('[data-nsit-remaining-traffic]');
+    const tooltip = app.querySelector('[data-nsit-traffic-usage-tooltip]');
+    const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
+    const usedInput = app.querySelector('[data-nsit-traffic-used]');
+    const slider = app.querySelector('[data-nsit-traffic-used-slider]');
+    const unit = app.querySelector('[data-nsit-traffic-used-unit]');
+    const presets = app.querySelector('[data-nsit-traffic-usage-presets]');
+    const remaining = app.querySelector('[name="remainingTraffic"]');
+    if (!trigger || !remaining) return;
+    trigger.disabled = !total;
+    trigger.title = total ? '配置剩余流量' : '剩余流量配置，请先配置流量';
+    if (tooltip) tooltip.title = trigger.title;
+    if (!total) {
+      popover.hidden = true;
+      trigger.textContent = '剩余 ?';
+      return;
+    }
+    if (!String(remaining.value || '').trim() || trafficInGigabytes(remaining.value) > total.gigabytes) {
+      remaining.value = formatTrafficAmount(total.gigabytes, 'G');
+    }
+    const used = trafficUsageFromRemaining(total, remaining.value);
+    if (usedInput) { usedInput.max = String(total.gigabytes); usedInput.value = String(used); }
+    if (slider) { slider.max = String(total.gigabytes); slider.step = '1'; slider.value = String(Math.round(used)); }
+    if (unit) unit.textContent = '（G）';
+    if (presets) {
+      presets.innerHTML = [0, 25, 50, 75, 100].map((percent) => {
+        const value = Math.round(total.gigabytes * percent / 100);
+        return `<button type="button" data-nsit-traffic-used-preset="${value}">${percent}%</button>`;
+      }).join('');
+    }
+    const configured = Boolean(String(remaining.value || '').trim());
+    trigger.textContent = configured ? `剩余：${remaining.value}` : '剩余 ?';
+    trigger.title = configured ? '修改剩余流量' : '剩余流量配置，请先配置流量';
+  }
+
+  function setTrafficUsage(app, used) {
+    const total = trafficMeasurement(app.querySelector('[name="traffic"]')?.value);
+    const remaining = app.querySelector('[name="remainingTraffic"]');
+    if (!total || !remaining) return;
+    const normalizedUsed = Math.round(Math.max(0, Math.min(total.gigabytes, Number(used) || 0)) * 100) / 100;
+    remaining.value = formatTrafficAmount(total.gigabytes - normalizedUsed, 'G');
+    updateTrafficUsageUi(app);
+  }
+
+  function remainingTrafficError(machine) {
+    if (!String(machine.remainingTraffic || '').trim()) return '';
+    const remaining = trafficInGigabytes(machine.remainingTraffic);
+    if (remaining === null) return '剩余流量请填写数量加单位，例如 500G 或 1T。';
+    const total = trafficInGigabytes(machine.traffic);
+    if (total === null) return '填写剩余流量时，流量也请填写数量加单位，例如 1T。';
+    return remaining > total ? '剩余流量不能超过流量。' : '';
+  }
+
+  function refreshRemainingTrafficValidity(app) {
+    const input = app.querySelector('[name="remainingTraffic"]');
+    if (input) input.setCustomValidity(remainingTrafficError(formValues(app)));
+    updateTrafficUsageUi(app);
+  }
+
+  function trafficDisplay(values) {
+    if (!values.traffic) return '';
+    return values.remainingTraffic ? `${values.traffic}（剩余：${values.remainingTraffic}）` : values.traffic;
   }
 
   function currencySymbol(currency) {
@@ -468,7 +559,7 @@
     const result = calculation(values);
     const pair = (label, value) => value ? `- ${label}：${value}` : '';
     const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
-    const basic = [[values.vendor, values.model].filter(Boolean).join(' ') ? `- 厂商&型号：${[values.vendor, values.model].filter(Boolean).join(' ')}` : '', [['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', values.traffic]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，') ? `- 配置：${[['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', values.traffic]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，')}` : ''].filter(Boolean);
+    const basic = [[values.vendor, values.model].filter(Boolean).join(' ') ? `- 厂商&型号：${[values.vendor, values.model].filter(Boolean).join(' ')}` : '', [['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', trafficDisplay(values)]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，') ? `- 配置：${[['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', trafficDisplay(values)]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，')}` : ''].filter(Boolean);
     const renewal = [values.renewalAmount || values.renewalCycle ? `- 续费金额 / 周期：${[values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', values.renewalCycle].filter(Boolean).join(' / ')}` : '', pair('到期日期', values.expiryDate), pair('交易日期', values.tradeDate)].filter(Boolean);
     if (result && rate) {
       const cnyValue = result.value * rate.rate;
@@ -504,7 +595,7 @@
     const remaining = result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '—';
     const vendorModel = [values.vendor, values.model].filter(Boolean).join(' · ');
     const spec = [values.cpu, values.memory, values.disk].filter(Boolean).join('/');
-    const network = [values.bandwidth, values.traffic].filter(Boolean).join('/');
+    const network = [values.bandwidth, trafficDisplay(values)].filter(Boolean).join('/');
     const renewal = [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/');
     const reports = [values.nqUrl ? `[NQ](${values.nqUrl})` : '', values.tqUrl ? `[TQ](${values.tqUrl})` : ''].filter(Boolean).join(' / ');
     const askingPrice = effectiveAskingPrice(values, rate);
@@ -541,7 +632,7 @@
       const remaining = result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '—';
       const vendorModel = [values.vendor, values.model].filter(Boolean).join(' · ');
       const spec = [values.cpu, values.memory, values.disk].filter(Boolean).join('/');
-      const network = [values.bandwidth, values.traffic].filter(Boolean).join('/');
+      const network = [values.bandwidth, trafficDisplay(values)].filter(Boolean).join('/');
       const renewal = [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/');
       const reports = [values.nqUrl ? `[NQ](${values.nqUrl})` : '', values.tqUrl ? `[TQ](${values.tqUrl})` : ''].filter(Boolean).join(' / ');
       const askingPrice = effectiveAskingPrice(values, rate);
@@ -646,7 +737,14 @@
     const config = valueFromMarkdown(basic, '配置');
     [['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽'], ['traffic', '流量']].forEach(([name, label]) => {
       const match = config.match(new RegExp(`${label}：([^，\\n]+)`));
-      if (match) machine[name] = match[1].trim();
+      if (match) {
+        const traffic = match[1].trim();
+        if (name === 'traffic') {
+          const remaining = traffic.match(/^(.*?)（剩余：(.+)）$/);
+          machine.traffic = (remaining?.[1] || traffic).trim();
+          if (remaining) machine.remainingTraffic = remaining[2].trim();
+        } else machine[name] = traffic;
+      }
     });
     ['renewalCycle', 'expiryDate', 'tradeDate'].forEach((name) => {
       const label = fields.find(([fieldName]) => fieldName === name)?.[1];
@@ -675,6 +773,11 @@
       machine.model = vendorModel[1] || '';
       [machine.cpu, machine.memory, machine.disk] = (cells[2] || '').split('/').map((value) => value.trim());
       [machine.bandwidth, machine.traffic] = (cells[3] || '').split('/').map((value) => value.trim());
+      const remainingTraffic = String(machine.traffic || '').match(/^(.*?)（剩余：(.+)）$/);
+      if (remainingTraffic) {
+        machine.traffic = remainingTraffic[1].trim();
+        machine.remainingTraffic = remainingTraffic[2].trim();
+      }
       const renewal = (cells[4] || '').match(/^(.+?)([\d.]+)\/(.+)$/);
       if (renewal) {
         machine.currency = currencyFromSymbol(renewal[1]);
@@ -712,7 +815,7 @@
       setSharedValue('postRemarks', sectionContent(content, '整贴备注'));
       const title = document.querySelector('#mde-title')?.value.trim();
       if (title) setSharedValue('postTitle', title);
-      renderMachineTabs(app); refreshCard(app); refreshPricePreview(app); saveDraft(app);
+      renderMachineTabs(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
       return true;
     }
     if (!/^## (基本信息|续费与价值|转让信息|测试报告|单机备注|整贴备注)$/m.test(content)) return false;
@@ -723,7 +826,11 @@
       const control = app.querySelector(`[name="${CSS.escape(name)}"]`);
       if (control && value) control.value = value;
     };
-    [['vendor', '厂商'], ['model', '型号'], ['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽'], ['traffic', '流量']].forEach(([name, label]) => setValue(name, valueFromMarkdown(basic, label)));
+    [['vendor', '厂商'], ['model', '型号'], ['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽']].forEach(([name, label]) => setValue(name, valueFromMarkdown(basic, label)));
+    const traffic = valueFromMarkdown(basic, '流量');
+    const remainingTraffic = traffic.match(/^(.*?)（剩余：(.+)）$/);
+    setValue('traffic', (remainingTraffic?.[1] || traffic).trim());
+    if (remainingTraffic) setValue('remainingTraffic', remainingTraffic[2].trim());
     [['renewalCycle', '续费周期'], ['expiryDate', '到期日期'], ['tradeDate', '交易日期'], ['nqUrl', 'NQ 地址'], ['tqUrl', 'TQ 地址'], ['tgContact', 'TG 联系']].forEach(([name, label]) => setValue(name, valueFromMarkdown(name === 'nqUrl' || name === 'tqUrl' || name === 'tgContact' ? reports : renewal, label)));
     const amount = valueFromMarkdown(renewal, '续费金额');
     const amountMatch = amount.match(/^(.+?)([\d.]+)（(.+?)）$/);
@@ -736,7 +843,7 @@
     setValue('postRemarks', sectionContent(content, '整贴备注'));
     const title = document.querySelector('#mde-title')?.value.trim();
     if (title) setValue('postTitle', title);
-    refreshCard(app); refreshPricePreview(app); refreshTitle(app); saveDraft(app);
+    refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); refreshTitle(app); saveDraft(app);
     return true;
   }
 
@@ -947,7 +1054,7 @@
       if (control) control.value = record[name] || '';
     });
     refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
-    refreshTitle(app); refreshCard(app); refreshPricePreview(app); saveDraft(app);
+    refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
     saveActiveMachine(app); renderMachineTabs(app);
     closeModelSuggestions(app);
     setStatus(app, '已回填共享配置。');
@@ -984,7 +1091,7 @@
       if (control) control.value = record[name] || '';
     });
     refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
-    refreshTitle(app); refreshCard(app); refreshPricePreview(app); saveDraft(app);
+    refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
     saveActiveMachine(app); renderMachineTabs(app);
     closeMachineCatalog(app);
     setStatus(app, '已回填共享配置。');
@@ -1040,6 +1147,13 @@
         const invalidField = app.querySelector(`[name="${CSS.escape(fieldName)}"]`);
         invalidField?.focus();
         setStatus(app, `#${incompleteIndex + 1} 鸡请先填写必填项：${machineFieldLabel(fieldName)}`);
+        return;
+      }
+      const trafficInvalidIndex = app._nsitMachines.findIndex((machine) => machineReady(machine) && remainingTrafficError(machine));
+      if (trafficInvalidIndex !== -1) {
+        switchMachine(app, trafficInvalidIndex);
+        app.querySelector('[name="remainingTraffic"]')?.focus();
+        setStatus(app, `#${trafficInvalidIndex + 1} 鸡：${remainingTrafficError(app._nsitMachines[trafficInvalidIndex])}`);
         return;
       }
       const priceMissingIndex = app._nsitMachines.findIndex((machine) => machineReady(machine) && !hasSalePrice(machine));

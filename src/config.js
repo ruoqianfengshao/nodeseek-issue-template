@@ -1,11 +1,11 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.2.52';
+  const VERSION = '1.2.59';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
   const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
-  const MACHINE_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'renewalCycle', 'renewalAmount', 'currency', 'expiryDate', 'tradeDate', 'nqUrl', 'tqUrl', 'askingPrice', 'askingPremium', 'remarks'];
+  const MACHINE_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'remainingTraffic', 'renewalCycle', 'renewalAmount', 'currency', 'expiryDate', 'tradeDate', 'nqUrl', 'tqUrl', 'askingPrice', 'askingPremium', 'remarks'];
   const RATE_CACHE_KEY = 'nsit-cny-rates-v1';
   const MACHINE_CATALOG_API_URL = 'https://nsit-machine-catalog.ruoqianfengshao.workers.dev';
   const MACHINE_CATALOG_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'renewalCycle', 'renewalAmount', 'currency'];
@@ -21,22 +21,22 @@
     renewalCycle: ['月付', '季付', '半年付', '年付', '两年付', '三年付', '五年付'],
   };
   const VENDOR_ICONS = {
-    DMIT: __NSIT_VENDOR_ASSET__('dmit.ico'),
-    RackNerd: __NSIT_VENDOR_ASSET__('racknerd.ico'),
-    Vultr: __NSIT_VENDOR_ASSET__('vultr.ico'),
-    CloudCone: __NSIT_VENDOR_ASSET__('cloudcone.ico'),
-    BuyVM: __NSIT_VENDOR_ASSET__('buyvm.ico'),
-    Hetzner: __NSIT_VENDOR_ASSET__('hetzner.ico'),
-    Linode: __NSIT_VENDOR_ASSET__('linode.ico'),
-    DigitalOcean: __NSIT_VENDOR_ASSET__('digitalocean.ico'),
-    Lightlayer: __NSIT_VENDOR_ASSET__('lightlayer.ico'),
-    '狗妈咪': __NSIT_VENDOR_ASSET__('gomami.png'),
-    '奶爸': __NSIT_VENDOR_ASSET__('neburst.svg'),
-    Vmiss: __NSIT_VENDOR_ASSET__('vmiss.png'),
-    '阿里云': __NSIT_VENDOR_ASSET__('aliyun.ico'),
-    '腾讯云': __NSIT_VENDOR_ASSET__('tencent.png'),
-    '火山云': __NSIT_VENDOR_ASSET__('volcengine.png'),
-    '华为云': __NSIT_VENDOR_ASSET__('huawei.png'),
+    DMIT: 'https://www.dmit.io/favicon.ico',
+    RackNerd: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/racknerd.png',
+    Vultr: 'https://cdn.simpleicons.org/vultr',
+    CloudCone: 'https://cloudcone.com/wp-content/uploads/2017/06/cropped-logo-2-32x32.png',
+    BuyVM: 'https://buyvm.net/favicon.ico',
+    Hetzner: 'https://cdn.simpleicons.org/hetzner',
+    Linode: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/linode.png',
+    DigitalOcean: 'https://cdn.simpleicons.org/digitalocean',
+    Lightlayer: 'https://www.lightlayer.net/favicon.ico',
+    '狗妈咪': 'https://gomami.io/templates/webflow/images/favicon.png',
+    '奶爸': 'https://neburst.com/favicon.svg',
+    Vmiss: 'https://cdn.nodeimage.com/i/eT6R4CDGq0OyDcCtbTZ9MNZEYkXHNLr7.png',
+    '阿里云': 'https://cdn.simpleicons.org/alibabacloud',
+    '腾讯云': 'https://cloudcache.tencent-cloud.com/qcloud/favicon.ico?t=201902181234',
+    '火山云': 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/volcengine.png',
+    '华为云': 'https://cdn.simpleicons.org/huawei',
   };
 
   const fields = [

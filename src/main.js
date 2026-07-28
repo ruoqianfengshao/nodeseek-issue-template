@@ -17,8 +17,18 @@
     refreshTitle(app);
     refreshCard(app);
     refreshPricePreview(app);
+    refreshRemainingTrafficValidity(app);
     loadRate(app);
     app.addEventListener('input', (event) => {
+      if (event.target.matches('[data-nsit-traffic-used], [data-nsit-traffic-used-slider]')) {
+        if (event.target.matches('[data-nsit-traffic-used]')) {
+          const [integer, decimals = ''] = event.target.value.split('.');
+          if (decimals.length > 2) event.target.value = `${integer}.${decimals.slice(0, 2)}`;
+        }
+        setTrafficUsage(app, event.target.value);
+        saveDraft(app); saveActiveMachine(app); renderMachineTabs(app);
+        return;
+      }
       const picker = event.target.matches('[data-nsit-picker-input="true"]') ? event.target.closest('.nsit-picker') : null;
       if (picker) {
         app.querySelectorAll('.nsit-picker.is-open').forEach((item) => {
@@ -30,7 +40,7 @@
       }
       if (event.target.name === 'askingPrice' || event.target.name === 'askingPremium') syncPriceFields(app);
       if (event.target.name !== 'postTitle') refreshTitle(app);
-      refreshCard(app); refreshPricePreview(app); saveDraft(app);
+      refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
       saveActiveMachine(app); renderMachineTabs(app);
       if (event.target.name === 'vendor' || event.target.name === 'model') searchModelSuggestions(app);
       if (event.target.name === 'currency') loadRate(app);
@@ -68,7 +78,7 @@
           if (input !== tag) input.checked = false;
         });
       }
-      refreshTitle(app); refreshCard(app); refreshPricePreview(app); saveDraft(app);
+      refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
       saveActiveMachine(app); renderMachineTabs(app);
       if (event.target.name === 'currency') loadRate(app);
     });
@@ -164,6 +174,19 @@
         loadRate(app, true);
         return;
       }
+      if (action === 'toggle-traffic-usage') {
+        const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
+        if (!popover || event.target.closest('button').disabled) return;
+        popover.hidden = !popover.hidden;
+        if (!popover.hidden) app.querySelector('[data-nsit-traffic-used]')?.focus();
+        return;
+      }
+      const trafficPreset = event.target.closest('[data-nsit-traffic-used-preset]')?.dataset.nsitTrafficUsedPreset;
+      if (trafficPreset !== undefined) {
+        setTrafficUsage(app, trafficPreset);
+        saveDraft(app); saveActiveMachine(app); renderMachineTabs(app);
+        return;
+      }
       if (action === 'open-machine-catalog') {
         openMachineCatalog(app);
         return;
@@ -200,8 +223,10 @@
         }
         app.querySelector('form').reset();
         app.querySelector('[name="tradeDate"]').value = today();
+        app.querySelector('[name="remainingTraffic"]').value = '';
+        app._nsitMachines[app._nsitActiveMachine] = machineSnapshot(app);
         refreshTitle(app);
-        localStorage.removeItem(STORAGE_KEY); refreshCard(app); refreshPricePreview(app); setStatus(app, '已清空表单。'); return;
+        localStorage.removeItem(STORAGE_KEY); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); setStatus(app, '已清空表单。'); return;
       }
     });
     app.querySelector('[data-action="fill"]').addEventListener('click', (event) => {
@@ -245,6 +270,10 @@
         if (!picker.contains(event.target)) setPickerOpen(picker, false);
       });
       if (!app.querySelector('.nsit-model-suggest')?.contains(event.target)) closeModelSuggestions(app);
+      if (!app.querySelector('.nsit-traffic-field')?.contains(event.target)) {
+        const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
+        if (popover) popover.hidden = true;
+      }
     });
   }
 

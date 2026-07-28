@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/index.mjs"
+    "check": "node --check src/index.mjs && node --check src/catalog-page.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.28.0"

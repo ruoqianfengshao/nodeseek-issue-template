@@ -3,6 +3,8 @@ const MAX_FIELD_LENGTH = 120;
 const MAX_NICKNAME_LENGTH = 64;
 const SEARCH_LIMIT = 30;
 const SUBMITTED_RECORDS_LIMIT = 100;
+const PUBLIC_LIST_LIMIT = 50;
+const PUBLIC_CONTRIBUTOR_LIMIT = 10;
 
 function text(value, maxLength = MAX_FIELD_LENGTH) {
   const normalized = String(value ?? '').trim().replace(/\s+/g, ' ');
@@ -115,6 +117,36 @@ async function submitted(request, env, url) {
   return json(request, { records: result.results.map(recordFromRow) }, 200, { 'Cache-Control': 'public, max-age=60' });
 }
 
+function boundedInteger(value, fallback, maximum) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(parsed, maximum)) : fallback;
+}
+
+async function publicMachineConfigs(request, env, url) {
+  const limit = Math.max(1, boundedInteger(url.searchParams.get('limit'), 12, PUBLIC_LIST_LIMIT));
+  const offset = boundedInteger(url.searchParams.get('offset'), 0, 1000000);
+  const query = url.searchParams.get('q')?.trim() || '';
+  if (query.length > MAX_FIELD_LENGTH) return json(request, { error: '搜索条件过长' }, 400);
+  const clause = query ? 'WHERE normalized_vendor LIKE ? OR normalized_model LIKE ?' : '';
+  const values = query ? [`%${normalizeText(query)}%`, `%${normalizeText(query)}%`] : [];
+  const [recordsResult, totalResult] = await env.DB.batch([
+    env.DB.prepare(`SELECT ${recordColumns} FROM machine_configs ${clause} ORDER BY created_at DESC LIMIT ? OFFSET ?`).bind(...values, limit, offset),
+    env.DB.prepare(`SELECT COUNT(*) AS total FROM machine_configs ${clause}`).bind(...values),
+  ]);
+  return json(request, { records: recordsResult.results.map(recordFromRow), total: totalResult.results[0]?.total || 0, limit, offset }, 200, { 'Cache-Control': 'public, max-age=60' });
+}
+
+async function publicSummary(request, env) {
+  const result = await env.DB.prepare('SELECT COUNT(*) AS records, COUNT(DISTINCT vendor) AS vendors, COUNT(DISTINCT submitted_by_nickname) AS contributors FROM machine_configs').first();
+  return json(request, result || { records: 0, vendors: 0, contributors: 0 }, 200, { 'Cache-Control': 'public, max-age=60' });
+}
+
+async function publicContributors(request, env) {
+  const result = await env.DB.prepare('SELECT submitted_by_nickname AS nickname, COUNT(*) AS count FROM machine_configs GROUP BY submitted_by_nickname ORDER BY count DESC, nickname ASC LIMIT ?')
+    .bind(PUBLIC_CONTRIBUTOR_LIMIT).all();
+  return json(request, { contributors: result.results }, 200, { 'Cache-Control': 'public, max-age=60' });
+}
+
 async function create(request, env) {
   const body = await request.json();
   const { config, key } = normalizeConfig(body);
@@ -139,6 +171,10 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: originHeaders(request) });
     const url = new URL(request.url);
     try {
+      if (request.method === 'GET' && url.pathname === '/') return new Response(catalogPage(), { headers: { 'Content-Type': 'text/html; charset=UTF-8', 'Cache-Control': 'public, max-age=300' } });
+      if (request.method === 'GET' && url.pathname === '/v1/public/machine-configs') return publicMachineConfigs(request, env, url);
+      if (request.method === 'GET' && url.pathname === '/v1/public/summary') return publicSummary(request, env);
+      if (request.method === 'GET' && url.pathname === '/v1/public/contributors') return publicContributors(request, env);
       if (request.method === 'GET' && url.pathname === '/v1/machine-configs/exact') return exact(request, env, url);
       if (request.method === 'GET' && url.pathname === '/v1/machine-configs/search') return search(request, env, url);
       if (request.method === 'GET' && url.pathname === '/v1/machine-configs/submitted') return submitted(request, env, url);
@@ -151,3 +187,4 @@ export default {
     }
   },
 };
+import { catalogPage } from './catalog-page.mjs';

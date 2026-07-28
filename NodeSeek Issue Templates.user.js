@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.2.50
+// @version      1.2.51
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,7 +19,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.2.50';
+  const VERSION = '1.2.51';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';

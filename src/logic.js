@@ -144,6 +144,7 @@
     const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
     const usedInput = app.querySelector('[data-nsit-traffic-used]');
     const slider = app.querySelector('[data-nsit-traffic-used-slider]');
+    const maximum = app.querySelector('[data-nsit-traffic-maximum]');
     const unit = app.querySelector('[data-nsit-traffic-used-unit]');
     const presets = app.querySelector('[data-nsit-traffic-usage-presets]');
     const remaining = app.querySelector('[name="remainingTraffic"]');
@@ -154,6 +155,7 @@
     if (!total) {
       popover.hidden = true;
       trigger.textContent = '剩余 ?';
+      if (maximum) maximum.textContent = '—';
       return;
     }
     if (!String(remaining.value || '').trim() || trafficInGigabytes(remaining.value) > total.gigabytes) {
@@ -165,7 +167,8 @@
       slider.max = String(total.gigabytes); slider.step = '1'; slider.value = String(Math.round(used));
       slider.style.setProperty('--nsit-traffic-used-percent', `${total.gigabytes ? used / total.gigabytes * 100 : 0}%`);
     }
-    if (unit) unit.textContent = '（G）';
+    if (unit) unit.textContent = 'G';
+    if (maximum) maximum.textContent = app.querySelector('[name="traffic"]')?.value || '—';
     if (presets) {
       presets.innerHTML = [0, 25, 50, 75, 100].map((percent) => {
         const value = Math.round(total.gigabytes * percent / 100);
@@ -173,7 +176,7 @@
       }).join('');
     }
     const configured = Boolean(String(remaining.value || '').trim());
-    trigger.textContent = configured ? `剩余：${remaining.value}` : '剩余 ?';
+    trigger.textContent = configured ? `剩余: ${remaining.value}` : '剩余 ?';
     trigger.title = configured ? '修改剩余流量' : '剩余流量配置，请先配置流量';
   }
 

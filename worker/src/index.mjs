@@ -58,8 +58,8 @@ function originHeaders(request) {
   };
 }
 
-function json(request, data, status = 200) {
-  return Response.json(data, { status, headers: originHeaders(request) });
+function json(request, data, status = 200, headers = {}) {
+  return Response.json(data, { status, headers: { ...originHeaders(request), ...headers } });
 }
 
 function recordFromRow(row) {
@@ -104,7 +104,7 @@ async function search(request, env, url) {
   if (model) { clauses.push('normalized_model LIKE ?'); values.push(`%${normalizeText(model)}%`); }
   const result = await env.DB.prepare(`SELECT ${recordColumns} FROM machine_configs WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC LIMIT ?`)
     .bind(...values, SEARCH_LIMIT).all();
-  return json(request, { records: result.results.map(recordFromRow) });
+  return json(request, { records: result.results.map(recordFromRow) }, 200, { 'Cache-Control': 'public, max-age=60' });
 }
 
 async function create(request, env) {

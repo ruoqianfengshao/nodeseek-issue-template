@@ -875,6 +875,7 @@
     const model = String(values.model || '').trim();
     const signature = `${vendor}\u0000${model}`;
     clearTimeout(app._nsitModelSearchTimer);
+    app._nsitModelSearchAbort?.abort();
     app._nsitModelSearchSignature = signature;
     if (!MACHINE_CATALOG_API_URL || !model) {
       closeModelSuggestions(app);
@@ -882,12 +883,24 @@
     }
     app._nsitModelSearchTimer = setTimeout(async () => {
       try {
-        const response = await fetch(catalogApiUrl('v1/machine-configs/search', { vendor, model }));
+        const cached = app._nsitModelSearchCache?.get(signature);
+        if (cached?.expiresAt > Date.now()) {
+          renderModelSuggestions(app, cached.records);
+          return;
+        }
+        const controller = new AbortController();
+        app._nsitModelSearchAbort = controller;
+        const response = await fetch(catalogApiUrl('v1/machine-configs/search', { vendor, model }), { signal: controller.signal });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(data?.error || `搜索失败（HTTP ${response.status}）`);
         if (app._nsitModelSearchSignature !== signature) return;
-        renderModelSuggestions(app, data.records || []);
+        const records = data.records || [];
+        const cache = app._nsitModelSearchCache ||= new Map();
+        cache.set(signature, { records, expiresAt: Date.now() + 1500 });
+        if (cache.size > 20) cache.delete(cache.keys().next().value);
+        renderModelSuggestions(app, records);
       } catch (error) {
+        if (error.name === 'AbortError') return;
         if (app._nsitModelSearchSignature !== signature) return;
         closeModelSuggestions(app);
       }

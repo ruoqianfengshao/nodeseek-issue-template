@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.2.44
+// @version      1.2.45
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,7 +19,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.2.44';
+  const VERSION = '1.2.45';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -1143,6 +1143,7 @@ function formValues(app) {
     const model = String(values.model || '').trim();
     const signature = `${vendor}\u0000${model}`;
     clearTimeout(app._nsitModelSearchTimer);
+    app._nsitModelSearchAbort?.abort();
     app._nsitModelSearchSignature = signature;
     if (!MACHINE_CATALOG_API_URL || !model) {
       closeModelSuggestions(app);
@@ -1150,12 +1151,24 @@ function formValues(app) {
     }
     app._nsitModelSearchTimer = setTimeout(async () => {
       try {
-        const response = await fetch(catalogApiUrl('v1/machine-configs/search', { vendor, model }));
+        const cached = app._nsitModelSearchCache?.get(signature);
+        if (cached?.expiresAt > Date.now()) {
+          renderModelSuggestions(app, cached.records);
+          return;
+        }
+        const controller = new AbortController();
+        app._nsitModelSearchAbort = controller;
+        const response = await fetch(catalogApiUrl('v1/machine-configs/search', { vendor, model }), { signal: controller.signal });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(data?.error || `搜索失败（HTTP ${response.status}）`);
         if (app._nsitModelSearchSignature !== signature) return;
-        renderModelSuggestions(app, data.records || []);
+        const records = data.records || [];
+        const cache = app._nsitModelSearchCache ||= new Map();
+        cache.set(signature, { records, expiresAt: Date.now() + 1500 });
+        if (cache.size > 20) cache.delete(cache.keys().next().value);
+        renderModelSuggestions(app, records);
       } catch (error) {
+        if (error.name === 'AbortError') return;
         if (app._nsitModelSearchSignature !== signature) return;
         closeModelSuggestions(app);
       }

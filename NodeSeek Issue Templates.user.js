@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.2.61
+// @version      1.2.62
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,12 +19,17 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.2.61';
+  const VERSION = '1.2.62';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
   const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
+  const PERSONALIZATION_KEY = 'nsit-personalization-v1';
+  const RENEWAL_FIELD_OPTIONS = [
+    ['renewal', '续费金额 / 周期'], ['expiryDate', '到期日期'], ['tradeDate', '交易日期'], ['remainingValue', '剩余价值'],
+  ];
+  const DEFAULT_RENEWAL_FIELDS = RENEWAL_FIELD_OPTIONS.map(([name]) => name);
   const MACHINE_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'remainingTraffic', 'renewalCycle', 'renewalAmount', 'currency', 'expiryDate', 'tradeDate', 'nqUrl', 'tqUrl', 'askingPrice', 'askingPremium', 'remarks'];
   const RATE_CACHE_KEY = 'nsit-cny-rates-v1';
   const MACHINE_CATALOG_API_URL = 'https://nsit-machine-catalog.ruoqianfengshao.workers.dev';
@@ -81,6 +86,13 @@ const APP_ID = 'nsit-app';
     ['remarks', '单机备注', 'textarea', '补充说明'],
     ['postRemarks', '整贴备注', 'textarea', '适用于整帖的补充说明'],
   ];
+  const PRESET_TRANSFER_TAGS = ['原邮出', '改邮出', '实名', '包中介', '不包中介', '包 push', '不包 push', '先机后款', '先款后机', '支付宝口令红包', '无 PP 争议'];
+  const TRANSFER_TAG_GROUPS = { '原邮出': 'transfer', '改邮出': 'transfer', '包中介': 'broker', '不包中介': 'broker', '包 push': 'push', '不包 push': 'push', '先机后款': 'payment', '先款后机': 'payment' };
+  const TITLE_FIELD_OPTIONS = [
+    ...fields.filter(([name]) => name !== 'postTitle').map(([name, label]) => [name, label]),
+    ['transferTags', '转让标签'],
+  ];
+  const DEFAULT_TITLE_FIELDS = ['askingPrice', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
   const OPTIONAL_FIELDS = new Set(['nqUrl', 'tqUrl', 'tgContact', 'remarks', 'postRemarks', 'askingPrice', 'askingPremium']);
 
 function escapeHtml(value) {
@@ -177,7 +189,7 @@ function escapeHtml(value) {
       ['payment', ['先机后款', '先款后机']],
       ['extras', ['支付宝口令红包', '无 PP 争议']],
     ];
-    return `<section class="nsit-section nsit-transfer-tags"><div class="nsit-tag-list">${groups.flatMap(([group, labels]) => labels.map((label) => `<label class="nsit-tag nsit-tag--${group}"><input type="checkbox" name="transferTags" value="${label}" data-tag-group="${group}"><span>${label}</span></label>`)).join('')}</div></section>`;
+    return `<section class="nsit-section nsit-transfer-tags"><div class="nsit-tag-list">${groups.flatMap(([group, labels]) => labels.map((label) => `<label class="nsit-tag nsit-tag--${group}"><input type="checkbox" name="transferTags" value="${label}" data-tag-group="${group}"><span>${label}</span></label>`)).join('')}<span data-nsit-personal-tags></span></div></section>`;
   }
 
   function reportsAndRemarksMarkup() {
@@ -253,6 +265,7 @@ function escapeHtml(value) {
       #${APP_ID} .nsit-registered-machine-config strong{color:#27334a}
       #${APP_ID} .nsit-registered-machine-config span{color:#506078;font-size:13px;line-height:1.55}
       #${APP_ID} .nsit-registered-machine-config small{color:#8794aa;font-size:12px}
+      #${APP_ID} [data-nsit-personal-tags]{display:contents}#${APP_ID} .nsit-personalization-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-personalization-open .nsit-personalization-modal{display:grid;place-items:center}#${APP_ID} .nsit-personalization-dialog{display:flex;flex-direction:column;width:min(680px,100%);height:720px;max-height:calc(100vh - 40px);overflow:hidden;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-personalization-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-personalization-head>div{display:flex;align-items:baseline;gap:8px;min-width:0}#${APP_ID} .nsit-personalization-head h3{font-size:16px}#${APP_ID} .nsit-personalization-head small{color:var(--nsit-muted);font-size:12px;white-space:nowrap}#${APP_ID} [data-nsit-personalization-body]{display:flex;flex:1 1 0;min-height:0;overflow:hidden}#${APP_ID} .nsit-personalization-form{display:flex;flex:1 1 0;min-height:0;flex-direction:column;overflow:hidden}#${APP_ID} .nsit-personalization-content{display:grid;flex:1 1 0;gap:16px;min-height:0;overflow:auto;padding:16px}#${APP_ID} .nsit-personalization-form section{display:grid;gap:9px}#${APP_ID} .nsit-setting-label{display:flex;align-items:baseline;gap:8px}#${APP_ID} .nsit-personalization-form h4{margin:0;white-space:nowrap;font-size:14px}#${APP_ID} .nsit-personalization-form p{margin:0;color:var(--nsit-muted);font-size:12px}#${APP_ID} .nsit-setting-checks{display:flex;flex-wrap:wrap;gap:8px 12px}#${APP_ID} .nsit-setting-checks label{display:flex;align-items:center;gap:5px;color:#506078}#${APP_ID} .nsit-setting-checks input{width:15px;height:15px;margin:0;accent-color:var(--nsit-accent)}#${APP_ID} .nsit-personalization-tags{align-items:center}#${APP_ID} .nsit-custom-tag-entry{display:inline-flex;gap:0}#${APP_ID} .nsit-custom-tag-entry input{width:100px;min-width:100px;height:32px;border-radius:999px 0 0 999px;padding:5px 8px;font-size:13px}#${APP_ID} .nsit-custom-tag-entry button{height:32px;margin-left:-1px;border-radius:0 999px 999px 0;padding:5px 8px;font-size:13px}#${APP_ID} .nsit-custom-tag-list{display:contents}#${APP_ID} .nsit-custom-tag{position:relative;display:inline-flex;align-items:center;border:1px solid #e7ba74;border-radius:999px;background:#fff9ec;padding:4px 20px 4px 9px;color:#996009;font-size:13px}#${APP_ID} .nsit-custom-tag button{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;width:15px;height:15px;margin:0;padding:0;border:1px solid #d8e0eb;border-radius:50%;background:#fff;color:#718096;font-size:13px;line-height:1}#${APP_ID} .nsit-custom-tag button:hover{border-color:#c04444;color:#c04444}#${APP_ID} .nsit-title-preview{border:1px solid #f0d49c;border-radius:6px;background:#fff8e9;padding:7px 9px;color:#8b641e;font-size:13px}#${APP_ID} .nsit-transfer-box{display:grid;grid-template-columns:1fr 1fr;gap:10px}#${APP_ID} .nsit-title-field-order{display:grid;align-content:start;gap:5px;min-height:180px;max-height:270px;margin:0;padding:8px;overflow:auto;border:1px solid #e2e8f0;border-radius:7px;list-style:none}#${APP_ID} .nsit-title-field-order::before{color:#8794aa;font-size:12px;font-weight:600}#${APP_ID} [data-nsit-title-field-available]::before{content:"所有字段"}#${APP_ID} [data-nsit-title-field-order]::before{content:"已选字段"}#${APP_ID} .nsit-title-field-order li{display:flex;align-items:center;gap:4px;border:1px solid #e2e8f0;border-radius:6px;padding:5px 7px;color:#506078}#${APP_ID} .nsit-title-field-order li span{margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#${APP_ID} .nsit-title-field-order button{padding:1px 5px;font-size:13px}#${APP_ID} [data-nsit-title-field-available] [data-action="remove-title-field"],#${APP_ID} [data-nsit-title-field-available] [data-action="move-title-field"],#${APP_ID} [data-nsit-title-field-order] [data-action="add-title-field"]{display:none}#${APP_ID} .nsit-personalization-form footer{display:flex;justify-content:flex-end;gap:8px;flex:none;padding:12px 16px;border-top:1px solid var(--nsit-line);background:#fff}
     `;
     injectStyles(`${styles}\n${modelSuggestionStyles}`);
     app.innerHTML = `
@@ -261,7 +274,7 @@ function escapeHtml(value) {
       <div class="nsit-dialog-wrap">
         ${machineTabsMarkup()}
       <div class="nsit-shell" role="dialog" aria-modal="true" aria-label="单机转让帖模板">
-        <header class="nsit-head"><div class="nsit-head-copy"><h2>出鸡</h2><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div><div><small>不会自动发布</small><button type="button" class="nsit-close" data-action="close" aria-label="关闭表单" title="关闭">×</button></div></header>
+        <header class="nsit-head"><div class="nsit-head-copy"><h2>出鸡</h2><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div><div><button type="button" data-action="open-personalization">个性化配置</button><small>不会自动发布</small><button type="button" class="nsit-close" data-action="close" aria-label="关闭表单" title="关闭">×</button></div></header>
         <div class="nsit-body">
           <form id="nsit-form" class="nsit-form" novalidate>
             ${basicConfigMarkup()}
@@ -288,6 +301,7 @@ function escapeHtml(value) {
           <div class="nsit-registered-machine-configs" data-nsit-registered-machine-configs><p class="nsit-catalog-empty">正在查询…</p></div>
         </section>
       </div>
+      <div class="nsit-personalization-modal" aria-hidden="true"><section class="nsit-personalization-dialog" role="dialog" aria-modal="true" aria-label="个性化配置"><header class="nsit-personalization-head"><div><h3>个性化配置</h3><small>仅保存到当前浏览器本地</small></div><button type="button" class="nsit-close" data-action="close-personalization" aria-label="关闭个性化配置">×</button></header><div data-nsit-personalization-body></div></section></div>
       `;
     return app;
   }
@@ -297,6 +311,109 @@ function formValues(app) {
     const values = Object.fromEntries(new FormData(form).entries());
     values.transferTags = Array.from(app.querySelectorAll('[name="transferTags"]:checked'), (input) => input.value);
     return values;
+  }
+
+  function personalSettings() {
+    const defaults = {
+      presetTags: [], customTags: [], titleFields: DEFAULT_TITLE_FIELDS, tgContact: '', postRemarks: '', renewalFields: DEFAULT_RENEWAL_FIELDS,
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem(PERSONALIZATION_KEY) || '{}');
+      const legacyTgContact = localStorage.getItem(TG_CONTACT_KEY)?.trim() || '';
+      return {
+        ...defaults,
+        ...saved,
+        presetTags: Array.isArray(saved.presetTags) ? saved.presetTags.filter((tag) => PRESET_TRANSFER_TAGS.includes(tag)) : defaults.presetTags,
+        customTags: Array.isArray(saved.customTags) ? saved.customTags.filter(Boolean) : (Array.isArray(saved.machineTags) ? saved.machineTags.filter(Boolean) : defaults.customTags),
+        postRemarks: String(saved.postRemarks || (Array.isArray(saved.remarks) ? saved.remarks.filter(Boolean).join('\n') : saved.remarks) || '').trim(),
+        titleFields: Array.isArray(saved.titleFields) ? saved.titleFields.filter((name) => TITLE_FIELD_OPTIONS.some(([value]) => value === name)) : defaults.titleFields,
+        renewalFields: Array.isArray(saved.renewalFields) ? saved.renewalFields.filter((name) => DEFAULT_RENEWAL_FIELDS.includes(name)) : defaults.renewalFields,
+        tgContact: String(saved.tgContact || legacyTgContact).trim(),
+      };
+    } catch (_) { return defaults; }
+  }
+
+  function savePersonalSettings(settings) {
+    localStorage.setItem(PERSONALIZATION_KEY, JSON.stringify(settings));
+  }
+
+  function renderPersonalization(app) {
+    const settings = personalSettings();
+    const personalTags = app.querySelector('[data-nsit-personal-tags]');
+    const selected = new Set(app._nsitMachines?.[app._nsitActiveMachine]?.transferTags || []);
+    const tagMarkup = (tag) => {
+      const group = TRANSFER_TAG_GROUPS[tag] || 'extras';
+      return `<label class="nsit-tag nsit-tag--${group}"><input type="checkbox" name="transferTags" value="${escapeHtml(tag)}"${TRANSFER_TAG_GROUPS[tag] ? ` data-tag-group="${TRANSFER_TAG_GROUPS[tag]}"` : ''}${selected.has(tag) ? ' checked' : ''}><span>${escapeHtml(tag)}</span></label>`;
+    };
+    if (personalTags) {
+      const baseTags = new Set(Array.from(app.querySelectorAll('.nsit-tag-list > .nsit-tag input'), (input) => input.value));
+      personalTags.innerHTML = settings.customTags
+        .filter((tag) => !baseTags.has(tag))
+        .map(tagMarkup).join('');
+    }
+  }
+
+  function applyPersonalSettings(app) {
+    const settings = personalSettings();
+    const tg = app.querySelector('[name="tgContact"]');
+    if (tg && settings.tgContact && !tg.value) tg.value = settings.tgContact;
+    const postRemarks = app.querySelector('[name="postRemarks"]');
+    if (postRemarks && settings.postRemarks && !postRemarks.value) postRemarks.value = settings.postRemarks;
+    renderPersonalization(app);
+  }
+
+  function personalizationDialogMarkup() {
+    const settings = personalSettings();
+    const checkboxes = (options, selected, name) => options.map(([value, label]) => `<label><input type="checkbox" name="${name}" value="${value}"${selected.includes(value) ? ' checked' : ''}>${label}</label>`).join('');
+    const presetTag = (tag) => {
+      const group = TRANSFER_TAG_GROUPS[tag] || 'extras';
+      return `<label class="nsit-tag nsit-tag--${group}"><input type="checkbox" name="presetTags" value="${escapeHtml(tag)}"${TRANSFER_TAG_GROUPS[tag] ? ` data-tag-group="${TRANSFER_TAG_GROUPS[tag]}"` : ''}${settings.presetTags.includes(tag) ? ' checked' : ''}><span>${escapeHtml(tag)}</span></label>`;
+    };
+    const customTag = (tag) => `<span class="nsit-custom-tag" data-nsit-custom-tag="${escapeHtml(tag)}">${escapeHtml(tag)}<button type="button" data-action="remove-custom-tag" aria-label="删除 ${escapeHtml(tag)}">×</button></span>`;
+    const titleItem = (value) => {
+      const label = TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1] || value;
+      return `<li data-nsit-title-field="${value}"><span>${escapeHtml(label)}</span><button type="button" data-action="add-title-field" aria-label="加入">＋</button><button type="button" data-action="remove-title-field" aria-label="移除">−</button><button type="button" data-action="move-title-field" data-direction="up" aria-label="上移">↑</button><button type="button" data-action="move-title-field" data-direction="down" aria-label="下移">↓</button></li>`;
+    };
+    const available = TITLE_FIELD_OPTIONS.map(([value]) => value).filter((value) => !settings.titleFields.includes(value));
+    const titlePreview = settings.titleFields.map((value) => TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1]).filter(Boolean).join(' · ') || '未选择字段';
+    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
+  }
+
+  function refreshTitlePreview(app) {
+    const preview = app.querySelector('[data-nsit-title-preview]');
+    if (!preview) return;
+    const fields = Array.from(app.querySelectorAll('[data-nsit-title-field-order] [data-nsit-title-field]'), (item) => item.querySelector('span')?.textContent).filter(Boolean);
+    preview.textContent = `标题预览：${fields.join(' · ') || '未选择字段'}`;
+  }
+
+  function openPersonalization(app) {
+    app.querySelector('[data-nsit-personalization-body]').innerHTML = personalizationDialogMarkup();
+    app.classList.add('nsit-personalization-open');
+  }
+
+  function closePersonalization(app) {
+    app.classList.remove('nsit-personalization-open');
+  }
+
+  function savePersonalizationForm(app) {
+    const form = app.querySelector('[data-nsit-personalization-form]');
+    if (!form) return;
+    const titleFields = Array.from(form.querySelectorAll('[data-nsit-title-field-order] [data-nsit-title-field]'), (item) => item.dataset.nsitTitleField);
+    const settings = {
+      presetTags: Array.from(form.querySelectorAll('[name="presetTags"]:checked'), (input) => input.value),
+      customTags: Array.from(form.querySelectorAll('[data-nsit-custom-tag]'), (item) => item.dataset.nsitCustomTag),
+      titleFields,
+      tgContact: form.elements.tgContact.value.trim(),
+      postRemarks: form.elements.postRemarks.value.trim(),
+      renewalFields: Array.from(form.querySelectorAll('[name="renewalFields"]:checked'), (input) => input.value),
+    };
+    savePersonalSettings(settings);
+    const tg = app.querySelector('[name="tgContact"]');
+    if (tg && settings.tgContact) tg.value = settings.tgContact;
+    renderPersonalization(app);
+    refreshTitle(app); saveDraft(app); saveActiveMachine(app);
+    closePersonalization(app);
+    setStatus(app, '个性化配置已保存到本地。');
   }
 
   function machineSnapshot(app) {
@@ -324,6 +441,7 @@ function formValues(app) {
       if (control) control.value = machine[name] || (name === 'currency' ? 'USD 美元' : '');
     });
     app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = (machine.transferTags || []).includes(control.value); });
+    renderPersonalization(app);
     syncPriceFields(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); loadRate(app);
   }
 
@@ -341,8 +459,13 @@ function formValues(app) {
   }
 
   function initializeMachines(app) {
-    app._nsitMachines = [machineSnapshot(app)];
+    const machine = machineSnapshot(app);
+    const settings = personalSettings();
+    if (!machine.transferTags.length) machine.transferTags = settings.presetTags;
+    app._nsitMachines = [machine];
     app._nsitActiveMachine = 0;
+    app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = machine.transferTags.includes(control.value); });
+    renderPersonalization(app);
     renderMachineTabs(app);
   }
 
@@ -357,7 +480,8 @@ function formValues(app) {
   function addMachine(app) {
     saveActiveMachine(app);
     if (!machineReady(app._nsitMachines[app._nsitActiveMachine])) return;
-    app._nsitMachines.push({ currency: 'USD 美元', tradeDate: today() });
+    const settings = personalSettings();
+    app._nsitMachines.push({ currency: 'USD 美元', tradeDate: today(), transferTags: settings.presetTags });
     app._nsitActiveMachine = app._nsitMachines.length - 1;
     applyMachine(app, app._nsitMachines[app._nsitActiveMachine]);
     renderMachineTabs(app);
@@ -828,20 +952,44 @@ function formValues(app) {
   }
 
   function suggestedTitle(values, rate) {
-    const name = [values.vendor, values.model].filter(Boolean).join(' ');
-    const spec = [values.cpu, values.memory, values.disk, values.bandwidth, values.traffic].filter(Boolean).join(' / ');
-    const price = titlePricePreview(values, rate);
-    if (!name && !spec && !price) return '';
-    return `【出】${[price, name, spec].filter(Boolean).join(' · ')}`;
+    const titleValues = titleFieldValues(values, rate);
+    const parts = personalSettings().titleFields.map((field) => titleValues[field]).filter(Boolean);
+    return parts.length ? `【出】${parts.join(' · ')}` : '';
+  }
+
+  function titleFieldValues(values, rate) {
+    return {
+      ...Object.fromEntries(TITLE_FIELD_OPTIONS.map(([name]) => [name, String(values[name] || '').trim()])),
+      askingPrice: titlePricePreview(values, rate),
+      transferTags: (values.transferTags || []).join(' / '),
+    };
   }
 
   function multiMachineTitle(machines, app) {
     const entries = machines.map((machine) => {
-      const name = [machine.vendor, machine.model].filter(Boolean).join(' ');
       const price = effectiveAskingPrice(machine, rateForValues(app, machine));
-      return [name, Number.isFinite(price) ? `¥${price.toFixed(2)}` : '待定价'].filter(Boolean).join(' ');
+      const parts = titleFieldValues(machine, rateForValues(app, machine));
+      if (!Number.isFinite(price)) parts.askingPrice = '';
+      return personalSettings().titleFields.map((field) => parts[field]).filter(Boolean).join(' ');
     }).filter(Boolean);
     return entries.length ? `【出】${entries.join(' · ')}` : '';
+  }
+
+  function tableRenewalInfo(values) {
+    const fields = personalSettings().renewalFields;
+    return [
+      fields.includes('renewal') && [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/'),
+      fields.includes('tradeDate') && values.tradeDate ? `交易 ${values.tradeDate}` : '',
+    ].filter(Boolean).join(' · ');
+  }
+
+  function tableValueAndExpiry(values, rate) {
+    const fields = personalSettings().renewalFields;
+    const result = calculation(values);
+    return [
+      fields.includes('remainingValue') && result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '',
+      fields.includes('expiryDate') && values.expiryDate ? values.expiryDate : '',
+    ].filter(Boolean).join('/') || '—';
   }
 
   function refreshTitle(app) {
@@ -860,8 +1008,13 @@ function formValues(app) {
     const pair = (label, value) => value ? `- ${label}：${value}` : '';
     const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
     const basic = [[values.vendor, values.model].filter(Boolean).join(' ') ? `- 厂商&型号：${[values.vendor, values.model].filter(Boolean).join(' ')}` : '', [['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', trafficDisplay(values)]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，') ? `- 配置：${[['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', trafficDisplay(values)]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，')}` : ''].filter(Boolean);
-    const renewal = [values.renewalAmount || values.renewalCycle ? `- 续费金额 / 周期：${[values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', values.renewalCycle].filter(Boolean).join(' / ')}` : '', pair('到期日期', values.expiryDate), pair('交易日期', values.tradeDate)].filter(Boolean);
-    if (result && rate) {
+    const renewalFields = personalSettings().renewalFields;
+    const renewal = [
+      renewalFields.includes('renewal') && (values.renewalAmount || values.renewalCycle) ? `- 续费金额 / 周期：${[values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', values.renewalCycle].filter(Boolean).join(' / ')}` : '',
+      renewalFields.includes('expiryDate') ? pair('到期日期', values.expiryDate) : '',
+      renewalFields.includes('tradeDate') ? pair('交易日期', values.tradeDate) : '',
+    ].filter(Boolean);
+    if (renewalFields.includes('remainingValue') && result && rate) {
       const cnyValue = result.value * rate.rate;
       const originalValue = `${currencySymbol(values.currency)}${result.value.toFixed(2)}`;
       const calculation = `¥${cnyValue.toFixed(2)}`;
@@ -869,7 +1022,7 @@ function formValues(app) {
         ? `（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`
         : ` = ${originalValue} × ${rate.rate.toFixed(4)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`;
       renewal.push(`- 剩余价值：${calculation}${detail}`);
-    } else if (result) {
+    } else if (renewalFields.includes('remainingValue') && result) {
       renewal.push(`- 剩余价值：${currencySymbol(values.currency)}${result.value.toFixed(2)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`);
     }
     const askingPrice = effectiveAskingPrice(values, rate);
@@ -892,11 +1045,11 @@ function formValues(app) {
   function tableMarkdown(values, app, cardMarkdown) {
     const result = calculation(values);
     const rate = activeRate(app);
-    const remaining = result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '—';
+    const remaining = tableValueAndExpiry(values, rate);
     const vendorModel = [values.vendor, values.model].filter(Boolean).join(' · ');
     const spec = [values.cpu, values.memory, values.disk].filter(Boolean).join('/');
     const network = [values.bandwidth, trafficDisplay(values)].filter(Boolean).join('/');
-    const renewal = [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/');
+    const renewal = tableRenewalInfo(values);
     const reports = [values.nqUrl ? `[NQ](${values.nqUrl})` : '', values.tqUrl ? `[TQ](${values.tqUrl})` : ''].filter(Boolean).join(' / ');
     const askingPrice = effectiveAskingPrice(values, rate);
     const remainingCny = result && rate ? result.value * rate.rate : null;
@@ -929,11 +1082,11 @@ function formValues(app) {
     const rows = machines.map((values, index) => {
       const result = calculation(values);
       const rate = rateForValues(app, values);
-      const remaining = result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '—';
+      const remaining = tableValueAndExpiry(values, rate);
       const vendorModel = [values.vendor, values.model].filter(Boolean).join(' · ');
       const spec = [values.cpu, values.memory, values.disk].filter(Boolean).join('/');
       const network = [values.bandwidth, trafficDisplay(values)].filter(Boolean).join('/');
-      const renewal = [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/');
+      const renewal = tableRenewalInfo(values);
       const reports = [values.nqUrl ? `[NQ](${values.nqUrl})` : '', values.tqUrl ? `[TQ](${values.tqUrl})` : ''].filter(Boolean).join(' / ');
       const askingPrice = effectiveAskingPrice(values, rate);
       const remainingCny = result && rate ? result.value * rate.rate : null;
@@ -1543,6 +1696,7 @@ function initialize() {
     else title.before(app);
     restoreDraft(app);
     restoreCardToggle(app);
+    applyPersonalSettings(app);
     syncPriceFields(app);
     initializeMachines(app);
     refreshTitle(app);
@@ -1603,9 +1757,9 @@ function initialize() {
       if (event.target.matches('[name="generateCard"]')) {
         try { localStorage.setItem(CARD_TOGGLE_KEY, String(event.target.checked)); } catch (_) { /* 存储不可用时忽略 */ }
       }
-      const tag = event.target.matches('[name="transferTags"]') ? event.target : null;
+      const tag = event.target.matches('[name="transferTags"], [name="presetTags"]') ? event.target : null;
       if (tag?.checked && ['transfer', 'broker', 'push', 'payment'].includes(tag.dataset.tagGroup)) {
-        app.querySelectorAll(`[name="transferTags"][data-tag-group="${tag.dataset.tagGroup}"]`).forEach((input) => {
+        app.querySelectorAll(`[name="${tag.name}"][data-tag-group="${tag.dataset.tagGroup}"]`).forEach((input) => {
           if (input !== tag) input.checked = false;
         });
       }
@@ -1614,6 +1768,11 @@ function initialize() {
       if (event.target.name === 'currency') loadRate(app);
     });
     app.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && event.target.matches('[data-nsit-custom-tag-input]')) {
+        event.preventDefault();
+        event.target.closest('[data-nsit-personalization-form]')?.querySelector('[data-action="add-custom-tag"]')?.click();
+        return;
+      }
       const picker = event.target.matches('[data-nsit-picker-input="true"]') ? event.target.closest('.nsit-picker') : null;
       if (!picker) return;
       const options = pickerOptions(picker);
@@ -1705,6 +1864,48 @@ function initialize() {
         loadRate(app, true);
         return;
       }
+      if (action === 'open-personalization') {
+        openPersonalization(app);
+        return;
+      }
+      if (action === 'close-personalization') {
+        closePersonalization(app);
+        return;
+      }
+      if (action === 'move-title-field') {
+        const item = event.target.closest('[data-nsit-title-field]');
+        const target = event.target.dataset.direction === 'up' ? item?.previousElementSibling : item?.nextElementSibling;
+        if (item && target) item.parentElement.insertBefore(item, event.target.dataset.direction === 'up' ? target : target.nextElementSibling);
+        refreshTitlePreview(app);
+        return;
+      }
+      if (action === 'add-title-field' || action === 'remove-title-field') {
+        const item = event.target.closest('[data-nsit-title-field]');
+        const destination = app.querySelector(action === 'add-title-field' ? '[data-nsit-title-field-order]' : '[data-nsit-title-field-available]');
+        if (item && destination) destination.append(item);
+        refreshTitlePreview(app);
+        return;
+      }
+      if (action === 'add-custom-tag') {
+        const form = event.target.closest('[data-nsit-personalization-form]');
+        const input = form?.querySelector('[data-nsit-custom-tag-input]');
+        const list = form?.querySelector('[data-nsit-custom-tag-list]');
+        const value = input?.value.trim();
+        if (value && list && !Array.from(list.querySelectorAll('[data-nsit-custom-tag]')).some((item) => item.dataset.nsitCustomTag === value)) {
+          const tag = document.createElement('span');
+          tag.className = 'nsit-custom-tag'; tag.dataset.nsitCustomTag = value;
+          tag.append(document.createTextNode(value));
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.dataset.action = 'remove-custom-tag'; remove.setAttribute('aria-label', `删除 ${value}`); remove.textContent = '×';
+          tag.append(remove); list.append(tag); input.value = '';
+        }
+        input?.focus();
+        return;
+      }
+      if (action === 'remove-custom-tag') {
+        event.target.closest('[data-nsit-custom-tag]')?.remove();
+        return;
+      }
       if (action === 'toggle-traffic-usage') {
         const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
         if (!popover || event.target.closest('button').disabled) return;
@@ -1773,6 +1974,14 @@ function initialize() {
     app.querySelector('[data-nsit-catalog-search]').addEventListener('submit', (event) => {
       event.preventDefault();
       searchMachineCatalog(app);
+    });
+    app.querySelector('.nsit-personalization-modal').addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) closePersonalization(app);
+    });
+    app.addEventListener('submit', (event) => {
+      if (!event.target.matches('[data-nsit-personalization-form]')) return;
+      event.preventDefault();
+      savePersonalizationForm(app);
     });
     app.querySelector('.nsit-trigger').addEventListener('click', () => {
       app.classList.add('nsit-open');

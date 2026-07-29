@@ -1,10 +1,15 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.2.61';
+  const VERSION = '1.2.62';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
   const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
+  const PERSONALIZATION_KEY = 'nsit-personalization-v1';
+  const RENEWAL_FIELD_OPTIONS = [
+    ['renewal', '续费金额 / 周期'], ['expiryDate', '到期日期'], ['tradeDate', '交易日期'], ['remainingValue', '剩余价值'],
+  ];
+  const DEFAULT_RENEWAL_FIELDS = RENEWAL_FIELD_OPTIONS.map(([name]) => name);
   const MACHINE_FIELDS = ['vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic', 'remainingTraffic', 'renewalCycle', 'renewalAmount', 'currency', 'expiryDate', 'tradeDate', 'nqUrl', 'tqUrl', 'askingPrice', 'askingPremium', 'remarks'];
   const RATE_CACHE_KEY = 'nsit-cny-rates-v1';
   const MACHINE_CATALOG_API_URL = 'https://nsit-machine-catalog.ruoqianfengshao.workers.dev';
@@ -61,4 +66,11 @@
     ['remarks', '单机备注', 'textarea', '补充说明'],
     ['postRemarks', '整贴备注', 'textarea', '适用于整帖的补充说明'],
   ];
+  const PRESET_TRANSFER_TAGS = ['原邮出', '改邮出', '实名', '包中介', '不包中介', '包 push', '不包 push', '先机后款', '先款后机', '支付宝口令红包', '无 PP 争议'];
+  const TRANSFER_TAG_GROUPS = { '原邮出': 'transfer', '改邮出': 'transfer', '包中介': 'broker', '不包中介': 'broker', '包 push': 'push', '不包 push': 'push', '先机后款': 'payment', '先款后机': 'payment' };
+  const TITLE_FIELD_OPTIONS = [
+    ...fields.filter(([name]) => name !== 'postTitle').map(([name, label]) => [name, label]),
+    ['transferTags', '转让标签'],
+  ];
+  const DEFAULT_TITLE_FIELDS = ['askingPrice', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
   const OPTIONAL_FIELDS = new Set(['nqUrl', 'tqUrl', 'tgContact', 'remarks', 'postRemarks', 'askingPrice', 'askingPremium']);

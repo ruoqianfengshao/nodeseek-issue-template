@@ -12,6 +12,7 @@
     else title.before(app);
     restoreDraft(app);
     restoreCardToggle(app);
+    applyPersonalSettings(app);
     syncPriceFields(app);
     initializeMachines(app);
     refreshTitle(app);
@@ -72,9 +73,9 @@
       if (event.target.matches('[name="generateCard"]')) {
         try { localStorage.setItem(CARD_TOGGLE_KEY, String(event.target.checked)); } catch (_) { /* 存储不可用时忽略 */ }
       }
-      const tag = event.target.matches('[name="transferTags"]') ? event.target : null;
+      const tag = event.target.matches('[name="transferTags"], [name="presetTags"]') ? event.target : null;
       if (tag?.checked && ['transfer', 'broker', 'push', 'payment'].includes(tag.dataset.tagGroup)) {
-        app.querySelectorAll(`[name="transferTags"][data-tag-group="${tag.dataset.tagGroup}"]`).forEach((input) => {
+        app.querySelectorAll(`[name="${tag.name}"][data-tag-group="${tag.dataset.tagGroup}"]`).forEach((input) => {
           if (input !== tag) input.checked = false;
         });
       }
@@ -83,6 +84,11 @@
       if (event.target.name === 'currency') loadRate(app);
     });
     app.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && event.target.matches('[data-nsit-custom-tag-input]')) {
+        event.preventDefault();
+        event.target.closest('[data-nsit-personalization-form]')?.querySelector('[data-action="add-custom-tag"]')?.click();
+        return;
+      }
       const picker = event.target.matches('[data-nsit-picker-input="true"]') ? event.target.closest('.nsit-picker') : null;
       if (!picker) return;
       const options = pickerOptions(picker);
@@ -174,6 +180,48 @@
         loadRate(app, true);
         return;
       }
+      if (action === 'open-personalization') {
+        openPersonalization(app);
+        return;
+      }
+      if (action === 'close-personalization') {
+        closePersonalization(app);
+        return;
+      }
+      if (action === 'move-title-field') {
+        const item = event.target.closest('[data-nsit-title-field]');
+        const target = event.target.dataset.direction === 'up' ? item?.previousElementSibling : item?.nextElementSibling;
+        if (item && target) item.parentElement.insertBefore(item, event.target.dataset.direction === 'up' ? target : target.nextElementSibling);
+        refreshTitlePreview(app);
+        return;
+      }
+      if (action === 'add-title-field' || action === 'remove-title-field') {
+        const item = event.target.closest('[data-nsit-title-field]');
+        const destination = app.querySelector(action === 'add-title-field' ? '[data-nsit-title-field-order]' : '[data-nsit-title-field-available]');
+        if (item && destination) destination.append(item);
+        refreshTitlePreview(app);
+        return;
+      }
+      if (action === 'add-custom-tag') {
+        const form = event.target.closest('[data-nsit-personalization-form]');
+        const input = form?.querySelector('[data-nsit-custom-tag-input]');
+        const list = form?.querySelector('[data-nsit-custom-tag-list]');
+        const value = input?.value.trim();
+        if (value && list && !Array.from(list.querySelectorAll('[data-nsit-custom-tag]')).some((item) => item.dataset.nsitCustomTag === value)) {
+          const tag = document.createElement('span');
+          tag.className = 'nsit-custom-tag'; tag.dataset.nsitCustomTag = value;
+          tag.append(document.createTextNode(value));
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.dataset.action = 'remove-custom-tag'; remove.setAttribute('aria-label', `删除 ${value}`); remove.textContent = '×';
+          tag.append(remove); list.append(tag); input.value = '';
+        }
+        input?.focus();
+        return;
+      }
+      if (action === 'remove-custom-tag') {
+        event.target.closest('[data-nsit-custom-tag]')?.remove();
+        return;
+      }
       if (action === 'toggle-traffic-usage') {
         const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
         if (!popover || event.target.closest('button').disabled) return;
@@ -242,6 +290,14 @@
     app.querySelector('[data-nsit-catalog-search]').addEventListener('submit', (event) => {
       event.preventDefault();
       searchMachineCatalog(app);
+    });
+    app.querySelector('.nsit-personalization-modal').addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) closePersonalization(app);
+    });
+    app.addEventListener('submit', (event) => {
+      if (!event.target.matches('[data-nsit-personalization-form]')) return;
+      event.preventDefault();
+      savePersonalizationForm(app);
     });
     app.querySelector('.nsit-trigger').addEventListener('click', () => {
       app.classList.add('nsit-open');

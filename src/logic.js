@@ -5,6 +5,109 @@
     return values;
   }
 
+  function personalSettings() {
+    const defaults = {
+      presetTags: [], customTags: [], titleFields: DEFAULT_TITLE_FIELDS, tgContact: '', postRemarks: '', renewalFields: DEFAULT_RENEWAL_FIELDS,
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem(PERSONALIZATION_KEY) || '{}');
+      const legacyTgContact = localStorage.getItem(TG_CONTACT_KEY)?.trim() || '';
+      return {
+        ...defaults,
+        ...saved,
+        presetTags: Array.isArray(saved.presetTags) ? saved.presetTags.filter((tag) => PRESET_TRANSFER_TAGS.includes(tag)) : defaults.presetTags,
+        customTags: Array.isArray(saved.customTags) ? saved.customTags.filter(Boolean) : (Array.isArray(saved.machineTags) ? saved.machineTags.filter(Boolean) : defaults.customTags),
+        postRemarks: String(saved.postRemarks || (Array.isArray(saved.remarks) ? saved.remarks.filter(Boolean).join('\n') : saved.remarks) || '').trim(),
+        titleFields: Array.isArray(saved.titleFields) ? saved.titleFields.filter((name) => TITLE_FIELD_OPTIONS.some(([value]) => value === name)) : defaults.titleFields,
+        renewalFields: Array.isArray(saved.renewalFields) ? saved.renewalFields.filter((name) => DEFAULT_RENEWAL_FIELDS.includes(name)) : defaults.renewalFields,
+        tgContact: String(saved.tgContact || legacyTgContact).trim(),
+      };
+    } catch (_) { return defaults; }
+  }
+
+  function savePersonalSettings(settings) {
+    localStorage.setItem(PERSONALIZATION_KEY, JSON.stringify(settings));
+  }
+
+  function renderPersonalization(app) {
+    const settings = personalSettings();
+    const personalTags = app.querySelector('[data-nsit-personal-tags]');
+    const selected = new Set(app._nsitMachines?.[app._nsitActiveMachine]?.transferTags || []);
+    const tagMarkup = (tag) => {
+      const group = TRANSFER_TAG_GROUPS[tag] || 'extras';
+      return `<label class="nsit-tag nsit-tag--${group}"><input type="checkbox" name="transferTags" value="${escapeHtml(tag)}"${TRANSFER_TAG_GROUPS[tag] ? ` data-tag-group="${TRANSFER_TAG_GROUPS[tag]}"` : ''}${selected.has(tag) ? ' checked' : ''}><span>${escapeHtml(tag)}</span></label>`;
+    };
+    if (personalTags) {
+      const baseTags = new Set(Array.from(app.querySelectorAll('.nsit-tag-list > .nsit-tag input'), (input) => input.value));
+      personalTags.innerHTML = settings.customTags
+        .filter((tag) => !baseTags.has(tag))
+        .map(tagMarkup).join('');
+    }
+  }
+
+  function applyPersonalSettings(app) {
+    const settings = personalSettings();
+    const tg = app.querySelector('[name="tgContact"]');
+    if (tg && settings.tgContact && !tg.value) tg.value = settings.tgContact;
+    const postRemarks = app.querySelector('[name="postRemarks"]');
+    if (postRemarks && settings.postRemarks && !postRemarks.value) postRemarks.value = settings.postRemarks;
+    renderPersonalization(app);
+  }
+
+  function personalizationDialogMarkup() {
+    const settings = personalSettings();
+    const checkboxes = (options, selected, name) => options.map(([value, label]) => `<label><input type="checkbox" name="${name}" value="${value}"${selected.includes(value) ? ' checked' : ''}>${label}</label>`).join('');
+    const presetTag = (tag) => {
+      const group = TRANSFER_TAG_GROUPS[tag] || 'extras';
+      return `<label class="nsit-tag nsit-tag--${group}"><input type="checkbox" name="presetTags" value="${escapeHtml(tag)}"${TRANSFER_TAG_GROUPS[tag] ? ` data-tag-group="${TRANSFER_TAG_GROUPS[tag]}"` : ''}${settings.presetTags.includes(tag) ? ' checked' : ''}><span>${escapeHtml(tag)}</span></label>`;
+    };
+    const customTag = (tag) => `<span class="nsit-custom-tag" data-nsit-custom-tag="${escapeHtml(tag)}">${escapeHtml(tag)}<button type="button" data-action="remove-custom-tag" aria-label="删除 ${escapeHtml(tag)}">×</button></span>`;
+    const titleItem = (value) => {
+      const label = TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1] || value;
+      return `<li data-nsit-title-field="${value}"><span>${escapeHtml(label)}</span><button type="button" data-action="add-title-field" aria-label="加入">＋</button><button type="button" data-action="remove-title-field" aria-label="移除">−</button><button type="button" data-action="move-title-field" data-direction="up" aria-label="上移">↑</button><button type="button" data-action="move-title-field" data-direction="down" aria-label="下移">↓</button></li>`;
+    };
+    const available = TITLE_FIELD_OPTIONS.map(([value]) => value).filter((value) => !settings.titleFields.includes(value));
+    const titlePreview = settings.titleFields.map((value) => TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1]).filter(Boolean).join(' · ') || '未选择字段';
+    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
+  }
+
+  function refreshTitlePreview(app) {
+    const preview = app.querySelector('[data-nsit-title-preview]');
+    if (!preview) return;
+    const fields = Array.from(app.querySelectorAll('[data-nsit-title-field-order] [data-nsit-title-field]'), (item) => item.querySelector('span')?.textContent).filter(Boolean);
+    preview.textContent = `标题预览：${fields.join(' · ') || '未选择字段'}`;
+  }
+
+  function openPersonalization(app) {
+    app.querySelector('[data-nsit-personalization-body]').innerHTML = personalizationDialogMarkup();
+    app.classList.add('nsit-personalization-open');
+  }
+
+  function closePersonalization(app) {
+    app.classList.remove('nsit-personalization-open');
+  }
+
+  function savePersonalizationForm(app) {
+    const form = app.querySelector('[data-nsit-personalization-form]');
+    if (!form) return;
+    const titleFields = Array.from(form.querySelectorAll('[data-nsit-title-field-order] [data-nsit-title-field]'), (item) => item.dataset.nsitTitleField);
+    const settings = {
+      presetTags: Array.from(form.querySelectorAll('[name="presetTags"]:checked'), (input) => input.value),
+      customTags: Array.from(form.querySelectorAll('[data-nsit-custom-tag]'), (item) => item.dataset.nsitCustomTag),
+      titleFields,
+      tgContact: form.elements.tgContact.value.trim(),
+      postRemarks: form.elements.postRemarks.value.trim(),
+      renewalFields: Array.from(form.querySelectorAll('[name="renewalFields"]:checked'), (input) => input.value),
+    };
+    savePersonalSettings(settings);
+    const tg = app.querySelector('[name="tgContact"]');
+    if (tg && settings.tgContact) tg.value = settings.tgContact;
+    renderPersonalization(app);
+    refreshTitle(app); saveDraft(app); saveActiveMachine(app);
+    closePersonalization(app);
+    setStatus(app, '个性化配置已保存到本地。');
+  }
+
   function machineSnapshot(app) {
     const values = formValues(app);
     return { ...Object.fromEntries(MACHINE_FIELDS.map((name) => [name, values[name] || ''])), transferTags: values.transferTags };
@@ -30,6 +133,7 @@
       if (control) control.value = machine[name] || (name === 'currency' ? 'USD 美元' : '');
     });
     app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = (machine.transferTags || []).includes(control.value); });
+    renderPersonalization(app);
     syncPriceFields(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); loadRate(app);
   }
 
@@ -47,8 +151,13 @@
   }
 
   function initializeMachines(app) {
-    app._nsitMachines = [machineSnapshot(app)];
+    const machine = machineSnapshot(app);
+    const settings = personalSettings();
+    if (!machine.transferTags.length) machine.transferTags = settings.presetTags;
+    app._nsitMachines = [machine];
     app._nsitActiveMachine = 0;
+    app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = machine.transferTags.includes(control.value); });
+    renderPersonalization(app);
     renderMachineTabs(app);
   }
 
@@ -63,7 +172,8 @@
   function addMachine(app) {
     saveActiveMachine(app);
     if (!machineReady(app._nsitMachines[app._nsitActiveMachine])) return;
-    app._nsitMachines.push({ currency: 'USD 美元', tradeDate: today() });
+    const settings = personalSettings();
+    app._nsitMachines.push({ currency: 'USD 美元', tradeDate: today(), transferTags: settings.presetTags });
     app._nsitActiveMachine = app._nsitMachines.length - 1;
     applyMachine(app, app._nsitMachines[app._nsitActiveMachine]);
     renderMachineTabs(app);
@@ -534,20 +644,44 @@
   }
 
   function suggestedTitle(values, rate) {
-    const name = [values.vendor, values.model].filter(Boolean).join(' ');
-    const spec = [values.cpu, values.memory, values.disk, values.bandwidth, values.traffic].filter(Boolean).join(' / ');
-    const price = titlePricePreview(values, rate);
-    if (!name && !spec && !price) return '';
-    return `【出】${[price, name, spec].filter(Boolean).join(' · ')}`;
+    const titleValues = titleFieldValues(values, rate);
+    const parts = personalSettings().titleFields.map((field) => titleValues[field]).filter(Boolean);
+    return parts.length ? `【出】${parts.join(' · ')}` : '';
+  }
+
+  function titleFieldValues(values, rate) {
+    return {
+      ...Object.fromEntries(TITLE_FIELD_OPTIONS.map(([name]) => [name, String(values[name] || '').trim()])),
+      askingPrice: titlePricePreview(values, rate),
+      transferTags: (values.transferTags || []).join(' / '),
+    };
   }
 
   function multiMachineTitle(machines, app) {
     const entries = machines.map((machine) => {
-      const name = [machine.vendor, machine.model].filter(Boolean).join(' ');
       const price = effectiveAskingPrice(machine, rateForValues(app, machine));
-      return [name, Number.isFinite(price) ? `¥${price.toFixed(2)}` : '待定价'].filter(Boolean).join(' ');
+      const parts = titleFieldValues(machine, rateForValues(app, machine));
+      if (!Number.isFinite(price)) parts.askingPrice = '';
+      return personalSettings().titleFields.map((field) => parts[field]).filter(Boolean).join(' ');
     }).filter(Boolean);
     return entries.length ? `【出】${entries.join(' · ')}` : '';
+  }
+
+  function tableRenewalInfo(values) {
+    const fields = personalSettings().renewalFields;
+    return [
+      fields.includes('renewal') && [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/'),
+      fields.includes('tradeDate') && values.tradeDate ? `交易 ${values.tradeDate}` : '',
+    ].filter(Boolean).join(' · ');
+  }
+
+  function tableValueAndExpiry(values, rate) {
+    const fields = personalSettings().renewalFields;
+    const result = calculation(values);
+    return [
+      fields.includes('remainingValue') && result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '',
+      fields.includes('expiryDate') && values.expiryDate ? values.expiryDate : '',
+    ].filter(Boolean).join('/') || '—';
   }
 
   function refreshTitle(app) {
@@ -566,8 +700,13 @@
     const pair = (label, value) => value ? `- ${label}：${value}` : '';
     const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
     const basic = [[values.vendor, values.model].filter(Boolean).join(' ') ? `- 厂商&型号：${[values.vendor, values.model].filter(Boolean).join(' ')}` : '', [['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', trafficDisplay(values)]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，') ? `- 配置：${[['CPU', values.cpu], ['内存', values.memory], ['硬盘', values.disk], ['带宽', values.bandwidth], ['流量', trafficDisplay(values)]].filter(([, value]) => value).map(([label, value]) => `${label}：${value}`).join('，')}` : ''].filter(Boolean);
-    const renewal = [values.renewalAmount || values.renewalCycle ? `- 续费金额 / 周期：${[values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', values.renewalCycle].filter(Boolean).join(' / ')}` : '', pair('到期日期', values.expiryDate), pair('交易日期', values.tradeDate)].filter(Boolean);
-    if (result && rate) {
+    const renewalFields = personalSettings().renewalFields;
+    const renewal = [
+      renewalFields.includes('renewal') && (values.renewalAmount || values.renewalCycle) ? `- 续费金额 / 周期：${[values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}（${values.currency}）` : '', values.renewalCycle].filter(Boolean).join(' / ')}` : '',
+      renewalFields.includes('expiryDate') ? pair('到期日期', values.expiryDate) : '',
+      renewalFields.includes('tradeDate') ? pair('交易日期', values.tradeDate) : '',
+    ].filter(Boolean);
+    if (renewalFields.includes('remainingValue') && result && rate) {
       const cnyValue = result.value * rate.rate;
       const originalValue = `${currencySymbol(values.currency)}${result.value.toFixed(2)}`;
       const calculation = `¥${cnyValue.toFixed(2)}`;
@@ -575,7 +714,7 @@
         ? `（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`
         : ` = ${originalValue} × ${rate.rate.toFixed(4)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`;
       renewal.push(`- 剩余价值：${calculation}${detail}`);
-    } else if (result) {
+    } else if (renewalFields.includes('remainingValue') && result) {
       renewal.push(`- 剩余价值：${currencySymbol(values.currency)}${result.value.toFixed(2)}（剩余 ${result.daysLeft} 天，${result.percentage.toFixed(1)}%）`);
     }
     const askingPrice = effectiveAskingPrice(values, rate);
@@ -598,11 +737,11 @@
   function tableMarkdown(values, app, cardMarkdown) {
     const result = calculation(values);
     const rate = activeRate(app);
-    const remaining = result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '—';
+    const remaining = tableValueAndExpiry(values, rate);
     const vendorModel = [values.vendor, values.model].filter(Boolean).join(' · ');
     const spec = [values.cpu, values.memory, values.disk].filter(Boolean).join('/');
     const network = [values.bandwidth, trafficDisplay(values)].filter(Boolean).join('/');
-    const renewal = [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/');
+    const renewal = tableRenewalInfo(values);
     const reports = [values.nqUrl ? `[NQ](${values.nqUrl})` : '', values.tqUrl ? `[TQ](${values.tqUrl})` : ''].filter(Boolean).join(' / ');
     const askingPrice = effectiveAskingPrice(values, rate);
     const remainingCny = result && rate ? result.value * rate.rate : null;
@@ -635,11 +774,11 @@
     const rows = machines.map((values, index) => {
       const result = calculation(values);
       const rate = rateForValues(app, values);
-      const remaining = result && rate ? `¥${(result.value * rate.rate).toFixed(2)}` : '—';
+      const remaining = tableValueAndExpiry(values, rate);
       const vendorModel = [values.vendor, values.model].filter(Boolean).join(' · ');
       const spec = [values.cpu, values.memory, values.disk].filter(Boolean).join('/');
       const network = [values.bandwidth, trafficDisplay(values)].filter(Boolean).join('/');
-      const renewal = [values.renewalAmount ? `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)}` : '', values.renewalCycle].filter(Boolean).join('/');
+      const renewal = tableRenewalInfo(values);
       const reports = [values.nqUrl ? `[NQ](${values.nqUrl})` : '', values.tqUrl ? `[TQ](${values.tqUrl})` : ''].filter(Boolean).join(' / ');
       const askingPrice = effectiveAskingPrice(values, rate);
       const remainingCny = result && rate ? result.value * rate.rate : null;

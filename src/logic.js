@@ -752,7 +752,10 @@
       else if (askingPrice === remainingCny) price = `剩余价值 ¥${askingPrice.toFixed(2)} 出`;
       else price += ` · ${(askingPrice / remainingCny * 10).toFixed(1)} 折`;
     }
-    const table = `| 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 测试报告 | 价格 |\n| --- | --- | --- | --- | --- | --- | --- |\n| ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${reports} | ${price} |`;
+    const hasReports = Boolean(values.nqUrl || values.tqUrl);
+    const table = hasReports
+      ? `| 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 测试报告 | 价格 |\n| --- | --- | --- | --- | --- | --- | --- |\n| ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${reports} | ${price} |`
+      : `| 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 价格 |\n| --- | --- | --- | --- | --- | --- |\n| ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${price} |`;
     const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
     const other = [values.transferTags.length ? `- 转让信息：${values.transferTags.join('、')}` : '', values.tgContact ? `- TG 联系：${tgContact(values.tgContact)}` : '', String(values.remarks || '').trim() ? `- 单机备注：${String(values.remarks).trim()}` : '', String(values.postRemarks || '').trim() ? `- 整贴备注：${String(values.postRemarks).trim()}` : ''].filter(Boolean);
     return [`## 基础信息\n${table}`, cardMarkdown ? `## 剩余价值\n${cardMarkdown}` : '', other.length ? `## 其他信息\n${other.join('\n')}` : ''].filter(Boolean).join('\n\n');
@@ -771,6 +774,7 @@
 
   function tableMarkdownForMachines(machines, app, cards, shared) {
     if (machines.length === 1) return tableMarkdown({ ...machines[0], tgContact: shared.tgContact, postRemarks: shared.postRemarks }, app, cards[0] || '');
+    const hasReports = machines.some((machine) => machine.nqUrl || machine.tqUrl);
     const rows = machines.map((values, index) => {
       const result = calculation(values);
       const rate = rateForValues(app, values);
@@ -789,9 +793,13 @@
         else if (askingPrice === remainingCny) price = `剩余价值 ¥${askingPrice.toFixed(2)} 出`;
         else price += ` · ${(askingPrice / remainingCny * 10).toFixed(1)} 折`;
       }
-      return `| #${index + 1} | ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${reports} | ${price} |`;
+      return hasReports
+        ? `| #${index + 1} | ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${reports} | ${price} |`
+        : `| #${index + 1} | ${vendorModel} | ${spec} | ${network} | ${renewal} | ${remaining}/${values.expiryDate || '—'} | ${price} |`;
     });
-    const table = `| 编号 | 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 测试报告 | 价格 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n${rows.join('\n')}`;
+    const table = hasReports
+      ? `| 编号 | 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 测试报告 | 价格 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n${rows.join('\n')}`
+      : `| 编号 | 厂商&型号 | CPU/内存/硬盘 | 带宽/流量 | 续费信息 | 剩余价值/到期时间 | 价格 |\n| --- | --- | --- | --- | --- | --- | --- |\n${rows.join('\n')}`;
     const notes = machines.flatMap((machine, index) => {
       const reference = `#${index + 1} ${[machine.vendor, machine.model].filter(Boolean).join(' ')}`;
       return [
@@ -910,6 +918,7 @@
 
   function tableMachinesFromMarkdown(content, app) {
     const rows = content.split('\n').filter((line) => /^\|\s*#\d+\s*\|/.test(line));
+    const hasReports = /^\|\s*编号\s*\|.*\|\s*测试报告\s*\|/m.test(content);
     return rows.map((row, index) => {
       const cells = row.split('|').slice(1, -1).map((cell) => cell.trim());
       const machine = { currency: 'USD 美元', tradeDate: today(), transferTags: [] };
@@ -930,10 +939,10 @@
         machine.renewalCycle = renewal[3];
       }
       machine.expiryDate = (cells[5] || '').split('/').pop().trim();
-      const reports = cells[6] || '';
+      const reports = hasReports ? cells[6] || '' : '';
       machine.nqUrl = reports.match(/\[NQ\]\(([^)]+)\)/)?.[1] || '';
       machine.tqUrl = reports.match(/\[TQ\]\(([^)]+)\)/)?.[1] || '';
-      machine.askingPrice = (cells[7] || '').match(/(?:总价|剩余价值)\s*¥([\d.]+)/)?.[1] || '';
+      machine.askingPrice = (cells[hasReports ? 7 : 6] || '').match(/(?:总价|剩余价值)\s*¥([\d.]+)/)?.[1] || '';
       const reference = `#${index + 1} ${[machine.vendor, machine.model].filter(Boolean).join(' ')}`;
       const transfer = content.match(new RegExp(`^- ${escapeRegExp(reference)} 转让信息：[ \\t]*(.+)$`, 'm'))?.[1] || '';
       machine.transferTags = Array.from(app.querySelectorAll('[name="transferTags"]'), (control) => control.value)

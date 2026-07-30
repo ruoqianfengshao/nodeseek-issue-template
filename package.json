@@ -1,5 +1,8 @@
 {
   "private": true,
+  "volta": {
+    "node": "24.18.0"
+  },
   "devDependencies": {
     "terser": "5.49.0"
   }

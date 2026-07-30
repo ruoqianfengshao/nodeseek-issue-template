@@ -1,6 +1,9 @@
 {
   "private": true,
   "type": "module",
+  "volta": {
+    "node": "24.18.0"
+  },
   "scripts": {
     "test": "node --test",
     "check": "node --check src/index.mjs && node --check src/catalog-page.mjs"

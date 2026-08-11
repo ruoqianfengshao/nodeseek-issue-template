@@ -1,5 +1,5 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -92,9 +92,9 @@
   const DEFAULT_TITLE_FIELDS = ['askingPrice', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
   const OPTIONAL_FIELDS = new Set(['nqUrl', 'tqUrl', 'tgContact', 'remarks', 'postRemarks', 'askingPrice', 'askingPremium']);
   const BUY_PRICE_MODES = [
-    ['remainingValue', '剩余价值收'], ['discount', '剩余价值折收'], ['premium', '剩余价值加价收'], ['total', '总价收'], ['remainingValueMinus', '剩余价值减额收'], ['offer', '带价来'],
+    ['remainingValue', '剩余价值收'], ['discount', '剩余价值折收'], ['premium', '剩余价值加价收'], ['total', '总价收'], ['remainingValueMinus', '剩余价值减额收'], ['offer', '带价聊'],
   ];
-  const BUY_PRESET_TAGS = ['原邮', '改邮', '包中介', '不包中介', '先机后款', '先款后机'];
-  const BUY_TAG_GROUPS = { 原邮: 'transfer', 改邮: 'transfer', 包中介: 'broker', 不包中介: 'broker', 先机后款: 'payment', 先款后机: 'payment' };
+  const BUY_PRESET_TAGS = ['原邮', '改邮', '包中介', '不包中介', '先机后款', '先款后机', '站内私信'];
+  const BUY_TAG_GROUPS = { 原邮: 'transfer', 改邮: 'transfer', 包中介: 'broker', 不包中介: 'broker', 先机后款: 'payment', 先款后机: 'payment', 站内私信: 'contact' };
   const BUY_TITLE_FIELD_OPTIONS = [['price', '收购方式'], ['vendor', '厂商'], ['model', '型号'], ['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽'], ['traffic', '流量'], ['renewal', '续费金额 / 周期'], ['tags', '交易标签']];
   const DEFAULT_BUY_TITLE_FIELDS = ['price', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];

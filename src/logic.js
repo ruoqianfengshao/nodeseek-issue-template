@@ -1063,10 +1063,10 @@
     const displayAmount = () => compact ? String(amount()) : amount().toFixed(2);
     if (values.buyPriceMode === 'remainingValue') return '剩余价值收';
     if (values.buyPriceMode === 'premium' && Number.isFinite(amount()) && amount() > .01) return `剩余价值 + ¥${displayAmount()} 收`;
-    if (values.buyPriceMode === 'discount' && Number.isFinite(amount()) && amount() >= .1 && amount() <= 9.9) return `剩余价值 ${displayAmount()} 折收`;
+    if (values.buyPriceMode === 'discount' && Number.isFinite(amount()) && amount() >= .1 && amount() <= 9.9) return `剩余价值 ${String(amount())} 折收`;
     if (values.buyPriceMode === 'remainingValueMinus' && Number.isFinite(amount()) && amount() > .01) return `剩余价值 − ¥${displayAmount()} 收`;
     if (values.buyPriceMode === 'total' && Number.isFinite(amount()) && amount() > .01) return `总价 ¥${displayAmount()} 收`;
-    if (values.buyPriceMode === 'offer') return '带价来';
+    if (values.buyPriceMode === 'offer') return '带价聊';
     return '';
   }
 
@@ -1248,9 +1248,12 @@
     const target = [values.buyVendor, values.buyModel].map((value) => String(value || '').trim()).filter(Boolean).join(' ');
     const config = [['CPU', values.buyCpu], ['内存', values.buyMemory], ['硬盘', values.buyDisk], ['带宽', values.buyBandwidth], ['流量', values.buyTraffic]].filter(([, value]) => String(value || '').trim()).map(([label, value]) => `${label}：${String(value).trim()}`).join('，');
     const renewal = [values.buyRenewalAmount ? `${currencySymbol(values.buyRenewalCurrency)}${values.buyRenewalAmount}（${values.buyRenewalCurrency}）` : '', values.buyRenewalCycle].filter(Boolean).join(' / ');
-    const lines = [pair('目标机器', target), pair('目标配置', config), pair('续费金额 / 周期', renewal), pair('收购价格', buyPriceText(values)), values.buyTags?.length ? `- 交易要求：${values.buyTags.join('、')}` : ''].filter(Boolean);
-    const parts = [`## 收购需求\n${lines.join('\n')}`];
-    if (tgContact) parts.push(`## 联系方式\n- TG 联系：${tgContact}`);
+    const contactTags = (values.buyTags || []).filter((tag) => BUY_TAG_GROUPS[tag] === 'contact');
+    const transactionTags = (values.buyTags || []).filter((tag) => BUY_TAG_GROUPS[tag] !== 'contact');
+    const lines = [pair('目标机器', target), pair('目标配置', config), pair('续费金额 / 周期', renewal), pair('收购价格', buyPriceText(values)), transactionTags.length ? `- 交易要求：${transactionTags.join('、')}` : ''].filter(Boolean);
+    const parts = [`## 收购信息\n${lines.join('\n')}`];
+    const contacts = [tgContact ? `- TG 联系：${tgContact}` : '', ...contactTags.map((tag) => `- ${tag}`)].filter(Boolean);
+    if (contacts.length) parts.push(`## 联系方式\n${contacts.join('\n')}`);
     if (String(values.buyPostRemarks || '').trim()) parts.push(`## 备注\n${String(values.buyPostRemarks).trim()}`);
     return parts.join('\n\n');
   }

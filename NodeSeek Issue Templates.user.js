@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.3.0
+// @version      1.3.1
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,7 +19,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -112,10 +112,10 @@ const APP_ID = 'nsit-app';
   const DEFAULT_TITLE_FIELDS = ['askingPrice', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
   const OPTIONAL_FIELDS = new Set(['nqUrl', 'tqUrl', 'tgContact', 'remarks', 'postRemarks', 'askingPrice', 'askingPremium']);
   const BUY_PRICE_MODES = [
-    ['remainingValue', '剩余价值收'], ['discount', '剩余价值折收'], ['premium', '剩余价值加价收'], ['total', '总价收'], ['remainingValueMinus', '剩余价值减额收'], ['offer', '带价来'],
+    ['remainingValue', '剩余价值收'], ['discount', '剩余价值折收'], ['premium', '剩余价值加价收'], ['total', '总价收'], ['remainingValueMinus', '剩余价值减额收'], ['offer', '带价聊'],
   ];
-  const BUY_PRESET_TAGS = ['原邮', '改邮', '包中介', '不包中介', '先机后款', '先款后机'];
-  const BUY_TAG_GROUPS = { 原邮: 'transfer', 改邮: 'transfer', 包中介: 'broker', 不包中介: 'broker', 先机后款: 'payment', 先款后机: 'payment' };
+  const BUY_PRESET_TAGS = ['原邮', '改邮', '包中介', '不包中介', '先机后款', '先款后机', '站内私信'];
+  const BUY_TAG_GROUPS = { 原邮: 'transfer', 改邮: 'transfer', 包中介: 'broker', 不包中介: 'broker', 先机后款: 'payment', 先款后机: 'payment', 站内私信: 'contact' };
   const BUY_TITLE_FIELD_OPTIONS = [['price', '收购方式'], ['vendor', '厂商'], ['model', '型号'], ['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽'], ['traffic', '流量'], ['renewal', '续费金额 / 周期'], ['tags', '交易标签']];
   const DEFAULT_BUY_TITLE_FIELDS = ['price', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
 
@@ -275,7 +275,7 @@ function escapeHtml(value) {
 
   function buyTemplateMarkup() {
     const priceMode = [
-      ['remainingValue', '剩余价值收', ''], ['discount', '剩余价值', '折数'], ['premium', '剩余价值 +', '金额'], ['total', '总价', '金额'], ['remainingValueMinus', '剩余价值 −', '金额'], ['offer', '带价来', ''],
+      ['remainingValue', '剩余价值收', ''], ['discount', '剩余价值', '折数'], ['premium', '剩余价值 +', '金额'], ['total', '总价', '金额'], ['remainingValueMinus', '剩余价值 −', '金额'], ['offer', '带价聊', ''],
     ].map(([value, label, placeholder], index) => `<label class="nsit-buy-price-option"><input type="radio" name="buyPriceMode" value="${value}" tabindex="0"${index === 0 ? ' checked' : ''}><span>${label}</span>${placeholder ? `<input type="text" name="buyPriceValue-${value}" inputmode="decimal" placeholder="${placeholder}" aria-label="${label}${placeholder}">` : ''}<em>${value === 'discount' ? '折收' : value === 'remainingValue' || value === 'offer' ? '' : '收'}</em></label>`).join('');
     const tags = BUY_PRESET_TAGS.map((label) => `<label class="nsit-tag nsit-tag--${BUY_TAG_GROUPS[label]}"><input type="checkbox" name="buyTags" value="${label}" data-buy-tag-group="${BUY_TAG_GROUPS[label]}"><span>${label}</span></label>`).join('');
     return `
@@ -298,7 +298,7 @@ function escapeHtml(value) {
   let stylesInjected = false;
 
   function injectStyles(styles) {
-    if (stylesInjected) return;
+    if (stylesInjected) { GM_addStyle(styles); return; }
     GM_addStyle(styles);
     stylesInjected = true;
   }
@@ -355,6 +355,7 @@ function escapeHtml(value) {
         #${APP_ID} .nsit-buy-shell{width:min(1180px,100%)}#${APP_ID} .nsit-buy-body{grid-template-columns:260px minmax(0,1fr)}#${APP_ID} .nsit-buy-form{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(240px,.85fr);min-height:0;overflow:hidden;padding:0}#${APP_ID} .nsit-buy-main,#${APP_ID} .nsit-buy-side{min-width:0;min-height:0;overflow:auto;padding:0 18px 12px;box-shadow:inset 0 7px 9px -12px rgba(29,40,65,.38)}#${APP_ID} .nsit-buy-side{border-left:1px solid var(--nsit-line);background:#fbfcfe}#${APP_ID} .nsit-buy-side .nsit-buy-contact-grid{grid-template-columns:1fr}#${APP_ID} .nsit-buy-side .nsit-buy-tags-field{grid-column:auto}#${APP_ID} .nsit-buy-main .nsit-buy-price-options{grid-template-columns:repeat(2,minmax(0,1fr))}#${APP_ID} .nsit-buy-main .nsit-currency-picker{width:132px}#${APP_ID} [data-nsit-buy-personalization-body]{display:flex;flex:1 1 0;min-height:0;overflow:hidden}#${APP_ID} [data-nsit-buy-personalization-body] .nsit-personalization-content{align-content:start;grid-auto-rows:max-content}#${APP_ID} [data-nsit-buy-personalization-body] .nsit-title-field-order{min-height:240px;max-height:330px}@media(max-width:760px){#${APP_ID} .nsit-buy-form{grid-template-columns:1fr;overflow:visible}#${APP_ID} .nsit-buy-main,#${APP_ID} .nsit-buy-side{overflow:visible}#${APP_ID} .nsit-buy-side{border-top:1px solid var(--nsit-line);border-left:0}}
     `;
     injectStyles(`${styles}\n${modelSuggestionStyles}\n#${APP_ID} .nsit-buy-shell{--nsit-accent:#3976bc}#${APP_ID} .nsit-buy-shell .nsit-head{background:linear-gradient(110deg,#f7faff,#f2f7ff)}#${APP_ID} .nsit-buy-shell .nsit-star-note a,#${APP_ID} .nsit-buy-shell .nsit-personalization-trigger{color:#3976bc}#${APP_ID} .nsit-buy-shell .nsit-personalization-trigger:hover{background:#f2f7ff;color:#316ab7}#${APP_ID} .nsit-buy-shell button:hover{border-color:#3976bc;color:#316ab7}#${APP_ID} .nsit-buy-shell button.nsit-primary,#${APP_ID} .nsit-buy-shell button.nsit-primary:hover{border-color:#3976bc;background:#3976bc;color:#fff}#${APP_ID} .nsit-buy-shell button.nsit-primary:hover{background:#316ab7}#${APP_ID} .nsit-buy-shell input:not([type="radio"]):focus,#${APP_ID} .nsit-buy-shell textarea:focus{border-color:#3976bc;box-shadow:0 0 0 3px rgba(57,118,188,.14)}#${APP_ID} .nsit-buy-personalization-modal{--nsit-accent:#3976bc}#${APP_ID} .nsit-buy-personalization-modal button:hover{border-color:#3976bc;color:#316ab7}#${APP_ID} .nsit-buy-personalization-modal button.nsit-primary{border-color:#3976bc;background:#3976bc;color:#fff}#${APP_ID} .nsit-buy-personalization-modal button.nsit-primary:hover{background:#316ab7}#${APP_ID} .nsit-buy-personalization-modal input:focus{border-color:#3976bc;box-shadow:0 0 0 3px rgba(57,118,188,.14)}#${APP_ID} .nsit-buy-personalization-modal .nsit-title-preview{border-color:#b7cef0;background:#f2f7ff;color:#316ab7}#${APP_ID} .nsit-buy-personalization-modal .nsit-tag--transfer input:checked+span{border-color:#a9c6f5;background:#f2f7ff;color:#316ab7}#${APP_ID} .nsit-buy-price-option{justify-self:start;background:transparent!important;text-align:left}#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked){background:transparent!important;color:#316ab7}#${APP_ID} .nsit-buy-price{gap:5px}#${APP_ID} .nsit-buy-price-option input[type="radio"]{appearance:auto;width:15px;height:15px;border:initial;border-radius:initial;background:initial;accent-color:#3976bc;box-shadow:none}#${APP_ID} .nsit-buy-price-option input[type="radio"]:checked{background:initial}#${APP_ID} .nsit-buy-price-option input[name^="buyPriceValue-"]{height:30px;border:0;border-bottom:1px solid #aebacd;border-radius:0;background:transparent;box-shadow:none;font-size:14px}#${APP_ID} .nsit-buy-price-option>span,#${APP_ID} .nsit-buy-price-option>em{display:flex;align-items:center;height:30px;line-height:30px}#${APP_ID} .nsit-buy-price-option input[name^="buyPriceValue-"]::placeholder{font-size:14px}#${APP_ID} .nsit-buy-price-option input[name^="buyPriceValue-"]:focus{border:0;border-bottom:1px solid #3976bc;box-shadow:none}#${APP_ID} .nsit-buy-price-option input[type="radio"]:focus{outline:0;box-shadow:none}#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked)>span,#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked)>em,#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked) input[name^="buyPriceValue-"]{color:#316ab7;background:transparent;box-shadow:none}#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked) input[name^="buyPriceValue-"]{border:0;border-bottom:1px solid #3976bc}#${APP_ID} .nsit-buy-contact-grid{grid-template-columns:repeat(4,minmax(0,1fr))}#${APP_ID} .nsit-buy-tags-field{grid-column:span 3}#${APP_ID} .nsit-buy-catalog>label{margin:6px 0;padding:0 10px}#${APP_ID} .nsit-buy-contact-grid+.nsit-buy-grid{margin-top:10px}#${APP_ID} .nsit-buy-shell .nsit-actions{margin-left:auto}`);
+    injectStyles(`#${APP_ID} .nsit-tag--contact input:checked+span{border-color:#efb0b0;background:#fff1f1;color:#c04444}`);
     app.innerHTML = `
       <button type="button" class="nsit-trigger" aria-haspopup="dialog">出🐔模板</button>
       ${buyTemplateMarkup()}
@@ -1464,10 +1465,10 @@ function formValues(app) {
     const displayAmount = () => compact ? String(amount()) : amount().toFixed(2);
     if (values.buyPriceMode === 'remainingValue') return '剩余价值收';
     if (values.buyPriceMode === 'premium' && Number.isFinite(amount()) && amount() > .01) return `剩余价值 + ¥${displayAmount()} 收`;
-    if (values.buyPriceMode === 'discount' && Number.isFinite(amount()) && amount() >= .1 && amount() <= 9.9) return `剩余价值 ${displayAmount()} 折收`;
+    if (values.buyPriceMode === 'discount' && Number.isFinite(amount()) && amount() >= .1 && amount() <= 9.9) return `剩余价值 ${String(amount())} 折收`;
     if (values.buyPriceMode === 'remainingValueMinus' && Number.isFinite(amount()) && amount() > .01) return `剩余价值 − ¥${displayAmount()} 收`;
     if (values.buyPriceMode === 'total' && Number.isFinite(amount()) && amount() > .01) return `总价 ¥${displayAmount()} 收`;
-    if (values.buyPriceMode === 'offer') return '带价来';
+    if (values.buyPriceMode === 'offer') return '带价聊';
     return '';
   }
 
@@ -1649,9 +1650,12 @@ function formValues(app) {
     const target = [values.buyVendor, values.buyModel].map((value) => String(value || '').trim()).filter(Boolean).join(' ');
     const config = [['CPU', values.buyCpu], ['内存', values.buyMemory], ['硬盘', values.buyDisk], ['带宽', values.buyBandwidth], ['流量', values.buyTraffic]].filter(([, value]) => String(value || '').trim()).map(([label, value]) => `${label}：${String(value).trim()}`).join('，');
     const renewal = [values.buyRenewalAmount ? `${currencySymbol(values.buyRenewalCurrency)}${values.buyRenewalAmount}（${values.buyRenewalCurrency}）` : '', values.buyRenewalCycle].filter(Boolean).join(' / ');
-    const lines = [pair('目标机器', target), pair('目标配置', config), pair('续费金额 / 周期', renewal), pair('收购价格', buyPriceText(values)), values.buyTags?.length ? `- 交易要求：${values.buyTags.join('、')}` : ''].filter(Boolean);
-    const parts = [`## 收购需求\n${lines.join('\n')}`];
-    if (tgContact) parts.push(`## 联系方式\n- TG 联系：${tgContact}`);
+    const contactTags = (values.buyTags || []).filter((tag) => BUY_TAG_GROUPS[tag] === 'contact');
+    const transactionTags = (values.buyTags || []).filter((tag) => BUY_TAG_GROUPS[tag] !== 'contact');
+    const lines = [pair('目标机器', target), pair('目标配置', config), pair('续费金额 / 周期', renewal), pair('收购价格', buyPriceText(values)), transactionTags.length ? `- 交易要求：${transactionTags.join('、')}` : ''].filter(Boolean);
+    const parts = [`## 收购信息\n${lines.join('\n')}`];
+    const contacts = [tgContact ? `- TG 联系：${tgContact}` : '', ...contactTags.map((tag) => `- ${tag}`)].filter(Boolean);
+    if (contacts.length) parts.push(`## 联系方式\n${contacts.join('\n')}`);
     if (String(values.buyPostRemarks || '').trim()) parts.push(`## 备注\n${String(values.buyPostRemarks).trim()}`);
     return parts.join('\n\n');
   }

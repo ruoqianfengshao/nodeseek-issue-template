@@ -274,6 +274,12 @@
     return `${value}${unit}`;
   }
 
+  function formatTrafficDisplay(value) {
+    const gigabytes = trafficInGigabytes(value);
+    if (gigabytes === null || gigabytes < 1024) return String(value || '');
+    return formatTrafficAmount(gigabytes / 1024, 'T');
+  }
+
   function trafficUsageFromRemaining(total, remainingTraffic) {
     const remaining = trafficInGigabytes(remainingTraffic);
     if (remaining === null) return 0;
@@ -319,7 +325,7 @@
       }).join('');
     }
     const configured = Boolean(String(remaining.value || '').trim());
-    trigger.textContent = configured ? `剩余: ${remaining.value}` : '剩余 ?';
+    trigger.textContent = configured ? `剩余: ${formatTrafficDisplay(remaining.value)}` : '剩余 ?';
     trigger.title = configured ? '修改剩余流量' : '剩余流量配置，请先配置流量';
   }
 
@@ -349,7 +355,7 @@
 
   function trafficDisplay(values) {
     if (!values.traffic) return '';
-    return values.remainingTraffic ? `${values.traffic}（剩余：${values.remainingTraffic}）` : values.traffic;
+    return values.remainingTraffic ? `${values.traffic}（剩余：${formatTrafficDisplay(values.remainingTraffic)}）` : values.traffic;
   }
 
   function currencySymbol(currency) {

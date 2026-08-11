@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.2.64
+// @version      1.2.65
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,7 +19,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.2.64';
+  const VERSION = '1.2.65';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -614,6 +614,12 @@ function formValues(app) {
     return `${value}${unit}`;
   }
 
+  function formatTrafficDisplay(value) {
+    const gigabytes = trafficInGigabytes(value);
+    if (gigabytes === null || gigabytes < 1024) return String(value || '');
+    return formatTrafficAmount(gigabytes / 1024, 'T');
+  }
+
   function trafficUsageFromRemaining(total, remainingTraffic) {
     const remaining = trafficInGigabytes(remainingTraffic);
     if (remaining === null) return 0;
@@ -659,7 +665,7 @@ function formValues(app) {
       }).join('');
     }
     const configured = Boolean(String(remaining.value || '').trim());
-    trigger.textContent = configured ? `剩余: ${remaining.value}` : '剩余 ?';
+    trigger.textContent = configured ? `剩余: ${formatTrafficDisplay(remaining.value)}` : '剩余 ?';
     trigger.title = configured ? '修改剩余流量' : '剩余流量配置，请先配置流量';
   }
 
@@ -689,7 +695,7 @@ function formValues(app) {
 
   function trafficDisplay(values) {
     if (!values.traffic) return '';
-    return values.remainingTraffic ? `${values.traffic}（剩余：${values.remainingTraffic}）` : values.traffic;
+    return values.remainingTraffic ? `${values.traffic}（剩余：${formatTrafficDisplay(values.remainingTraffic)}）` : values.traffic;
   }
 
   function currencySymbol(currency) {

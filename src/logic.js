@@ -7,7 +7,7 @@
 
   function personalSettings() {
     const defaults = {
-      presetTags: [], customTags: [], titleFields: DEFAULT_TITLE_FIELDS, tgContact: '', postRemarks: '', renewalFields: DEFAULT_RENEWAL_FIELDS,
+      presetTags: [], customTags: [], titleFields: DEFAULT_TITLE_FIELDS, tgContact: '', postRemarks: '', renewalFields: DEFAULT_RENEWAL_FIELDS, valueCardStyle: 'stardew-spring', customValueCardBackground: '',
     };
     try {
       const saved = JSON.parse(localStorage.getItem(PERSONALIZATION_KEY) || '{}');
@@ -20,6 +20,8 @@
         postRemarks: String(saved.postRemarks || (Array.isArray(saved.remarks) ? saved.remarks.filter(Boolean).join('\n') : saved.remarks) || '').trim(),
         titleFields: Array.isArray(saved.titleFields) ? saved.titleFields.filter((name) => TITLE_FIELD_OPTIONS.some(([value]) => value === name)) : defaults.titleFields,
         renewalFields: Array.isArray(saved.renewalFields) ? saved.renewalFields.filter((name) => DEFAULT_RENEWAL_FIELDS.includes(name)) : defaults.renewalFields,
+        valueCardStyle: VALUE_CARD_STYLES.some(([value]) => value === saved.valueCardStyle) ? saved.valueCardStyle : defaults.valueCardStyle,
+        customValueCardBackground: typeof saved.customValueCardBackground === 'string' && saved.customValueCardBackground.startsWith('data:image/') ? saved.customValueCardBackground : '',
         tgContact: String(saved.tgContact || legacyTgContact).trim(),
       };
     } catch (_) { return defaults; }
@@ -27,6 +29,29 @@
 
   function savePersonalSettings(settings) {
     localStorage.setItem(PERSONALIZATION_KEY, JSON.stringify(settings));
+  }
+
+  function compressValueCardBackground(file) {
+    return new Promise((resolve, reject) => {
+      if (!file?.type.startsWith('image/')) { reject(new Error('请选择图片文件')); return; }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('背景图片读取失败'));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(new Error('背景图片解析失败'));
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 600; canvas.height = 275;
+          const context = canvas.getContext('2d');
+          const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+          const width = image.width * scale; const height = image.height * scale;
+          context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+          resolve(canvas.toDataURL('image/jpeg', .86));
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   function renderPersonalization(app) {
@@ -68,7 +93,12 @@
     };
     const available = TITLE_FIELD_OPTIONS.map(([value]) => value).filter((value) => !settings.titleFields.includes(value));
     const titlePreview = settings.titleFields.map((value) => TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1]).filter(Boolean).join(' · ') || '未选择字段';
-    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
+    const valueCardStyle = VALUE_CARD_STYLES.map(([value, label]) => {
+      const previewSource = value === 'custom' ? settings.customValueCardBackground : VALUE_CARD_BACKGROUNDS[value];
+      const preview = previewSource ? `<img src="${previewSource}" alt="${escapeHtml(label)}主题预览">` : '<span class="nsit-value-card-custom-empty">上传背景图</span>';
+      return `<label class="nsit-value-card-style"><input type="radio" name="valueCardStyle" value="${value}"${settings.valueCardStyle === value ? ' checked' : ''}><span class="nsit-value-card-style-preview">${preview}<strong>${escapeHtml(label)}</strong></span></label>`;
+    }).join('');
+    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section><section><div class="nsit-setting-label"><h4>剩余价值图片风格</h4><p>仅影响导出的单张剩余价值图片；自定义背景仅存本机浏览器。</p></div><div class="nsit-value-card-style-grid">${valueCardStyle}</div><label class="nsit-value-card-upload">自定义背景<input type="file" accept="image/*" data-nsit-custom-value-card-background><small>自动缩放压缩至 600 × 275，上传后选择“自定义背景”即可使用。</small></label></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
   }
 
   function refreshTitlePreview(app) {
@@ -98,6 +128,8 @@
       tgContact: form.elements.tgContact.value.trim(),
       postRemarks: form.elements.postRemarks.value.trim(),
       renewalFields: Array.from(form.querySelectorAll('[name="renewalFields"]:checked'), (input) => input.value),
+      valueCardStyle: form.querySelector('[name="valueCardStyle"]:checked')?.value || 'stardew-spring',
+      customValueCardBackground: form.dataset.nsitCustomValueCardBackground || personalSettings().customValueCardBackground,
     };
     savePersonalSettings(settings);
     const tg = app.querySelector('[name="tgContact"]');
@@ -135,6 +167,7 @@
     app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = (machine.transferTags || []).includes(control.value); });
     renderPersonalization(app);
     syncPriceFields(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); loadRate(app);
+    syncInlineMachineCatalogState(app);
   }
 
   function renderMachineTabs(app) {
@@ -512,10 +545,260 @@
     setPricePreview(app, 'fair', `<span>${formatPreviewOperand(askingPrice)} ÷ ${formatPreviewOperand(remainingCny)} =</span><b>${(askingPrice / remainingCny * 10).toFixed(1)} 折</b>`);
   }
 
+  function createStardewValueCard(values, rate, result, askingPrice, style) {
+    const cardWidth = 600;
+    const cardHeight = 275;
+    const canvas = document.createElement('canvas');
+    canvas.width = cardWidth; canvas.height = cardHeight;
+    const background = new Image();
+    const seasonName = { 'stardew-spring': '春', 'stardew-summer': '夏', 'stardew-autumn': '秋', 'stardew-winter': '冬' }[style] || '春';
+    const accent = { 'stardew-spring': '#519b48', 'stardew-summer': '#d78d25', 'stardew-autumn': '#b65524', 'stardew-winter': '#5194bd' }[style] || '#519b48';
+    const roundedBox = (context, x, y, width, height, radius, fill, stroke = '') => {
+      context.beginPath();
+      context.roundRect(x, y, width, height, radius);
+      if (fill) { context.fillStyle = fill; context.fill(); }
+      if (stroke) { context.strokeStyle = stroke; context.lineWidth = 2; context.stroke(); }
+    };
+    const text = (context, value, x, y, font, color, align = 'left') => {
+      context.font = font;
+      context.fillStyle = color;
+      context.textAlign = align;
+      context.fillText(value, x, y);
+    };
+    return new Promise((resolve, reject) => {
+      background.onload = () => {
+        const context = canvas.getContext('2d');
+        const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+        const cny = result.value * rate.rate;
+        const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
+        const rateText = values.currency === 'CNY' ? '今日汇率 · 人民币' : `今日汇率 · ${rate.rate.toFixed(4)}`;
+        const dateText = `${seasonName} · ${values.tradeDate || '—'}`;
+        const progressText = `${result.daysLeft} / ${result.cycleDays} 天 · ${result.percentage.toFixed(1)}%`;
+        const filledPixels = Math.max(0, Math.min(10, Math.round(result.percentage / 10)));
+        context.drawImage(background, 0, 0, cardWidth, cardHeight);
+        context.beginPath(); context.roundRect(1.5, 1.5, 597, 272, 5); context.strokeStyle = '#714321'; context.lineWidth = 3; context.stroke();
+        roundedBox(context, 17, 13, 566, 249, 5, 'rgba(255,243,210,.94)', '#70451f');
+        context.beginPath(); context.roundRect(19.5, 15.5, 561, 244, 4); context.strokeStyle = 'rgba(255,250,229,.68)'; context.lineWidth = 2; context.stroke();
+        context.save();
+        context.beginPath(); context.roundRect(19, 15, 562, 245, 4); context.clip();
+        context.strokeStyle = 'rgba(130,83,39,.10)'; context.lineWidth = 1;
+        for (let y = 31; y < 260; y += 21) { context.beginPath(); context.moveTo(19, y); context.lineTo(581, y); context.stroke(); }
+        context.restore();
+
+        roundedBox(context, 30, 27, 132, 22, 6, '#b5d94c', '#518238');
+        roundedBox(context, 436, 27, 134, 22, 6, '#b5d94c', '#518238');
+        text(context, rateText, 96, 42, `700 12px ${sans}`, '#274f25', 'center');
+        text(context, dateText, 503, 42, `700 12px ${sans}`, '#274f25', 'center');
+
+        roundedBox(context, 191, 3, 218, 34, 4, accent, '#73431f');
+        context.strokeStyle = 'rgba(255,239,179,.72)'; context.lineWidth = 1; context.strokeRect(194, 6, 212, 28);
+        context.fillStyle = '#edcb78'; context.beginPath(); context.arc(198, 9, 2.5, 0, Math.PI * 2); context.fill(); context.beginPath(); context.arc(402, 9, 2.5, 0, Math.PI * 2); context.fill();
+        text(context, '剩余价值', 300, 26, `800 17px ${sans}`, '#fff6d7', 'center');
+
+        roundedBox(context, 31, 68, 207, 120, 5, 'rgba(255,248,231,.94)', '#c99444');
+        context.beginPath(); context.roundRect(33, 70, 203, 116, 3); context.strokeStyle = '#f6dfac'; context.lineWidth = 2; context.stroke();
+        roundedBox(context, 43, 96, 43, 43, 21, '#f4b13a', '#60983e');
+        context.beginPath(); context.arc(64.5, 117.5, 17.5, 0, Math.PI * 2); context.strokeStyle = '#ffe37c'; context.lineWidth = 3; context.stroke();
+        context.beginPath(); context.ellipse(65, 87, 7, 10, -0.28, 0, Math.PI * 2); context.fillStyle = '#8fca54'; context.fill(); context.strokeStyle = '#4b8a38'; context.lineWidth = 2; context.stroke();
+        text(context, '剩余价值', 96, 94, `700 12px ${sans}`, '#876232');
+        text(context, `¥${cny.toFixed(2)}`, 96, 126, `800 27px ${sans}`, '#9b5c19');
+        text(context, `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} × ${result.daysLeft} 天`, 96, 146, `500 12px ${sans}`, '#80633e');
+        text(context, `÷ ${result.cycleDays} 天 = ${currencySymbol(values.currency)}${formatAmount(result.value)}`, 96, 163, `500 12px ${sans}`, '#80633e');
+
+        roundedBox(context, 250, 68, 319, 64, 4, 'rgba(255,250,229,.80)', '#d6ac67');
+        context.strokeStyle = '#e0c48e'; context.lineWidth = 1; context.beginPath(); context.moveTo(409.5, 69); context.lineTo(409.5, 131); context.stroke();
+        text(context, '续费金额 / 周期', 262, 91, `400 12px ${sans}`, '#8b6b42');
+        text(context, renewal, 262, 117, `700 13px ${sans}`, '#365a31');
+        text(context, '到期日期', 422, 91, `400 12px ${sans}`, '#8b6b42');
+        text(context, values.expiryDate || '—', 422, 117, `700 13px ${sans}`, '#365a31');
+        roundedBox(context, 250, 144, 319, 44, 4, '#fff8e6', '#d5aa62');
+        text(context, '剩余天数 / 周期', 262, 160, `400 12px ${sans}`, '#8b6b42');
+        text(context, progressText, 262, 178, `700 12px ${sans}`, '#2e6b39');
+        for (let index = 0; index < 10; index += 1) {
+          const x = 447 + index * 12;
+          context.fillStyle = index < filledPixels ? accent : '#f1e6c6';
+          context.fillRect(x, 169, 10, 8);
+          context.strokeStyle = index < filledPixels ? '#2e7331' : '#b89b67'; context.lineWidth = 1; context.strokeRect(x + .5, 169.5, 9, 7);
+        }
+
+        let previewTop = '未填写预出价格';
+        let previewBottom = '填写总价或溢价后显示预览';
+        let previewColor = '#718096';
+        if (Number.isFinite(askingPrice) && askingPrice >= 0) {
+          if (cny === 0) { previewTop = `溢价 ¥${askingPrice.toFixed(2)}`; previewBottom = '剩余价值为 0'; previewColor = '#c04444'; }
+          else if (askingPrice > cny) { previewTop = `溢价 ¥${(askingPrice - cny).toFixed(2)}`; previewBottom = `总价 ¥${askingPrice.toFixed(2)} − 剩余价值 ¥${cny.toFixed(2)}`; previewColor = '#c04444'; }
+          else if (askingPrice === cny) { previewTop = '剩余价值出'; previewBottom = `总价 ¥${askingPrice.toFixed(2)}`; previewColor = '#27834a'; }
+          else { previewTop = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewBottom = `总价 ¥${askingPrice.toFixed(2)} ÷ 剩余价值 ¥${cny.toFixed(2)}`; previewColor = '#27834a'; }
+        }
+        roundedBox(context, 31, 200, 538, 43, 5, '#f2d681', '#a6702a');
+        context.beginPath(); context.roundRect(33, 202, 534, 39, 3); context.strokeStyle = '#ffe8a8'; context.lineWidth = 2; context.stroke();
+        roundedBox(context, 42, 208, 29, 29, 15, '#f3b632', '#966326');
+        text(context, '¥', 56.5, 230, `800 16px Georgia`, '#8b5520', 'center');
+        text(context, '价格预览', 82, 228, `700 12px ${sans}`, '#7c4b20');
+        context.font = `800 20px ${sans}`;
+        const previewTopWidth = context.measureText(previewTop).width;
+        text(context, previewTop, 140, 232, `800 20px ${sans}`, previewColor);
+        text(context, previewBottom, Math.min(558, 148 + previewTopWidth), 229, `500 12px ${sans}`, '#89633a');
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png');
+      };
+      background.onerror = () => reject(new Error('卡片背景加载失败'));
+      background.crossOrigin = 'anonymous';
+      background.src = VALUE_CARD_BACKGROUNDS[style];
+    });
+  }
+
+  function createCustomValueCard(values, rate, result, askingPrice, backgroundSource) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600; canvas.height = 275;
+    const background = new Image();
+    const box = (context, x, y, width, height, radius, fill, stroke = '') => {
+      context.beginPath(); context.roundRect(x, y, width, height, radius);
+      if (fill) { context.fillStyle = fill; context.fill(); }
+      if (stroke) { context.strokeStyle = stroke; context.lineWidth = 1; context.stroke(); }
+      if (fill) {
+        context.save(); context.beginPath(); context.roundRect(x + 1, y + 1, width - 2, height - 2, Math.max(0, radius - 1)); context.clip();
+        const highlight = context.createLinearGradient(0, y, 0, y + 12); highlight.addColorStop(0, 'rgba(255,255,255,.24)'); highlight.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = highlight; context.fillRect(x + 1, y + 1, width - 2, 12); context.restore();
+      }
+    };
+    const text = (context, value, x, y, font, color, align = 'left', shadow = '') => {
+      context.save(); context.font = font; context.fillStyle = color; context.textAlign = align;
+      if (shadow) { context.shadowColor = shadow; context.shadowBlur = 2; context.shadowOffsetY = 1; }
+      context.fillText(value, x, y); context.restore();
+    };
+    return new Promise((resolve, reject) => {
+      background.onload = () => {
+        const context = canvas.getContext('2d');
+        const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+        const cny = result.value * rate.rate;
+        const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
+        const rateText = values.currency === 'CNY' ? '人民币计价' : `$1 = ¥${rate.rate.toFixed(5)}`;
+        let preview = '未填写预出价格'; let previewColor = '#ff95ca';
+        if (Number.isFinite(askingPrice) && askingPrice >= 0) {
+          if (cny === 0) preview = `溢价 ¥${askingPrice.toFixed(2)}`;
+          else if (askingPrice > cny) preview = `溢价 ¥${(askingPrice - cny).toFixed(2)}`;
+          else if (askingPrice === cny) { preview = '剩余价值出'; previewColor = '#91ffb2'; }
+          else { preview = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewColor = '#91ffb2'; }
+        }
+        const backdrop = document.createElement('canvas'); backdrop.width = 600; backdrop.height = 275;
+        const backdropContext = backdrop.getContext('2d');
+        backdropContext.save(); backdropContext.beginPath(); backdropContext.roundRect(0, 0, 600, 275, 24); backdropContext.clip();
+        backdropContext.filter = 'brightness(1.04) saturate(1.05)'; backdropContext.drawImage(background, -6, -3, 612, 281); backdropContext.filter = 'none';
+        const shade = backdropContext.createLinearGradient(0, 0, 600, 275);
+        shade.addColorStop(0, 'rgba(72,192,255,.08)'); shade.addColorStop(.48, 'rgba(255,255,255,.03)'); shade.addColorStop(1, 'rgba(255,182,127,.08)');
+        backdropContext.fillStyle = shade; backdropContext.fillRect(0, 0, 600, 275); backdropContext.restore();
+        context.save(); context.beginPath(); context.roundRect(0, 0, 600, 275, 24); context.clip();
+        context.drawImage(backdrop, 0, 0);
+        context.filter = 'blur(4px) saturate(160%)'; context.drawImage(backdrop, 0, 0); context.filter = 'none';
+        context.fillStyle = 'rgba(255,255,255,.10)'; context.fillRect(0, 0, 600, 275);
+        const top = context.createLinearGradient(0, 0, 600, 0); top.addColorStop(0, '#83e7ff'); top.addColorStop(.48, '#fff19a'); top.addColorStop(1, '#ffb3d5'); context.fillStyle = top; context.fillRect(0, 0, 600, 4);
+        context.restore();
+        context.beginPath(); context.roundRect(.5, .5, 599, 274, 24); context.strokeStyle = 'rgba(255,255,255,.56)'; context.stroke();
+        text(context, '剩余价值', 24, 32, `800 14px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)');
+        text(context, `¥${cny.toFixed(2)}`, 24, 65, `800 30px ${sans}`, '#fff36b', 'left', 'rgba(80,50,0,.58)');
+        text(context, '价值计算日期', 576, 29, `700 12px ${sans}`, '#fff', 'right', 'rgba(7,42,67,.58)');
+        text(context, values.tradeDate || '—', 576, 51, `700 14px ${sans}`, '#7eeaff', 'right', 'rgba(0,67,93,.68)');
+        const cards = [
+          ['续费金额 / 周期', renewal, '#fff069'],
+          ['到期日期', values.expiryDate || '—', '#73eaff'],
+          ['剩余天数', `${result.daysLeft} 天`, '#91ffb2'],
+        ];
+        cards.forEach(([label, value, color], index) => {
+          const x = 24 + index * 188;
+          box(context, x, 80, 176, 69, 14, 'rgba(255,255,255,.16)', 'rgba(255,255,255,.35)');
+          text(context, label, x + 13, 106, `700 12px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)');
+          text(context, value, x + 13, 130, `700 15px ${sans}`, color, 'left', color === '#fff069' ? 'rgba(80,50,0,.6)' : color === '#73eaff' ? 'rgba(0,67,93,.7)' : 'rgba(0,74,37,.7)');
+        });
+        box(context, 24, 159, 264, 34, 12, 'rgba(255,255,255,.13)');
+        box(context, 300, 159, 276, 34, 12, 'rgba(255,255,255,.13)');
+        text(context, '剩余百分比', 37, 181, `700 12px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)'); text(context, `${result.percentage.toFixed(1)}%`, 275, 181, `700 15px ${sans}`, '#fff069', 'right', 'rgba(80,50,0,.6)');
+        text(context, '今日汇率', 313, 181, `700 12px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)'); text(context, rateText, 563, 181, `700 15px ${sans}`, '#91ffb2', 'right', 'rgba(0,74,37,.7)');
+        context.beginPath(); context.moveTo(24, 214.5); context.lineTo(576, 214.5); context.strokeStyle = 'rgba(255,255,255,.35)'; context.stroke();
+        text(context, '价格预览', 24, 244, `800 13px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)'); text(context, preview, 576, 246, `800 21px ${sans}`, previewColor, 'right', previewColor === '#ff95ca' ? 'rgba(105,0,55,.68)' : 'rgba(0,74,37,.7)');
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png');
+      };
+      background.onerror = () => reject(new Error('自定义背景加载失败'));
+      background.src = backgroundSource;
+    });
+  }
+
+  function createTankValueCard(values, rate, result, askingPrice) {
+    const cardWidth = 600;
+    const cardHeight = 275;
+    const canvas = document.createElement('canvas');
+    canvas.width = cardWidth; canvas.height = cardHeight;
+    const background = new Image();
+    const text = (context, value, x, y, font, color, align = 'left') => {
+      context.font = font;
+      context.fillStyle = color;
+      context.textAlign = align;
+      context.fillText(value, x, y);
+    };
+    return new Promise((resolve, reject) => {
+      background.onload = () => {
+        const context = canvas.getContext('2d');
+        const font = '"Courier New",monospace';
+        const cny = result.value * rate.rate;
+        const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
+        const currency = currencyCode(values.currency) || values.currency || '—';
+        const rateText = values.currency === 'CNY' ? '人民币计价' : `${currencySymbol(values.currency)}1 = ¥${rate.rate.toFixed(5)}`;
+        const rows = [
+          ['续费金额 / 周期', renewal, '#d7bb82'],
+          ['到期日期', values.expiryDate || '—', '#d7bb82'],
+          ['剩余天数', `${result.daysLeft} 天`, '#f4f0df'],
+          ['剩余百分比', `${result.percentage.toFixed(1)}%`, '#f4f0df'],
+          ['今日汇率', rateText, '#6ac66f'],
+        ];
+        let previewTop = '未填写预出价格';
+        let previewColor = '#d7bb82';
+        if (Number.isFinite(askingPrice) && askingPrice >= 0) {
+          if (cny === 0) { previewTop = `溢价 ¥${askingPrice.toFixed(2)}`; previewColor = '#dc6560'; }
+          else if (askingPrice > cny) { previewTop = `溢价 ¥${(askingPrice - cny).toFixed(2)}`; previewColor = '#dc6560'; }
+          else if (askingPrice === cny) { previewTop = '剩余价值出'; previewColor = '#6ac66f'; }
+          else { previewTop = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewColor = '#6ac66f'; }
+        }
+
+        context.drawImage(background, 0, 0, cardWidth, cardHeight);
+        context.strokeStyle = '#b8b9b4'; context.lineWidth = 3; context.strokeRect(10.5, 10.5, 579, 254);
+        context.strokeStyle = '#30312e'; context.lineWidth = 1; context.strokeRect(14.5, 14.5, 571, 246);
+        context.beginPath(); context.moveTo(137.5, 10); context.lineTo(137.5, 265); context.moveTo(462.5, 10); context.lineTo(462.5, 265); context.strokeStyle = '#f4f0df'; context.lineWidth = 2; context.stroke();
+        text(context, '剩余价值', 148, 31, `900 15px ${font}`, '#b94b4a');
+        text(context, `¥${cny.toFixed(2)}`, 452, 31, `900 16px ${font}`, '#d7bb82', 'right');
+        text(context, '结算日期', 285, 54, `900 14px ${font}`, '#f4f0df', 'right');
+        text(context, values.tradeDate || '—', 312, 54, `900 14px ${font}`, '#d7bb82');
+
+        rows.forEach(([label, value, color], index) => {
+          const y = 87 + index * 31;
+          text(context, label, 254, y, `900 14px ${font}`, '#f4f0df', 'right');
+          text(context, value, 312, y, `900 14px ${font}`, color);
+          if (index < rows.length - 1) {
+            context.beginPath(); context.setLineDash([2, 2]); context.moveTo(148, y + 9.5); context.lineTo(452, y + 9.5); context.strokeStyle = '#555'; context.lineWidth = 1; context.stroke(); context.setLineDash([]);
+          }
+        });
+
+        context.beginPath(); context.moveTo(148, 234); context.lineTo(452, 234); context.strokeStyle = '#f4f0df'; context.lineWidth = 2; context.stroke();
+        text(context, '价格预览', 148, 257, `900 14px ${font}`, '#f4f0df');
+        text(context, previewTop, 452, 257, `900 15px ${font}`, previewColor, 'right');
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png');
+      };
+      background.onerror = () => reject(new Error('卡片背景加载失败'));
+      background.crossOrigin = 'anonymous';
+      background.src = VALUE_CARD_BACKGROUNDS.tank;
+    });
+  }
+
   function createValueCard(values, app, rate = activeRate(app)) {
     const result = calculation(values);
     if (!result || !rate) throw new Error('请先填写有效的续费信息并等待汇率加载完成');
     const askingPrice = effectiveAskingPrice(values, rate);
+    const settings = personalSettings();
+    const style = settings.valueCardStyle;
+    if (style === 'custom') {
+      if (!settings.customValueCardBackground) throw new Error('请先在个性化配置上传自定义背景');
+      return createCustomValueCard(values, rate, result, askingPrice, settings.customValueCardBackground);
+    }
+    if (style === 'tank') return createTankValueCard(values, rate, result, askingPrice);
+    if (style !== 'default') return createStardewValueCard(values, rate, result, askingPrice, style);
     const cny = result.value * rate.rate;
     const canvas = document.createElement('canvas');
     const cardWidth = 1200;
@@ -1030,6 +1313,14 @@
     app.querySelector('.nsit-status').textContent = message;
   }
 
+  function setGenerating(app, generating) {
+    app.classList.toggle('nsit-generating', generating);
+    app.querySelector('.nsit-generation-loading')?.setAttribute('aria-hidden', String(!generating));
+    app.querySelectorAll('[data-action="fill"], [data-action="fill-table"]').forEach((button) => {
+      button.disabled = generating;
+    });
+  }
+
   function missingRequiredMachineField(machine) {
     return MACHINE_FIELDS.find((name) => !OPTIONAL_FIELDS.has(name) && !String(machine[name] || '').trim()) || '';
   }
@@ -1095,6 +1386,62 @@
     }
     container.innerHTML = records.map((record, index) => `<button type="button" class="nsit-catalog-result" data-catalog-result="${index}"><span><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><br>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)} · ${escapeHtml(record.bandwidth)} · ${escapeHtml(record.traffic)}</span><small>首次收录：${escapeHtml(record.submittedByNickname)}</small></button>`).join('');
     app._nsitCatalogResults = records;
+  }
+
+  function syncInlineMachineCatalogState(app) {
+    const values = formValues(app);
+    const required = !(String(values.vendor || '').trim() && String(values.model || '').trim());
+    app.classList.toggle('nsit-catalog-required', required);
+    app.classList.toggle('nsit-machine-catalog-ready', !required);
+    if (required) app.classList.add('nsit-inline-catalog-open');
+    else app.classList.remove('nsit-inline-catalog-open');
+    return required;
+  }
+
+  function renderInlineMachineCatalogResults(app, records) {
+    const container = app.querySelector('[data-nsit-inline-catalog-results]');
+    if (!container) return;
+    if (!records.length) {
+      container.innerHTML = '<p class="nsit-catalog-empty">没有找到匹配的机器配置。</p>';
+      return;
+    }
+    container.innerHTML = records.map((record, index) => `<button type="button" class="nsit-inline-catalog-result" data-nsit-inline-catalog-result="${index}"><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><span class="nsit-inline-catalog-spec"><span>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)}</span><small>@${escapeHtml(record.submittedByNickname)}</small></span><span>流量 ${escapeHtml(record.traffic)} · 带宽 ${escapeHtml(record.bandwidth)}</span></button>`).join('');
+    app._nsitInlineCatalogResults = records;
+  }
+
+  async function loadInlineMachineCatalog(app) {
+    const input = app.querySelector('[data-nsit-inline-catalog-search]');
+    const container = app.querySelector('[data-nsit-inline-catalog-results]');
+    if (!input || !container) return;
+    const query = input.value.trim();
+    app._nsitInlineCatalogSearchAbort?.abort();
+    app._nsitInlineCatalogSearchSignature = query;
+    if (!MACHINE_CATALOG_API_URL) {
+      container.innerHTML = '<p class="nsit-catalog-empty">共享配置服务尚未配置。</p>';
+      return;
+    }
+    container.innerHTML = '<p class="nsit-catalog-empty">正在加载机器配置…</p>';
+    try {
+      const controller = new AbortController();
+      app._nsitInlineCatalogSearchAbort = controller;
+      const response = await fetch(catalogApiUrl('v1/public/machine-configs', { q: query, limit: 30 }), { signal: controller.signal });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `查询失败（HTTP ${response.status}）`);
+      if (app._nsitInlineCatalogSearchSignature !== query) return;
+      renderInlineMachineCatalogResults(app, data.records || []);
+    } catch (error) {
+      if (error?.name === 'AbortError' || app._nsitInlineCatalogSearchSignature !== query) return;
+      container.innerHTML = `<p class="nsit-catalog-empty">${escapeHtml(error.message || '查询失败，请稍后重试。')}</p>`;
+    }
+  }
+
+  function scheduleInlineMachineCatalogSearch(app, immediate = false) {
+    clearTimeout(app._nsitInlineCatalogSearchTimer);
+    if (immediate) {
+      loadInlineMachineCatalog(app);
+      return;
+    }
+    app._nsitInlineCatalogSearchTimer = setTimeout(() => loadInlineMachineCatalog(app), 220);
   }
 
   function openMachineCatalog(app) {
@@ -1210,6 +1557,7 @@
     refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
     refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
     saveActiveMachine(app); renderMachineTabs(app);
+    syncInlineMachineCatalogState(app);
     closeModelSuggestions(app);
     setStatus(app, '已回填共享配置。');
   }
@@ -1247,7 +1595,21 @@
     refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
     refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
     saveActiveMachine(app); renderMachineTabs(app);
+    syncInlineMachineCatalogState(app);
     closeMachineCatalog(app);
+    setStatus(app, '已回填共享配置。');
+  }
+
+  function applyInlineMachineCatalogRecord(app, record) {
+    MACHINE_CATALOG_FIELDS.forEach((name) => {
+      const control = app.querySelector(`[name="${CSS.escape(name)}"]`);
+      if (control) control.value = record[name] || '';
+    });
+    refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
+    refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
+    saveActiveMachine(app); renderMachineTabs(app);
+    syncInlineMachineCatalogState(app);
+    closeModelSuggestions(app);
     setStatus(app, '已回填共享配置。');
   }
 
@@ -1292,6 +1654,8 @@
   }
 
   async function fillPost(app, mode = 'text') {
+    if (app.classList.contains('nsit-generating')) return;
+    setGenerating(app, true);
     try {
       saveActiveMachine(app);
       const incompleteIndex = app._nsitMachines.findIndex((machine) => machineReady(machine) && missingRequiredMachineField(machine));
@@ -1343,6 +1707,8 @@
     } catch (error) {
       console.error('[NSIT]', '生成异常', error);
       setStatus(app, `生成失败：${error?.message || '未知错误'}`);
+    } finally {
+      setGenerating(app, false);
     }
   }
 

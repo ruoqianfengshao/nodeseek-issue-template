@@ -1,0 +1,18 @@
+vendor,model,cpu,memory,disk,bandwidth,traffic,renewalCycle,renewalAmount,currency
+Netcup,VPS piko G11s,1C,1G,30G,1G,不限流量,年付,22.08,EUR 欧元
+Netcup,VPS nano G11s,2C,2G,60G,1G,不限流量,半年付,18.48,EUR 欧元
+Netcup,VPS Lite 1 G12s,2C,4G,80G,500M,不限流量,半年付,29.28,EUR 欧元
+Netcup,VPS Lite 2 G12s,4C,8G,160G,750M,不限流量,季付,23.76,EUR 欧元
+Netcup,VPS Lite 3 G12s,8C,16G,320G,1G,不限流量,两年付,27.78,EUR 欧元
+Netcup,VPS Lite 4 G12s,16C,32G,640G,1G,不限流量,月付,25.72,EUR 欧元
+Netcup,VPS 500 G12,2C,4G,128G,2500M,不限流量,年付,70.92,EUR 欧元
+Netcup,VPS 1000 G12,4C,8G,256G,2500M,不限流量,年付,124.44,EUR 欧元
+Netcup,VPS 2000 G12,8C,16G,512G,2500M,不限流量,年付,231.00,EUR 欧元
+Netcup,VPS 4000 G12,12C,32G,1T,2500M,不限流量,年付,388.92,EUR 欧元
+Netcup,VPS 8000 G12,16C,64G,2T,2500M,不限流量,年付,575.40,EUR 欧元
+Netcup,VPS 1000 ARM G11,6C,8G,256G,2500M,不限流量,月付,7.77,EUR 欧元
+Netcup,VPS 2000 ARM G11,10C,16G,512G,2500M,不限流量,月付,13.41,EUR 欧元
+Netcup,VPS 3000 ARM G11,12C,24G,768G,2500M,不限流量,月付,18.96,EUR 欧元
+Netcup,VPS 4000 ARM G11,14C,32G,1T,2500M,不限流量,月付,25.06,EUR 欧元
+Netcup,VPS 6000 ARM G11,16C,48G,1.5T,2500M,不限流量,月付,32.21,EUR 欧元
+Netcup,VPS 8000 ARM G11,18C,64G,2T,2500M,不限流量,月付,39.98,EUR 欧元

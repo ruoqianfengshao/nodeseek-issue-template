@@ -1,0 +1,262 @@
+vendor,model,cpu,memory,disk,bandwidth,traffic,renewalCycle,renewalAmount,currency
+SadIDC,Us-Phoenix Lv1,1C,1G,10G,5000M,1T,月付,9.90,CNY 人民币
+SadIDC,Us-Phoenix Lv2,2C,2G,10G,5000M,2T,月付,15.99,CNY 人民币
+SadIDC,Us-Phoenix Lv3,2C,4G,15G,10000M,4T,月付,29.99,CNY 人民币
+SadIDC,Us-Phoenix Lv4,4C,4G,20G,10000M,8T,月付,48.99,CNY 人民币
+SadIDC,Us-Eagle Lv2,2C,2G,20G,1000M,10T,月付,19.99,CNY 人民币
+SadIDC,Us-Eagle Lv3,2C,4G,30G,1000M,15T,月付,34.99,CNY 人民币
+SadIDC,Us-Eagle Lv4,4C,4G,30G,1000M,30T,月付,58.99,CNY 人民币
+SadIDC,Us-Eagle Lv5,8C,8G,40G,1000M,30T,月付,78.99,CNY 人民币
+SadIDC,Tokyo-Elaina Lv1,1C,1G,10G,500M,512G,月付,13.99,CNY 人民币
+SadIDC,Tokyo-Elaina Lv2,2C,2G,20G,500M,1T,月付,21.99,CNY 人民币
+SadIDC,Tokyo-Elaina Lv3,2C,4G,30G,1000M,2T,月付,29.99,CNY 人民币
+SadIDC,Tokyo-Elaina Lv4,4C,4G,40G,1000M,4T,月付,49.99,CNY 人民币
+SadIDC,香港Glow-Lv2,4C,4G,60G,25M,不限流量,月付,25.00,CNY 人民币
+SadIDC,HK.Ares-Lv1,2C,2G,30G,150M,1T,月付,35.00,CNY 人民币
+SadIDC,HK.Ares-Lv2,4C,4G,50G,200M,1.5T,月付,65.00,CNY 人民币
+SadIDC,HK.Ares-Lv3,8C,8G,100G,250M,2T,月付,100.00,CNY 人民币
+SadIDC,HK.Ares-Lv4,16C,16G,200G,500M,4T,月付,180.00,CNY 人民币
+SadIDC,香港happy微站群A,2C,2G,40G,20M,不限流量,月付,45.00,CNY 人民币
+SadIDC,香港happy微站群B,4C,4G,50G,25M,不限流量,月付,80.00,CNY 人民币
+SadIDC,德阳电信 - 季付活动款1,8C,8G,100G,30M,不限流量,季付,239.00,CNY 人民币
+SadIDC,德阳电信 - 季付活动款2,16C,16G,120G,50M,不限流量,季付,349.00,CNY 人民币
+SadIDC,德阳电信企防 2H2G,2C,2G,50G,15M,不限流量,月付,55.00,CNY 人民币
+SadIDC,德阳电信企防 4H4G,4C,4G,60G,20M,不限流量,月付,60.00,CNY 人民币
+SadIDC,德阳电信企防 4H8G,4C,8G,60G,30M,不限流量,月付,75.00,CNY 人民币
+SadIDC,德阳电信企防 8H8G,8C,8G,80G,40M,不限流量,月付,85.00,CNY 人民币
+SadIDC,德阳电信企防 12H12G,12C,12G,100G,40M,不限流量,月付,100.00,CNY 人民币
+SadIDC,德阳电信企防 16H16G,16C,16G,120G,50M,不限流量,月付,120.00,CNY 人民币
+SadIDC,内蒙古VPS Lv1,2C,2G,40G,30M,不限流量,月付,20.00,CNY 人民币
+SadIDC,内蒙古VPS Lv2,4C,4G,50G,30M,不限流量,月付,27.00,CNY 人民币
+SadIDC,十堰轻量云 4H4G,4C,4G,50G,20M,不限流量,月付,35.90,CNY 人民币
+SadIDC,十堰轻量云 8H16G,8C,16G,50G,20M,不限流量,月付,69.90,CNY 人民币
+SadIDC,宁波电信高防 4H4G,4C,4G,60G,15M,不限流量,月付,55.00,CNY 人民币
+SadIDC,宁波电信高防 4H8G,4C,8G,60G,20M,不限流量,月付,65.00,CNY 人民币
+SadIDC,宁波电信高防 8H8G,8C,8G,80G,20M,不限流量,月付,85.00,CNY 人民币
+SadIDC,宁波电信高防 12H12G,12C,12G,100G,25M,不限流量,月付,100.00,CNY 人民币
+SadIDC,宁波电信高防 16H16G,16C,16G,120G,30M,不限流量,月付,120.00,CNY 人民币
+SadIDC,Kansas KVM-A罩杯,1C,1G,10G,150M,300G,月付,3.88,CNY 人民币
+SadIDC,Kansas KVM-B罩杯,2C,2G,15G,200M,500G,月付,6.66,CNY 人民币
+SadIDC,Kansas KVM-C罩杯,2C,4G,20G,200M,800G,月付,9.99,CNY 人民币
+ZgoCloud,special-offer · DE Frankfurt AMD VPS - Specials - Starter,1C,1G,10G,200M,1T,年付,45.00,USD 美元
+ZgoCloud,special-offer · DE Frankfurt AMD VPS - Specials - Standard,2C,2G,20G,200M,2T,年付,88.00,USD 美元
+ZgoCloud,special-offer · Los Angeles AMD ISP VPS - Specials - Starter,1C,1G,10G,100M,500G,年付,58.00,USD 美元
+ZgoCloud,special-offer · Los Angeles AMD ISP VPS - Specials - Standard,2C,2G,20G,100M,1T,年付,108.00,USD 美元
+ZgoCloud,special-offer · Los Angeles AMD Optimised VPS - Specials - Standard,2C,2G,20G,200M,1T,年付,96.00,USD 美元
+ZgoCloud,special-offer · HongKong AMD VPS - Specials - Starter,1C,1G,10G,100M,500G,年付,52.00,USD 美元
+ZgoCloud,special-offer · HongKong AMD VPS - Specials - Standard,2C,2G,20G,100M,1T,年付,96.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Starter,1C,1G,10G,100M,500G,季付,18.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Starter,1C,1G,10G,100M,500G,半年付,34.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Starter,1C,1G,10G,100M,500G,年付,66.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Standard,2C,2G,20G,100M,1T,季付,32.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Standard,2C,2G,20G,100M,1T,半年付,60.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Standard,2C,2G,20G,100M,1T,年付,116.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Pro,3C,3G,30G,100M,1.5T,季付,45.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Pro,3C,3G,30G,100M,1.5T,半年付,86.00,USD 美元
+ZgoCloud,hongkong-amd-vps · Pro,3C,3G,30G,100M,1.5T,年付,156.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Starter,1C,1G,10G,100M,500G,季付,18.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Starter,1C,1G,10G,100M,500G,半年付,34.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Starter,1C,1G,10G,100M,500G,年付,66.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Standard,2C,2G,20G,100M,1T,季付,32.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Standard,2C,2G,20G,100M,1T,半年付,60.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Standard,2C,2G,20G,100M,1T,年付,116.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Pro,3C,3G,30G,100M,1.5T,季付,45.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Pro,3C,3G,30G,100M,1.5T,半年付,86.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Pro,3C,3G,30G,100M,1.5T,年付,156.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Premium,4C,4G,50G,100M,2T,季付,58.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Premium,4C,4G,50G,100M,2T,半年付,108.00,USD 美元
+ZgoCloud,tokyo-intel-vps · Premium,4C,4G,50G,100M,2T,年付,198.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Starter,1C,1G,10G,200M,1T,季付,18.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Starter,1C,1G,10G,200M,1T,半年付,34.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Starter,1C,1G,10G,200M,1T,年付,66.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Standard,2C,2G,20G,200M,2T,季付,32.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Standard,2C,2G,20G,200M,2T,半年付,60.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Standard,2C,2G,20G,200M,2T,年付,116.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Pro,3C,4G,50G,300M,2T,季付,45.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Pro,3C,4G,50G,300M,2T,半年付,86.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Pro,3C,4G,50G,300M,2T,年付,156.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Premium,4C,6G,80G,300M,2T,季付,58.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Premium,4C,6G,80G,300M,2T,半年付,108.00,USD 美元
+ZgoCloud,de-frankfurt-amd-vps · Premium,4C,6G,80G,300M,2T,年付,198.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Standard,2C,2G,20G,200M,1T,季付,32.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Standard,2C,2G,20G,200M,1T,半年付,60.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Standard,2C,2G,20G,200M,1T,年付,116.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Pro,3C,3G,30G,200M,1.5T,季付,45.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Pro,3C,3G,30G,200M,1.5T,半年付,86.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Pro,3C,3G,30G,200M,1.5T,年付,156.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Premium,4C,4G,50G,200M,2T,季付,58.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Premium,4C,4G,50G,200M,2T,半年付,108.00,USD 美元
+ZgoCloud,los-angeles-amd-optimised-vps · Premium,4C,4G,50G,200M,2T,年付,198.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Starter,1C,1G,10G,100M,500G,季付,20.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Starter,1C,1G,10G,100M,500G,半年付,38.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Starter,1C,1G,10G,100M,500G,年付,72.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Standard,2C,2G,20G,100M,1T,季付,38.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Standard,2C,2G,20G,100M,1T,半年付,72.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Standard,2C,2G,20G,100M,1T,年付,132.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Pro,3C,3G,30G,200M,1.5T,季付,56.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Pro,3C,3G,30G,200M,1.5T,半年付,112.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Pro,3C,3G,30G,200M,1.5T,年付,190.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Premium,4C,4G,50G,200M,2T,季付,72.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Premium,4C,4G,50G,200M,2T,半年付,138.00,USD 美元
+ZgoCloud,los-angeles-amd-isp-vps · Premium,4C,4G,50G,200M,2T,年付,246.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Starter,1C,2G,30G,300M,1T,季付,18.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Starter,1C,2G,30G,300M,1T,半年付,34.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Starter,1C,2G,30G,300M,1T,年付,66.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Standard,2C,3G,50G,300M,2T,季付,32.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Standard,2C,3G,50G,300M,2T,半年付,60.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Standard,2C,3G,50G,300M,2T,年付,116.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Pro,3C,4G,80G,300M,2T,季付,45.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Pro,3C,4G,80G,300M,2T,半年付,86.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Pro,3C,4G,80G,300M,2T,年付,156.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Premium,4C,6G,100G,300M,2T,季付,58.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Premium,4C,6G,100G,300M,2T,半年付,108.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Premium,4C,6G,100G,300M,2T,年付,198.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Ultra,6C,8G,120G,500M,2T,季付,78.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Ultra,6C,8G,120G,500M,2T,半年付,156.00,USD 美元
+ZgoCloud,los-angeles-amd-intel-vps · Ultra,6C,8G,120G,500M,2T,年付,298.00,USD 美元
+ZgoCloud,los-angeles-ryzen9-performance-vps · Starter,1C,1G,25G,300M,1T,季付,18.00,USD 美元
+ZgoCloud,los-angeles-ryzen9-performance-vps · Starter,1C,1G,25G,300M,1T,半年付,34.00,USD 美元
+ZgoCloud,los-angeles-ryzen9-performance-vps · Starter,1C,1G,25G,300M,1T,年付,66.00,USD 美元
+ZgoCloud,los-angeles-ryzen9-performance-vps · Standard,2C,2G,40G,500M,2T,季付,32.00,USD 美元
+ZgoCloud,los-angeles-ryzen9-performance-vps · Standard,2C,2G,40G,500M,2T,半年付,60.00,USD 美元
+ZgoCloud,los-angeles-ryzen9-performance-vps · Standard,2C,2G,40G,500M,2T,年付,116.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Starter,1C,1G,20G,1G,2T,季付,8.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Starter,1C,1G,20G,1G,2T,半年付,16.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Starter,1C,1G,20G,1G,2T,年付,28.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Standard,2C,2G,40G,1G,4T,季付,12.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Standard,2C,2G,40G,1G,4T,半年付,24.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Standard,2C,2G,40G,1G,4T,年付,40.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Pro,3C,4G,60G,1G,6T,季付,20.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Pro,3C,4G,60G,1G,6T,半年付,40.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Pro,3C,4G,60G,1G,6T,年付,72.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Premium,4C,6G,80G,1G,8T,季付,28.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Premium,4C,6G,80G,1G,8T,半年付,56.00,USD 美元
+ZgoCloud,los-angeles-global-vps · Premium,4C,6G,80G,1G,8T,年付,98.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Starter,1C,1G,20G,400M,1T,季付,16.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Starter,1C,1G,20G,400M,1T,半年付,30.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Starter,1C,1G,20G,400M,1T,年付,52.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Standard,2C,2G,40G,800M,2T,季付,28.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Standard,2C,2G,40G,800M,2T,半年付,52.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Standard,2C,2G,40G,800M,2T,年付,92.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Pro,3C,4G,80G,800M,2T,季付,38.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Pro,3C,4G,80G,800M,2T,半年付,72.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Pro,3C,4G,80G,800M,2T,年付,128.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Premium,4C,6G,100G,800M,2T,季付,48.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Premium,4C,6G,100G,800M,2T,半年付,92.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Premium,4C,6G,100G,800M,2T,年付,168.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Ultra,6C,8G,120G,800M,2T,季付,58.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Ultra,6C,8G,120G,800M,2T,半年付,108.00,USD 美元
+ZgoCloud,osaka-amd-performance-vps · Ultra,6C,8G,120G,800M,2T,年付,198.00,USD 美元
+ZgoCloud,osaka-amd-ryzen9-performance-vps · Starter,1C,1G,20G,800M,1000G,季付,16.00,USD 美元
+ZgoCloud,osaka-amd-ryzen9-performance-vps · Starter,1C,1G,20G,800M,1000G,半年付,30.00,USD 美元
+ZgoCloud,osaka-amd-ryzen9-performance-vps · Starter,1C,1G,20G,800M,1000G,年付,52.00,USD 美元
+ZgoCloud,osaka-amd-ryzen9-performance-vps · Standard,2C,2G,40G,800M,2T,季付,28.00,USD 美元
+ZgoCloud,osaka-amd-ryzen9-performance-vps · Standard,2C,2G,40G,800M,2T,半年付,52.00,USD 美元
+ZgoCloud,osaka-amd-ryzen9-performance-vps · Standard,2C,2G,40G,800M,2T,年付,92.00,USD 美元
+ZgoCloud,falkenstein-intel-vps · Starter,1C,1G,20G,1000M,2T,季付,6.00,USD 美元
+ZgoCloud,falkenstein-intel-vps · Starter,1C,1G,20G,1000M,2T,半年付,11.90,USD 美元
+ZgoCloud,falkenstein-intel-vps · Starter,1C,1G,20G,1000M,2T,年付,22.90,USD 美元
+ZgoCloud,falkenstein-intel-vps · Standard,2C,2G,40G,1000M,4T,季付,10.00,USD 美元
+ZgoCloud,falkenstein-intel-vps · Standard,2C,2G,40G,1000M,4T,半年付,19.90,USD 美元
+ZgoCloud,falkenstein-intel-vps · Standard,2C,2G,40G,1000M,4T,年付,39.90,USD 美元
+BestVM,德国Pro-Special-1,1C,1G,10G,500M,1000G,年付,492.00,CNY 人民币
+BestVM,德国Pro-Special-2,1C,2G,15G,500M,3000G,年付,984.00,CNY 人民币
+BestVM,德国Pro-Special-3,2C,2G,20G,500M,5000G,年付,1476.00,CNY 人民币
+BestVM,美国Pro-Special-1,1C,1G,10G,1000M,1000G,年付,276.00,CNY 人民币
+BestVM,美国Pro-Special-2,1C,2G,15G,1000M,3000G,年付,552.00,CNY 人民币
+BestVM,美国Pro-Special-3,2C,2G,20G,1000M,5000G,年付,828.00,CNY 人民币
+BestVM,日本BGP-Special-1,1C,1G,10G,1000M,1000G,年付,298.00,CNY 人民币
+BestVM,日本BGP-Special-2,1C,2G,15G,1000M,3000G,年付,598.00,CNY 人民币
+BestVM,日本BGP-Special-3,2C,2G,20G,1000M,5000G,年付,898.00,CNY 人民币
+BestVM,日本BGP-1T,1C,0.5G,5G,1000M,1000G,月付,29.50,CNY 人民币
+BestVM,日本BGP-2T,1C,0.75G,8G,1000M,2000G,月付,58.00,CNY 人民币
+BestVM,日本BGP-4T,1C,1G,10G,1000M,4000G,月付,114.00,CNY 人民币
+BestVM,日本BGP-6T,1C,1G,10G,1000M,6000G,月付,168.00,CNY 人民币
+BestVM,日本BGP-8T,1C,1G,10G,1000M,8000G,月付,220.00,CNY 人民币
+BestVM,日本BGP-10T,1C,1G,10G,1000M,10000G,月付,270.00,CNY 人民币
+BestVM,日本BGP-20T,1C,1G,10G,1000M,20000G,月付,530.00,CNY 人民币
+BestVM,日本BGP-30T,1C,1G,10G,1000M,30000G,月付,780.00,CNY 人民币
+BestVM,日本BGP-40T,1C,1G,10G,1000M,40000G,月付,1020.00,CNY 人民币
+BestVM,日本BGP-60T,1C,1G,10G,1000M,60000G,月付,1500.00,CNY 人民币
+BestVM,日本BGP-80T,1C,1G,10G,1000M,80000G,月付,1960.00,CNY 人民币
+BestVM,日本BGP-100T,1C,1G,10G,1000M,100000G,月付,2400.00,CNY 人民币
+BestVM,日本BGP-B-1T,1C,0.5G,5G,1000M,1000G,月付,22.00,CNY 人民币
+BestVM,日本BGP-B-2T,1C,0.75G,8G,1000M,2000G,月付,43.00,CNY 人民币
+BestVM,日本BGP-B-4T,1C,1G,10G,1000M,4000G,月付,84.00,CNY 人民币
+BestVM,日本BGP-B-6T,1C,1G,10G,1000M,6000G,月付,123.00,CNY 人民币
+BestVM,日本BGP-B-8T,1C,1G,10G,1000M,8000G,月付,160.00,CNY 人民币
+BestVM,日本BGP-B-10T,1C,1G,10G,1000M,10000G,月付,195.00,CNY 人民币
+BestVM,日本BGP-B-20T,1C,1G,10G,1000M,20000G,月付,380.00,CNY 人民币
+BestVM,日本BGP-B-30T,1C,1G,10G,1000M,30000G,月付,555.00,CNY 人民币
+BestVM,香港BGP-Standard-Special-1,1C,1G,10G,1000M,1000G,年付,218.00,CNY 人民币
+BestVM,香港BGP-Standard-Special-2,1C,2G,15G,1000M,3000G,年付,518.00,CNY 人民币
+BestVM,香港BGP-Standard-Special-3,2C,2G,20G,1000M,5000G,年付,818.00,CNY 人民币
+BestVM,香港BGP-Standard,1C,0.5G,5G,1000M,1000G,月付,20.00,CNY 人民币
+BestVM,香港BGP-2T,1C,1G,10G,1000M,2T,月付,70.00,CNY 人民币
+BestVM,香港BGP-4T,1C,1G,10G,1000M,4T,月付,136.00,CNY 人民币
+BestVM,香港BGP-10T,1C,1G,10G,1000M,10T,月付,320.00,CNY 人民币
+BestVM,香港BGP-20T,1C,1G,10G,1000M,20T,月付,600.00,CNY 人民币
+BestVM,香港BGP-30T,1C,1G,10G,1000M,30T,月付,840.00,CNY 人民币
+BestVM,香港HGC静态-4T,1C,1G,10G,1000M,4T,月付,80.00,CNY 人民币
+BestVM,香港HGC静态-10T,1C,1G,10G,1000M,10T,月付,140.00,CNY 人民币
+BestVM,香港HGC静态-20T,1C,1G,10G,1000M,20T,月付,260.00,CNY 人民币
+BestVM,香港HGC静态-30T,1C,1G,10G,1000M,30T,月付,360.00,CNY 人民币
+BestVM,香港HGC静态-40T,1C,1G,10G,1000M,40T,月付,440.00,CNY 人民币
+BestVM,香港HGC静态-60T,1C,1G,10G,1000M,60T,月付,600.00,CNY 人民币
+BestVM,香港HGC静态-80T,1C,1G,10G,1000M,80T,月付,720.00,CNY 人民币
+BestVM,香港HGC-Special-2,1C,1G,10G,1000M,5000G,年付,699.00,CNY 人民币
+BestVM,台湾BGP-Lite-1T,1C,0.5G,5G,1000M,1000G,月付,15.00,CNY 人民币
+BestVM,台湾BGP-Lite-2T,1C,0.75G,8G,1000M,2000G,月付,29.00,CNY 人民币
+BestVM,台湾BGP-Lite-4T,1C,1G,10G,1000M,4000G,月付,56.00,CNY 人民币
+BestVM,台湾BGP-Lite-6T,1C,1G,10G,1000M,6000G,月付,81.00,CNY 人民币
+BestVM,台湾BGP-Lite-8T,1C,1G,10G,1000M,8000G,月付,104.00,CNY 人民币
+BestVM,台湾BGP-Lite-10T,1C,1G,10G,1000M,10000G,月付,125.00,CNY 人民币
+BestVM,台湾BGP-Lite-20T,1C,1G,10G,1000M,20000G,月付,240.00,CNY 人民币
+BestVM,台湾BGP-Lite-30T,1C,1G,10G,1000M,30000G,月付,345.00,CNY 人民币
+BestVM,台湾BGP-Lite-40T,1C,1G,10G,1000M,40000G,月付,440.00,CNY 人民币
+BestVM,台湾BGP-Lite-60T,1C,1G,10G,1000M,60000G,月付,630.00,CNY 人民币
+BestVM,台湾BGP-Lite-80T,1C,1G,10G,1000M,80000G,月付,800.00,CNY 人民币
+BestVM,台湾BGP-Lite-100T,1C,1G,10G,1000M,100000G,月付,950.00,CNY 人民币
+BestVM,香港BGP-Lite-1T,1C,0.5G,5G,1000M,1000G,月付,13.00,CNY 人民币
+BestVM,香港BGP-Lite-2T,1C,0.75G,8G,1000M,2000G,月付,25.00,CNY 人民币
+BestVM,香港BGP-Lite-4T,1C,1G,10G,1000M,4000G,月付,48.00,CNY 人民币
+BestVM,香港BGP-Lite-6T,1C,1G,10G,1000M,6000G,月付,69.00,CNY 人民币
+BestVM,香港BGP-Lite-8T,1C,1G,10G,1000M,8000G,月付,88.00,CNY 人民币
+BestVM,香港BGP-Lite-10T,1C,1G,10G,1000M,10T,月付,105.00,CNY 人民币
+BestVM,香港BGP-Lite-20T,1C,1G,10G,1000M,20T,月付,200.00,CNY 人民币
+BestVM,香港BGP-Lite-30T,1C,1G,10G,1000M,30T,月付,285.00,CNY 人民币
+BestVM,香港BGP-Lite-40T,1C,1G,10G,1000M,40T,月付,360.00,CNY 人民币
+BestVM,香港BGP-Lite-60T,1C,1G,10G,1000M,60T,月付,510.00,CNY 人民币
+BestVM,香港BGP-Lite-80T,1C,1G,10G,1000M,80T,月付,600.00,CNY 人民币
+BestVM,香港BGP-Lite-100T,1C,1G,10G,1000M,100T,月付,750.00,CNY 人民币
+BestVM,新加坡BGP-Lite-Special-1,1C,1G,10G,1000M,1000G,年付,258.00,CNY 人民币
+BestVM,新加坡BGP-Lite-Special-2,1C,2G,15G,1000M,3000G,年付,458.00,CNY 人民币
+BestVM,新加坡BGP-Lite-Special-3,2C,2G,20G,1000M,5000G,年付,658.00,CNY 人民币
+BestVM,新加坡BGP-Lite-1T,1C,0.5G,5G,1000M,1000G,月付,13.50,CNY 人民币
+BestVM,新加坡BGP-Lite-2T,1C,0.75G,8G,1000M,2000G,月付,26.00,CNY 人民币
+BestVM,新加坡BGP-Lite-4T,1C,1G,10G,1000M,4000G,月付,50.00,CNY 人民币
+BestVM,新加坡BGP-Lite-6T,1C,1G,10G,1000M,6000G,月付,72.00,CNY 人民币
+BestVM,新加坡BGP-Lite-8T,1C,1G,10G,1000M,8000G,月付,92.00,CNY 人民币
+BestVM,新加坡BGP-Lite-10T,1C,1G,10G,1000M,10000G,月付,110.00,CNY 人民币
+BestVM,新加坡BGP-Lite-20T,1C,1G,10G,1000M,20000G,月付,210.00,CNY 人民币
+BestVM,新加坡BGP-Lite-30T,1C,1G,10G,1000M,30000G,月付,300.00,CNY 人民币
+BestVM,新加坡BGP-Lite-40T,1C,1G,10G,1000M,40000G,月付,380.00,CNY 人民币
+BestVM,新加坡BGP-Lite-60T,1C,1G,10G,1000M,60000G,月付,540.00,CNY 人民币
+BestVM,新加坡BGP-Lite-80T,1C,1G,10G,1000M,80000G,月付,680.00,CNY 人民币
+BestVM,新加坡BGP-Lite-100T,1C,1G,10G,1000M,100000G,月付,800.00,CNY 人民币
+BestVM,日本BGP-Lite-Special-1,1C,1G,10G,1000M,1000G,年付,198.00,CNY 人民币
+BestVM,日本BGP-Lite-Special-2,1C,2G,15G,1000M,3000G,年付,398.00,CNY 人民币
+BestVM,日本BGP-Lite-Special-3,2C,2G,20G,1000M,5000G,年付,598.00,CNY 人民币
+BestVM,日本BGP-Lite-1T,1C,0.5G,5G,1000M,1000G,月付,19.00,CNY 人民币
+BestVM,日本BGP-Lite-2T,1C,0.75G,8G,1000M,2000G,月付,37.00,CNY 人民币
+BestVM,日本BGP-Lite-4T,1C,1G,10G,1000M,4000G,月付,72.00,CNY 人民币
+BestVM,日本BGP-Lite-6T,1C,1G,10G,1000M,6000G,月付,105.00,CNY 人民币
+BestVM,日本BGP-Lite-8T,1C,1G,10G,1000M,8000G,月付,136.00,CNY 人民币
+BestVM,日本BGP-Lite-10T,1C,1G,10G,1000M,10000G,月付,165.00,CNY 人民币
+BestVM,日本BGP-Lite-20T,1C,1G,10G,1000M,20000G,月付,320.00,CNY 人民币
+BestVM,日本BGP-Lite-30T,1C,1G,10G,1000M,30000G,月付,465.00,CNY 人民币
+BestVM,日本BGP-Lite-40T,1C,1G,10G,1000M,40000G,月付,600.00,CNY 人民币
+BestVM,日本BGP-Lite-60T,1C,1G,10G,1000M,60000G,月付,870.00,CNY 人民币
+BestVM,日本BGP-Lite-80T,1C,1G,10G,1000M,80000G,月付,1120.00,CNY 人民币
+BestVM,日本BGP-Lite-100T,1C,1G,10G,1000M,100000G,月付,1350.00,CNY 人民币
+BestVM,日本BGP-Lite-独享,1C,1G,10G,100M,不限流量,月付,440.00,CNY 人民币

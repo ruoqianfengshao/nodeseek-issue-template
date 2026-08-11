@@ -1,0 +1,195 @@
+vendor,model,cpu,memory,disk,bandwidth,traffic,renewalCycle,renewalAmount,currency
+CloudCone,SSD VPS 1,2C,1G,30G,1G,4T,年付,28,USD 美元
+CloudCone,SSD VPS 2,4C,2G,60G,1G,7T,年付,46,USD 美元
+CloudCone,SSD VPS 3,6C,3G,90G,1G,8.5T,年付,69,USD 美元
+CloudCone,SSD VPS 4,8C,4G,120G,1G,10T,年付,92,USD 美元
+CloudCone,SSD VPS 5,12C,8G,240G,1G,15T,年付,174,USD 美元
+CloudCone,SSD VPS 6,14C,16G,480G,1G,25T,年付,322,USD 美元
+KFCloud,HKG.Pro.Skylake.Nano,2C,4G,50G,500M,1T,月付,59.99,CNY 人民币
+KFCloud,HKG.Pro.Skylake.Micro,4C,8G,100G,500M,2.5T,月付,99.99,CNY 人民币
+KFCloud,HKG.Pro.Skylake.Standard,8C,16G,250G,500M,5T,月付,199.99,CNY 人民币
+KFCloud,HKG.Pro.Skylake.Max,16C,32G,500G,500M,10T,月付,399.99,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐A,1C,1G,10G,1G,500G,年付,299.99,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐B,1C,1G,10G,1G,1T,月付,89.00,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐C,2C,2G,20G,1G,2T,月付,149.00,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐D,2C,4G,20G,1G,4T,月付,319.00,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐E,4C,4G,40G,1G,6T,月付,499.99,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐F,4C,8G,80G,1G,8T,月付,799.00,CNY 人民币
+CloudSilk,德国-精品大陆优化BGP-套餐G,8C,16G,80G,1G,10T,月付,1299.00,CNY 人民币
+CloudSilk,美国-大陆优化BGP-套餐E,4C,4G,40G,2560M,12T,月付,299.99,CNY 人民币
+CloudSilk,美国-精品大陆优化BGP-套餐D,2C,4G,20G,1G,4T,月付,319.00,CNY 人民币
+CloudSilk,美国-精品大陆优化BGP-套餐E,4C,4G,40G,1G,6T,月付,449.00,CNY 人民币
+CloudSilk,美国-精品大陆优化BGP-套餐F,4C,8G,80G,1G,8T,月付,699.00,CNY 人民币
+CloudSilk,美国-精品大陆优化BGP-套餐G,8C,16G,80G,1G,10T,月付,1099.99,CNY 人民币
+CloudLeadInno,香港 CN2 · 1H1G,1C,1G,50G,5M,不限流量,月付,2.00,USD 美元
+CloudLeadInno,香港 CN2 · 1H1G,1C,1G,50G,5M,不限流量,季付,6.00,USD 美元
+CloudLeadInno,香港 CN2 · 1H1G,1C,1G,50G,5M,不限流量,半年付,12.00,USD 美元
+CloudLeadInno,香港 CN2 · 1H1G,1C,1G,50G,5M,不限流量,年付,24.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H2G,2C,2G,50G,5M,不限流量,月付,4.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H2G,2C,2G,50G,5M,不限流量,季付,12.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H2G,2C,2G,50G,5M,不限流量,半年付,24.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H2G,2C,2G,50G,5M,不限流量,年付,48.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H4G,2C,4G,50G,10M,不限流量,月付,8.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H4G,2C,4G,50G,10M,不限流量,季付,24.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H4G,2C,4G,50G,10M,不限流量,半年付,48.00,USD 美元
+CloudLeadInno,香港 CN2 · 2H4G,2C,4G,50G,10M,不限流量,年付,96.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H4G,4C,4G,50G,10M,不限流量,月付,16.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H4G,4C,4G,50G,10M,不限流量,季付,48.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H4G,4C,4G,50G,10M,不限流量,半年付,96.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H4G,4C,4G,50G,10M,不限流量,年付,192.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H8G,4C,8G,50G,10M,不限流量,月付,24.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H8G,4C,8G,50G,10M,不限流量,季付,72.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H8G,4C,8G,50G,10M,不限流量,半年付,144.00,USD 美元
+CloudLeadInno,香港 CN2 · 4H8G,4C,8G,50G,10M,不限流量,年付,288.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H8G,8C,8G,50G,15M,不限流量,月付,36.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H8G,8C,8G,50G,15M,不限流量,季付,108.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H8G,8C,8G,50G,15M,不限流量,半年付,216.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H8G,8C,8G,50G,15M,不限流量,年付,432.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H16,8C,16G,50G,20M,不限流量,月付,48.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H16,8C,16G,50G,20M,不限流量,季付,144.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H16,8C,16G,50G,20M,不限流量,半年付,288.00,USD 美元
+CloudLeadInno,香港 CN2 · 8H16,8C,16G,50G,20M,不限流量,年付,576.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H16G,16C,16G,50G,20M,不限流量,月付,65.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H16G,16C,16G,50G,20M,不限流量,季付,195.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H16G,16C,16G,50G,20M,不限流量,半年付,390.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H16G,16C,16G,50G,20M,不限流量,年付,780.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H32G,16C,32G,50G,25M,不限流量,月付,85.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H32G,16C,32G,50G,25M,不限流量,季付,255.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H32G,16C,32G,50G,25M,不限流量,半年付,510.00,USD 美元
+CloudLeadInno,香港 CN2 · 16H32G,16C,32G,50G,25M,不限流量,年付,1020.00,USD 美元
+CloudLeadInno,香港 CN2 · 32H32G,32C,32G,50G,25M,不限流量,月付,120.00,USD 美元
+CloudLeadInno,香港 CN2 · 32H32G,32C,32G,50G,25M,不限流量,季付,360.00,USD 美元
+CloudLeadInno,香港 CN2 · 32H32G,32C,32G,50G,25M,不限流量,半年付,720.00,USD 美元
+CloudLeadInno,香港 CN2 · 32H32G,32C,32G,50G,25M,不限流量,年付,1440.00,USD 美元
+CloudLeadInno,美國 CN2 · 1H1G,1C,1G,50G,10M,不限流量,月付,2.00,USD 美元
+CloudLeadInno,美國 CN2 · 1H1G,1C,1G,50G,10M,不限流量,季付,6.00,USD 美元
+CloudLeadInno,美國 CN2 · 1H1G,1C,1G,50G,10M,不限流量,半年付,12.00,USD 美元
+CloudLeadInno,美國 CN2 · 1H1G,1C,1G,50G,10M,不限流量,年付,24.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H2G,2C,2G,50G,10M,不限流量,月付,4.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H2G,2C,2G,50G,10M,不限流量,季付,12.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H2G,2C,2G,50G,10M,不限流量,半年付,24.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H2G,2C,2G,50G,10M,不限流量,年付,48.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H4G,2C,4G,50G,10M,不限流量,月付,8.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H4G,2C,4G,50G,10M,不限流量,季付,24.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H4G,2C,4G,50G,10M,不限流量,半年付,48.00,USD 美元
+CloudLeadInno,美國 CN2 · 2H4G,2C,4G,50G,10M,不限流量,年付,96.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H4G,4C,4G,50G,15M,不限流量,月付,16.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H4G,4C,4G,50G,15M,不限流量,季付,48.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H4G,4C,4G,50G,15M,不限流量,半年付,96.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H4G,4C,4G,50G,15M,不限流量,年付,192.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H8G,4C,8G,50G,20M,不限流量,月付,24.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H8G,4C,8G,50G,20M,不限流量,季付,72.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H8G,4C,8G,50G,20M,不限流量,半年付,144.00,USD 美元
+CloudLeadInno,美國 CN2 · 4H8G,4C,8G,50G,20M,不限流量,年付,288.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H8G,8C,8G,50G,20M,不限流量,月付,36.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H8G,8C,8G,50G,20M,不限流量,季付,108.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H8G,8C,8G,50G,20M,不限流量,半年付,216.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H8G,8C,8G,50G,20M,不限流量,年付,432.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H16,8C,16G,50G,25M,不限流量,月付,48.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H16,8C,16G,50G,25M,不限流量,季付,144.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H16,8C,16G,50G,25M,不限流量,半年付,288.00,USD 美元
+CloudLeadInno,美國 CN2 · 8H16,8C,16G,50G,25M,不限流量,年付,576.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H16G,16C,16G,50G,30M,不限流量,月付,65.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H16G,16C,16G,50G,30M,不限流量,季付,195.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H16G,16C,16G,50G,30M,不限流量,半年付,390.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H16G,16C,16G,50G,30M,不限流量,年付,780.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H32G,16C,32G,50G,35M,不限流量,月付,85.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H32G,16C,32G,50G,35M,不限流量,季付,255.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H32G,16C,32G,50G,35M,不限流量,半年付,510.00,USD 美元
+CloudLeadInno,美國 CN2 · 16H32G,16C,32G,50G,35M,不限流量,年付,1020.00,USD 美元
+CloudLeadInno,美國 CN2 · 32H32G,32C,32G,50G,40M,不限流量,月付,120.00,USD 美元
+CloudLeadInno,美國 CN2 · 32H32G,32C,32G,50G,40M,不限流量,季付,360.00,USD 美元
+CloudLeadInno,美國 CN2 · 32H32G,32C,32G,50G,40M,不限流量,半年付,720.00,USD 美元
+CloudLeadInno,美國 CN2 · 32H32G,32C,32G,50G,40M,不限流量,年付,1440.00,USD 美元
+CloudLeadInno,新加坡國際 · 1H1G,1C,1G,50G,10M,不限流量,月付,2.99,USD 美元
+CloudLeadInno,新加坡國際 · 1H1G,1C,1G,50G,10M,不限流量,季付,8.97,USD 美元
+CloudLeadInno,新加坡國際 · 1H1G,1C,1G,50G,10M,不限流量,半年付,17.94,USD 美元
+CloudLeadInno,新加坡國際 · 1H1G,1C,1G,50G,10M,不限流量,年付,35.88,USD 美元
+CloudLeadInno,新加坡國際 · 2H2G,2C,2G,50G,5M,不限流量,月付,4.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H2G,2C,2G,50G,5M,不限流量,季付,12.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H2G,2C,2G,50G,5M,不限流量,半年付,24.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H2G,2C,2G,50G,5M,不限流量,年付,48.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H4G,2C,4G,50G,5M,不限流量,月付,8.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H4G,2C,4G,50G,5M,不限流量,季付,24.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H4G,2C,4G,50G,5M,不限流量,半年付,48.00,USD 美元
+CloudLeadInno,新加坡國際 · 2H4G,2C,4G,50G,5M,不限流量,年付,96.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H4G,4C,4G,50G,10M,不限流量,月付,16.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H4G,4C,4G,50G,10M,不限流量,季付,48.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H4G,4C,4G,50G,10M,不限流量,半年付,96.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H4G,4C,4G,50G,10M,不限流量,年付,192.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H8G,4C,8G,50G,10M,不限流量,月付,24.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H8G,4C,8G,50G,10M,不限流量,季付,72.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H8G,4C,8G,50G,10M,不限流量,半年付,144.00,USD 美元
+CloudLeadInno,新加坡國際 · 4H8G,4C,8G,50G,10M,不限流量,年付,288.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H8G,8C,8G,50G,15M,不限流量,月付,36.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H8G,8C,8G,50G,15M,不限流量,季付,108.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H8G,8C,8G,50G,15M,不限流量,半年付,216.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H8G,8C,8G,50G,15M,不限流量,年付,432.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H16,8C,16G,50G,20M,不限流量,月付,48.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H16,8C,16G,50G,20M,不限流量,季付,144.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H16,8C,16G,50G,20M,不限流量,半年付,288.00,USD 美元
+CloudLeadInno,新加坡國際 · 8H16,8C,16G,50G,20M,不限流量,年付,576.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H16G,16C,16G,50G,20M,不限流量,月付,65.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H16G,16C,16G,50G,20M,不限流量,季付,195.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H16G,16C,16G,50G,20M,不限流量,半年付,390.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H16G,16C,16G,50G,20M,不限流量,年付,780.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H32G,16C,32G,50G,25M,不限流量,月付,85.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H32G,16C,32G,50G,25M,不限流量,季付,255.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H32G,16C,32G,50G,25M,不限流量,半年付,510.00,USD 美元
+CloudLeadInno,新加坡國際 · 16H32G,16C,32G,50G,25M,不限流量,年付,1020.00,USD 美元
+CloudLeadInno,新加坡國際 · 32H32G,32C,32G,50G,30M,不限流量,月付,120.00,USD 美元
+CloudLeadInno,新加坡國際 · 32H32G,32C,32G,50G,30M,不限流量,季付,360.00,USD 美元
+CloudLeadInno,新加坡國際 · 32H32G,32C,32G,50G,30M,不限流量,半年付,720.00,USD 美元
+CloudLeadInno,新加坡國際 · 32H32G,32C,32G,50G,30M,不限流量,年付,1440.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 1H1G,1C,1G,50G,100M,300G,月付,2.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 1H1G,1C,1G,50G,100M,300G,季付,6.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 1H1G,1C,1G,50G,100M,300G,半年付,12.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 1H1G,1C,1G,50G,100M,300G,年付,24.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H2G,2C,2G,50G,100M,300G,月付,4.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H2G,2C,2G,50G,100M,300G,季付,12.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H2G,2C,2G,50G,100M,300G,半年付,24.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H2G,2C,2G,50G,100M,300G,年付,48.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H4G,2C,4G,50G,150M,500G,月付,8.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H4G,2C,4G,50G,150M,500G,季付,24.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H4G,2C,4G,50G,150M,500G,半年付,48.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 2H4G,2C,4G,50G,150M,500G,年付,96.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H4G,4C,4G,50G,150M,500G,月付,16.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H4G,4C,4G,50G,150M,500G,季付,48.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H4G,4C,4G,50G,150M,500G,半年付,96.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H4G,4C,4G,50G,150M,500G,年付,192.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H8G,4C,8G,50G,200M,1000G,月付,24.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H8G,4C,8G,50G,200M,1000G,季付,72.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H8G,4C,8G,50G,200M,1000G,半年付,144.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 4H8G,4C,8G,50G,200M,1000G,年付,288.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H8G,8C,8G,50G,200M,1000G,月付,36.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H8G,8C,8G,50G,200M,1000G,季付,108.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H8G,8C,8G,50G,200M,1000G,半年付,216.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H8G,8C,8G,50G,200M,1000G,年付,432.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H16,8C,16G,50G,250M,1500G,月付,48.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H16,8C,16G,50G,250M,1500G,季付,144.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H16,8C,16G,50G,250M,1500G,半年付,288.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 8H16,8C,16G,50G,250M,1500G,年付,576.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H16G,16C,16G,50G,250M,150G,月付,65.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H16G,16C,16G,50G,250M,150G,季付,195.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H16G,16C,16G,50G,250M,150G,半年付,390.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H16G,16C,16G,50G,250M,150G,年付,780.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H32G,16C,32G,50G,300M,1500G,月付,85.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H32G,16C,32G,50G,300M,1500G,季付,255.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H32G,16C,32G,50G,300M,1500G,半年付,510.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 16H32G,16C,32G,50G,300M,1500G,年付,1020.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 32H32G,32C,32G,50G,300M,2000G,月付,120.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 32H32G,32C,32G,50G,300M,2000G,季付,360.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 32H32G,32C,32G,50G,300M,2000G,半年付,720.00,USD 美元
+CloudLeadInno,美國 优化大宽带 · 32H32G,32C,32G,50G,300M,2000G,年付,1440.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 1H1G,1C,1G,30G,200M,300G,月付,6.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 1H1G,1C,1G,30G,200M,300G,半年付,36.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 1H1G,1C,1G,30G,200M,300G,年付,72.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 2H2G,2C,2G,30G,350M,1500G,月付,8.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 2H2G,2C,2G,30G,350M,1500G,半年付,48.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 2H2G,2C,2G,30G,350M,1500G,年付,96.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 4H4G,4C,4G,40G,400M,2000G,月付,20.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 4H4G,4C,4G,40G,400M,2000G,半年付,120.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 4H4G,4C,4G,40G,400M,2000G,年付,240.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 8H8G,8C,8G,50G,500M,3000G,月付,40.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 8H8G,8C,8G,50G,500M,3000G,半年付,240.00,USD 美元
+CloudLeadInno,美國 ISP家宽云 · 8H8G,8C,8G,50G,500M,3000G,年付,480.00,USD 美元

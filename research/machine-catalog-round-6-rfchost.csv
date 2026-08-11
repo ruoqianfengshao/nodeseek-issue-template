@@ -1,0 +1,25 @@
+vendor,model,cpu,memory,disk,bandwidth,traffic,renewalCycle,renewalAmount,currency
+RFCHost,HK-CO-Mini,1C,1G,15G,200M,1.5T,月付,24.99,USD 美元
+RFCHost,HK-CO-Standard,1C,2G,30G,500M,2.5T,月付,50.99,USD 美元
+RFCHost,HK-CO-Advanced,2C,3G,45G,500M,3.5T,月付,76.99,USD 美元
+RFCHost,T1ION-MiniA-Jinx,1C,1G,10G,不限速,10T,月付,10.99,USD 美元
+RFCHost,T1ION-MinB-Jinx,1C,2G,20G,不限速,20T,月付,16.99,USD 美元
+RFCHost,T1ION-Standard-Jinx,2C,4G,40G,不限速,40T,月付,32.99,USD 美元
+RFCHost,US LAX Mini,1C,1G,15G,1G,1.8T,月付,15.90,USD 美元
+RFCHost,US LAX Standard,2C,2G,30G,2G,3.8T,月付,29.90,USD 美元
+RFCHost,US LAX Advanced,2C,4G,45G,3G,6.8T,月付,59.90,USD 美元
+RFCHost,LAX-T1-Classic-Mini,1C,512M,10G,不限速,10T,月付,5.99,USD 美元
+RFCHost,LAX-T1-Classic-Standard,1C,1G,20G,不限速,20T,月付,8.99,USD 美元
+RFCHost,LAX-T1-Classic-Max,4C,4G,40G,不限速,40T,月付,16.99,USD 美元
+RFCHost,JP2-CO-Micro,1C,512M,10G,200M,1T,月付,19.99,USD 美元
+RFCHost,JP2-CO-Mini,1C,1G,20G,500M,1.5T,月付,28.99,USD 美元
+RFCHost,JP2-CO-Standard,2C,2G,40G,700M,2.5T,月付,45.99,USD 美元
+RFCHost,JP2-T1ION-Standard,1C,2G,34G,不限速,6T,月付,21.99,USD 美元
+RFCHost,JP2-T1ION-Advanced,2C,3G,50G,不限速,8T,月付,32.99,USD 美元
+RFCHost,JP2-T1ION-Plus,2C,4G,66G,不限速,10T,月付,47.99,USD 美元
+RFCHost,JP2-CO-Micro-Lite,1C,1G,20G,不限速,500G,月付,9.99,USD 美元
+RFCHost,JP2-CO-Mini-Lite,2C,2G,40G,不限速,1T,月付,13.99,USD 美元
+RFCHost,JP2-CO-Standard-Lite,2C,4G,60G,不限速,2T,月付,18.99,USD 美元
+RFCHost,SG-T1ION-Mini,1C,1G,16G,不限速,3T,月付,13.99,USD 美元
+RFCHost,SG-T1ION-Standard,1C,2G,34G,不限速,6T,月付,21.99,USD 美元
+RFCHost,SG-T1ION-Advanced,2C,3G,50G,不限速,8T,月付,32.99,USD 美元

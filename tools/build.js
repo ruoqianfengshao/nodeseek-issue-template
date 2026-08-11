@@ -41,12 +41,14 @@ function split() {
 
 function buildReadable() {
   const header = read(path.join(sourceDir, 'header.txt')).trimEnd();
-  const body = parts.map((part) => read(path.join(sourceDir, part)).trim()).join('\n\n').replace(/__NSIT_VENDOR_ASSET__\('([^']+)'\)/g, (_, file) => {
-    const asset = path.join(assetDir, file);
+  const inlineAsset = (directory, file) => {
+    const asset = path.join(directory, file);
     const extension = path.extname(file).slice(1);
-    const mime = extension === 'svg' ? 'image/svg+xml' : extension === 'png' ? 'image/png' : 'image/x-icon';
+    const mime = extension === 'svg' ? 'image/svg+xml' : extension === 'png' ? 'image/png' : extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : extension === 'webp' ? 'image/webp' : 'image/x-icon';
     return JSON.stringify(`data:${mime};base64,${fs.readFileSync(asset).toString('base64')}`);
-  });
+  };
+  const body = parts.map((part) => read(path.join(sourceDir, part)).trim()).join('\n\n')
+    .replace(/__NSIT_VENDOR_ASSET__\('([^']+)'\)/g, (_, file) => inlineAsset(assetDir, file));
   write(output, `${header}\n\n${start}${body}\n})();`);
 }
 

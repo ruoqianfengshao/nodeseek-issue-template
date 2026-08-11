@@ -1,11 +1,26 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.2.63';
+  const VERSION = '1.2.64';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
   const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
   const PERSONALIZATION_KEY = 'nsit-personalization-v1';
+  const VALUE_CARD_STYLES = [
+    ['stardew-spring', '星露谷 · 春'],
+    ['stardew-summer', '星露谷 · 夏'],
+    ['stardew-autumn', '星露谷 · 秋'],
+    ['stardew-winter', '星露谷 · 冬'],
+    ['tank', '坦克大战'],
+    ['custom', '自定义背景'],
+  ];
+  const VALUE_CARD_BACKGROUNDS = {
+    'stardew-spring': 'https://cdn.nodeimage.com/i/SQSTxp0RlRIUdo3lBXxSMtkqGEwyZRNu.png',
+    'stardew-summer': 'https://cdn.nodeimage.com/i/WG5DqOymMnoLadNkK0RZZI8Y14YZWQIC.png',
+    'stardew-autumn': 'https://cdn.nodeimage.com/i/jisdumIB5PqfVFFMZ4fSlhupk4DUANRz.png',
+    'stardew-winter': 'https://cdn.nodeimage.com/i/Zlw3BGEfrkEqmRD5kkHOkykh3LK19vFN.png',
+    tank: 'https://cdn.nodeimage.com/i/kyNRM2d3M5RTtRBBXQxP4iMrITKqmV1T.png',
+  };
   const RENEWAL_FIELD_OPTIONS = [
     ['renewal', '续费金额 / 周期'], ['expiryDate', '到期日期'], ['tradeDate', '交易日期'], ['remainingValue', '剩余价值'],
   ];
@@ -22,7 +37,7 @@
     memory: ['0.5G', '1G', '2G', '3G', '4G', '6G', '8G'],
     disk: ['1G', '2G', '4G', '5G', '10G', '20G', '50G', '100G'],
     bandwidth: ['10M', '20M', '30M', '40M', '50M', '100M', '200M', '500M', '1G'],
-    traffic: ['150G', '200G', '300G', '400G', '500G', '1T', '2T', '4T'],
+    traffic: ['150G', '200G', '300G', '400G', '500G', '1T', '2T', '4T', '不限流量'],
     renewalCycle: ['月付', '季付', '半年付', '年付', '两年付', '三年付', '五年付'],
   };
   const VENDOR_ICONS = {

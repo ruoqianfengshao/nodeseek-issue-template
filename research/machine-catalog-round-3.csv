@@ -1,0 +1,21 @@
+vendor,model,cpu,memory,disk,bandwidth,traffic,renewalCycle,renewalAmount,currency
+CSTServer,HK KVM Cloud 2H,2C,2G,40G+20GB,10M,不限流量,月付,6.98,USD 美元
+CSTServer,HK KVM Cloud 4H,4C,4G,40G+40GB,15M,不限流量,月付,12.98,USD 美元
+CSTServer,HK KVM Cloud 6H,6C,6G,40G+60GB,20M,不限流量,月付,19.98,USD 美元
+CSTServer,HK KVM Cloud 8H,8C,8G,40G+80GB,25M,不限流量,月付,29.98,USD 美元
+CSTServer,US KVM Cloud 1H,1C,1G,40G+10GB,10M,不限流量,月付,4.98,USD 美元
+CSTServer,US KVM Cloud 2H,2C,2G,40G+20GB,20M,不限流量,月付,6.98,USD 美元
+CSTServer,US KVM Cloud 4H,4C,4G,40G+40GB,30M,不限流量,月付,12.98,USD 美元
+CSTServer,US KVM Cloud 6H,6C,6G,40G+60GB,40M,不限流量,月付,19.98,USD 美元
+V.PS,Cloud KVM VPS · Asia Pacific,2C,1G,20G,1G,1T,月付,6.95,EUR 欧元
+V.PS,Cloud KVM VPS · Europe,2C,1G,20G,1G,1T,月付,6.95,EUR 欧元
+V.PS,Cloud KVM VPS · North America,2C,1G,20G,1G,1T,月付,8.95,EUR 欧元
+V.PS,Edge KVM VPS · Asia Pacific,1C,2G,20G,1G,1T,月付,15.95,EUR 欧元
+V.PS,Storage KVM VPS · Europe,1C,2G,500G,1G,5T,月付,6.95,EUR 欧元
+V.PS,Mini KVM VPS · Asia Pacific,1C,1G,15G,400M,500G,年付,39.95,EUR 欧元
+V.PS,Mini KVM VPS · Europe,1C,1G,15G,500M,600G,年付,49.95,EUR 欧元
+V.PS,Mini KVM VPS · North America,1C,1G,15G,500M,600G,年付,49.95,EUR 欧元
+V.PS,Nano KVM VPS · Europe,1C,1G,15G,1G,1T,年付,9.95,EUR 欧元
+RFCHost,HK-CO-Mini,1C,1G,15G,200M,1500G,月付,24.99,USD 美元
+RFCHost,HK-CO-Standard,1C,2G,30G,500M,2500G,月付,50.99,USD 美元
+RFCHost,HK-CO-Advanced,2C,3G,45G,500M,3500G,月付,76.99,USD 美元

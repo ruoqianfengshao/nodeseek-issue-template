@@ -7,6 +7,8 @@
     const editor = document.querySelector('#editor-body, .CodeMirror');
     if (!title || !editor) return;
     const app = createApp();
+    const closeButton = app.querySelector('.nsit-shell [data-action="close"]');
+    if (closeButton) closeButton.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
     const hint = document.querySelector('#editor-body .window_header a[href*="runoob.com/markdown"]');
     if (hint?.parentElement) hint.parentElement.prepend(app);
     else title.before(app);
@@ -21,6 +23,10 @@
     refreshRemainingTrafficValidity(app);
     loadRate(app);
     app.addEventListener('input', (event) => {
+      if (event.target.matches('[data-nsit-inline-catalog-search]')) {
+        scheduleInlineMachineCatalogSearch(app);
+        return;
+      }
       if (event.target.matches('[data-nsit-traffic-used], [data-nsit-traffic-used-slider]')) {
         if (event.target.matches('[data-nsit-traffic-used]')) {
           const [integer, decimals = ''] = event.target.value.split('.');
@@ -43,7 +49,10 @@
       if (event.target.name !== 'postTitle') refreshTitle(app);
       refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
       saveActiveMachine(app); renderMachineTabs(app);
-      if (event.target.name === 'vendor' || event.target.name === 'model') searchModelSuggestions(app);
+      if (event.target.name === 'vendor' || event.target.name === 'model') {
+        searchModelSuggestions(app);
+        syncInlineMachineCatalogState(app);
+      }
       if (event.target.name === 'currency') loadRate(app);
     });
     app.addEventListener('focusin', (event) => {
@@ -66,6 +75,18 @@
       }
     });
     app.addEventListener('change', (event) => {
+      if (event.target.matches('[data-nsit-custom-value-card-background]')) {
+        const form = event.target.closest('[data-nsit-personalization-form]');
+        const file = event.target.files?.[0];
+        if (!form || !file) return;
+        compressValueCardBackground(file).then((dataUrl) => {
+          form.dataset.nsitCustomValueCardBackground = dataUrl;
+          const preview = form.querySelector('.nsit-value-card-style input[value="custom"] + .nsit-value-card-style-preview');
+          if (preview) preview.innerHTML = `<img src="${dataUrl}" alt="自定义背景主题预览"><strong>自定义背景</strong>`;
+          form.querySelector('[name="valueCardStyle"][value="custom"]')?.click();
+        }).catch((error) => setStatus(app, error.message));
+        return;
+      }
       if (['renewalAmount', 'askingPrice', 'askingPremium'].includes(event.target.name)) {
         const amount = formatAmount(event.target.value);
         if (amount) event.target.value = amount;
@@ -143,6 +164,12 @@
         if (record) applyModelSuggestion(app, record);
         return;
       }
+      const inlineCatalogResultIndex = event.target.closest('[data-nsit-inline-catalog-result]')?.dataset.nsitInlineCatalogResult;
+      if (inlineCatalogResultIndex !== undefined) {
+        const record = app._nsitInlineCatalogResults?.[Number(inlineCatalogResultIndex)];
+        if (record) applyInlineMachineCatalogRecord(app, record);
+        return;
+      }
       const pickerInput = event.target.matches('[data-nsit-picker-input="true"]') ? event.target : null;
       if (pickerInput) {
         const picker = pickerInput.closest('.nsit-picker');
@@ -174,6 +201,18 @@
       }
       if (action === 'add-machine') {
         addMachine(app);
+        return;
+      }
+      if (action === 'toggle-inline-machine-catalog') {
+        app.classList.toggle('nsit-inline-catalog-open');
+        if (app.classList.contains('nsit-inline-catalog-open')) {
+          app.querySelector('[data-nsit-inline-catalog-search]')?.focus();
+          scheduleInlineMachineCatalogSearch(app, true);
+        }
+        return;
+      }
+      if (action === 'close-inline-machine-catalog') {
+        app.classList.remove('nsit-inline-catalog-open');
         return;
       }
       if (action === 'refresh-rate') {
@@ -273,6 +312,7 @@
         app.querySelector('[name="tradeDate"]').value = today();
         app.querySelector('[name="remainingTraffic"]').value = '';
         app._nsitMachines[app._nsitActiveMachine] = machineSnapshot(app);
+        syncInlineMachineCatalogState(app);
         refreshTitle(app);
         localStorage.removeItem(STORAGE_KEY); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); setStatus(app, '已清空表单。'); return;
       }
@@ -306,7 +346,9 @@
       syncPriceFields(app);
       saveActiveMachine(app); renderMachineTabs(app);
       if (/!\[[^\]]*\]\(https:\/\/cdn\.nodeimage\.com\/i\//.test(editorContent(app))) app.querySelector('[name="generateCard"]').checked = true;
-      app.querySelector('[name="postTitle"]').focus();
+      const catalogRequired = syncInlineMachineCatalogState(app);
+      scheduleInlineMachineCatalogSearch(app, true);
+      (catalogRequired ? app.querySelector('[data-nsit-inline-catalog-search]') : app.querySelector('[name="postTitle"]'))?.focus();
       getNodeImageApiKey(true).catch(() => {});
     });
     app.querySelector('.nsit-modal').addEventListener('click', (event) => {

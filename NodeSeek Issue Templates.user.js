@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.2.63
+// @version      1.2.64
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @match        https://www.nodeseek.com/*
@@ -19,13 +19,28 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.2.63';
+  const VERSION = '1.2.64';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
   const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
   const PERSONALIZATION_KEY = 'nsit-personalization-v1';
+  const VALUE_CARD_STYLES = [
+    ['stardew-spring', '星露谷 · 春'],
+    ['stardew-summer', '星露谷 · 夏'],
+    ['stardew-autumn', '星露谷 · 秋'],
+    ['stardew-winter', '星露谷 · 冬'],
+    ['tank', '坦克大战'],
+    ['custom', '自定义背景'],
+  ];
+  const VALUE_CARD_BACKGROUNDS = {
+    'stardew-spring': 'https://cdn.nodeimage.com/i/SQSTxp0RlRIUdo3lBXxSMtkqGEwyZRNu.png',
+    'stardew-summer': 'https://cdn.nodeimage.com/i/WG5DqOymMnoLadNkK0RZZI8Y14YZWQIC.png',
+    'stardew-autumn': 'https://cdn.nodeimage.com/i/jisdumIB5PqfVFFMZ4fSlhupk4DUANRz.png',
+    'stardew-winter': 'https://cdn.nodeimage.com/i/Zlw3BGEfrkEqmRD5kkHOkykh3LK19vFN.png',
+    tank: 'https://cdn.nodeimage.com/i/kyNRM2d3M5RTtRBBXQxP4iMrITKqmV1T.png',
+  };
   const RENEWAL_FIELD_OPTIONS = [
     ['renewal', '续费金额 / 周期'], ['expiryDate', '到期日期'], ['tradeDate', '交易日期'], ['remainingValue', '剩余价值'],
   ];
@@ -42,7 +57,7 @@ const APP_ID = 'nsit-app';
     memory: ['0.5G', '1G', '2G', '3G', '4G', '6G', '8G'],
     disk: ['1G', '2G', '4G', '5G', '10G', '20G', '50G', '100G'],
     bandwidth: ['10M', '20M', '30M', '40M', '50M', '100M', '200M', '500M', '1G'],
-    traffic: ['150G', '200G', '300G', '400G', '500G', '1T', '2T', '4T'],
+    traffic: ['150G', '200G', '300G', '400G', '500G', '1T', '2T', '4T', '不限流量'],
     renewalCycle: ['月付', '季付', '半年付', '年付', '两年付', '三年付', '五年付'],
   };
   const VENDOR_ICONS = {
@@ -129,6 +144,10 @@ function escapeHtml(value) {
     return `<i class="nsit-vendor-icon">${icon ? `<img src="${escapeHtml(icon)}" alt="" referrerpolicy="no-referrer">` : ''}<b>${initial}</b></i>`;
   }
 
+  function machineCatalogTriggerMarkup() {
+    return '<button type="button" class="nsit-machine-catalog-trigger" data-action="toggle-inline-machine-catalog" aria-label="打开机器列表" title="打开机器列表"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M224.304762 951.398942a290.043034 52.373898 0 1 0 580.086067 0 290.043034 52.373898 0 1 0-580.086067 0Z" fill="#C5C1BD"></path><path d="M404.182011 772.244092h79.102645v155.315696h-79.102645zM472.809877 956.094533h-61.403881c-18.782363 0-34.313933-15.53157-34.313933-34.313933v-12.280776c0-18.782363 15.53157-34.313933 34.313933-34.313933h61.403881c18.782363 0 34.313933 15.53157 34.313933 34.313933v12.280776c0 19.143563-15.53157 34.313933-34.313933 34.313933zM551.551323 772.244092h79.102645v155.315696h-79.102645zM620.179189 956.094533h-61.40388c-18.782363 0-34.313933-15.53157-34.313933-34.313933v-12.280776c0-18.782363 15.53157-34.313933 34.313933-34.313933h61.40388c18.782363 0 34.313933 15.53157 34.313933 34.313933v12.280776c0 19.143563-15.53157 34.313933-34.313933 34.313933z" fill="#EFA124"></path><path d="M131.115344 703.977425l-19.504762-13.725573c-30.340741-21.671958-37.564727-63.932275-15.892769-94.273016L285.347443 328.330159c21.671958-30.340741 63.932275-37.564727 94.273016-15.892769l19.504761 13.725573c30.340741 21.671958 37.564727 63.932275 15.892769 94.273016l-189.990829 267.648677c-20.949559 30.340741-63.571076 37.564727-93.911816 15.892769zM900.469841 703.977425l19.504762-13.725573c30.340741-21.671958 37.564727-63.932275 15.892769-94.273016l-189.990829-267.648677c-21.671958-30.340741-63.932275-37.564727-94.273016-15.892769l-19.504762 13.725573c-30.340741 21.671958-37.564727 63.932275-15.892769 94.273016l189.990829 267.648677c21.310758 30.340741 63.932275 37.564727 94.273016 15.892769z" fill="#F2B121"></path><path d="M832.203175 499.177425c0 202.994004-107.998589 338.804938-315.688184 338.804938-195.047619 0-315.688183-135.810935-315.688183-338.804938S342.416931 103.302998 516.87619 103.302998s315.326984 192.880423 315.326985 395.874427z" fill="#F5D021"></path><path d="M621.623986 403.459612c-28.173545 0-50.929101-28.534744-50.929101-63.571076 0-35.036332 22.755556-63.571076 50.929101-63.571076s50.929101 28.534744 50.9291 63.571076c0.361199 35.036332-22.755556 63.571076-50.9291 63.571076zM409.961199 403.459612c-28.173545 0-50.929101-28.534744-50.9291-63.571076 0-35.036332 22.755556-63.571076 50.9291-63.571076s50.929101 28.534744 50.929101 63.571076c0.361199 35.036332-22.755556 63.571076-50.929101 63.571076z" fill="#1F1204"></path><path d="M514.347795 373.84127c-35.75873 0-65.015873 28.895944-65.015873 67.183069 0 27.089947 29.257143 33.591534 65.015873 33.591534s65.015873-6.862787 65.015873-33.591534c-0.361199-38.648325-29.257143-67.183069-65.015873-67.183069z" fill="#F29D27"></path><path d="M515.070194 443.913933c-24.922751 0-40.454321-9.391182-41.17672-9.752381-4.334392-2.889594-5.779189-8.668783-3.250793-13.003175 2.889594-4.334392 8.668783-5.779189 13.003174-3.250793 1.083598 0.722399 27.812346 15.892769 67.544268-0.722399 4.695591-2.167196 10.47478 0.361199 12.280776 5.05679 2.167196 4.695591-0.361199 10.47478-5.05679 12.280776-16.253968 7.223986-30.70194 9.391182-43.343915 9.391182z" fill="#DA4E2A"></path><path d="M607.898413 81.269841c0-30.340741-24.561552-54.902293-54.902293-54.902292-13.725573 0-26.006349 5.05679-35.75873 13.003174-9.752381-8.307584-22.033157-13.003175-35.75873-13.003174-30.340741 0-54.902293 24.561552-54.902293 54.902292s24.561552 54.902293 54.902293 54.902293c3.973192 0 7.585185-0.361199 11.558377-1.083598v24.922751s88.132628-23.116755 99.691005-40.81552c9.391182-9.752381 15.17037-23.477954 15.170371-37.925926z" fill="#E34227"></path></svg><span>机器列表</span></button>';
+  }
+
   function inputMarkup(field, formId = '') {
     const [name, label, type, placeholder = '', options = []] = field;
     const safeName = escapeHtml(name);
@@ -152,7 +171,8 @@ function escapeHtml(value) {
       const values = OPTIONS[options].map((value) => `<span data-nsit-picker-option="true" data-value="${escapeHtml(value)}">${isVendor ? vendorIconMarkup(value) : ''}${escapeHtml(value)}</span>`).join('');
       const prefix = isVendor ? `<span class="nsit-vendor-input-icon" data-nsit-vendor-icon>${vendorIconMarkup('')}</span>` : '';
       const input = `<span class="nsit-picker${isVendor ? ' nsit-vendor-picker' : ''}" data-picker-name="${safeName}">${prefix}<input name="${safeName}"${form}${hint}${required} data-nsit-picker-input="true" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false"><button type="button" class="nsit-picker-toggle" aria-label="选择${label}" aria-expanded="false"><i></i></button><span class="nsit-picker-menu">${values}</span></span>`;
-      return `<label class="nsit-field nsit-field--${safeName}"><span>${fieldLabel(name, label)}</span>${input}</label>`;
+      const labelMarkup = isVendor ? `<span class="nsit-vendor-label"><span>${fieldLabel(name, label)}</span>${machineCatalogTriggerMarkup()}</span>` : `<span>${fieldLabel(name, label)}</span>`;
+      return `<label class="nsit-field nsit-field--${safeName}">${labelMarkup}${input}</label>`;
     }
     if (name === 'model') {
       return `<label class="nsit-field nsit-field--${safeName}"><span>${fieldLabel(name, label)}</span><span class="nsit-model-suggest"><input name="${safeName}"${form} type="${type}"${hint}${required} autocomplete="off"><span class="nsit-model-suggest-menu" data-nsit-model-suggest-menu></span></span></label>`;
@@ -215,6 +235,10 @@ function escapeHtml(value) {
     return '<aside class="nsit-machine-tabs" data-nsit-machine-tabs></aside>';
   }
 
+  function inlineMachineCatalogMarkup() {
+    return `<aside class="nsit-inline-catalog" aria-label="共享机器配置"><header class="nsit-inline-catalog-head"><h3>机器配置库</h3><button type="button" class="nsit-close nsit-inline-catalog-close" data-action="close-inline-machine-catalog" aria-label="收起机器配置库">×</button></header><label class="nsit-inline-catalog-search"><input type="search" data-nsit-inline-catalog-search placeholder="搜索厂商或型号" autocomplete="off" aria-label="搜索机器配置"></label><div class="nsit-inline-catalog-results" data-nsit-inline-catalog-results><p class="nsit-catalog-empty">正在加载机器配置…</p></div></aside>`;
+  }
+
   let stylesInjected = false;
 
   function injectStyles(styles) {
@@ -229,7 +253,7 @@ function escapeHtml(value) {
     app.dataset.nsitVersion = VERSION;
     const styles = `
         #${APP_ID}{--nsit-accent:#d9961c;--nsit-ink:#27334a;--nsit-muted:#718096;--nsit-line:#e5eaf1;display:contents;box-sizing:border-box;margin:0;color:var(--nsit-ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-        #${APP_ID} *{box-sizing:border-box}#${APP_ID} .nsit-shell{background:#fff;border:1px solid var(--nsit-line);border-radius:12px;box-shadow:0 8px 24px rgba(29,40,65,.06);overflow:hidden}
+        #${APP_ID} *{box-sizing:border-box}#${APP_ID} .nsit-shell{background:#fff;border:1px solid var(--nsit-line);border-radius:12px;box-shadow:0 8px 24px rgba(29,40,65,.06);overflow:hidden}#${APP_ID} .nsit-generation-loading{position:absolute;z-index:100;inset:0;display:none;place-items:center;background:rgba(255,255,255,.82);backdrop-filter:blur(2px)}#${APP_ID}.nsit-generating .nsit-generation-loading{display:grid}#${APP_ID} .nsit-generation-loading-content{display:grid;justify-items:center;gap:10px;padding:18px 24px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 10px 28px rgba(31,44,67,.16);color:#394962;font-weight:600}#${APP_ID} .nsit-generation-spinner{width:28px;height:28px;border:3px solid #e8eef6;border-top-color:var(--nsit-accent);border-radius:50%;animation:nsit-generation-spin .75s linear infinite}@keyframes nsit-generation-spin{to{transform:rotate(360deg)}}
         #${APP_ID} .nsit-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid var(--nsit-line);background:linear-gradient(110deg,#f9fbff,#fff8ea);flex:none}#${APP_ID} .nsit-head-copy{display:flex;align-items:baseline;gap:9px;min-width:0}#${APP_ID} .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:var(--nsit-muted);font-size:12px;white-space:nowrap}#${APP_ID} .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}#${APP_ID} .nsit-star-note a:hover{text-decoration:underline}#${APP_ID} .nsit-github-icon{width:14px;height:14px;fill:currentColor}
         #${APP_ID} h2,#${APP_ID} h3{margin:0}#${APP_ID} h2{font-size:16px}#${APP_ID} h3{font-size:14px}#${APP_ID} .nsit-head small,#${APP_ID} p{color:var(--nsit-muted)}#${APP_ID} .nsit-head small{font-size:14px}
         #${APP_ID} .nsit-body{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,.85fr);flex:1;min-height:0;overflow:hidden}#${APP_ID} .nsit-form,#${APP_ID} .nsit-side{min-height:0;overflow-y:auto;overscroll-behavior:contain;box-shadow:inset 0 7px 9px -12px rgba(29,40,65,.38)}#${APP_ID} .nsit-form{padding:4px 18px 18px}#${APP_ID} .nsit-side{padding:4px 18px 18px;border-left:1px solid var(--nsit-line);background:#fbfcfe}#${APP_ID} .nsit-machine-tabs{position:absolute;right:100%;top:52px;bottom:0;display:flex;flex-direction:column;align-items:flex-end;gap:7px;width:210px;padding:14px 0;overflow:visible}#${APP_ID} .nsit-machine-tab{display:flex;align-items:center;gap:7px;width:110px;min-height:34px;margin:0;padding:7px 9px;border:1px solid #d8e0eb;border-right:0;border-radius:7px 0 0 7px;background:#fff;color:#506078;font:inherit;text-align:left;transition:width .18s ease,background .15s,border-color .15s;cursor:pointer;white-space:nowrap;overflow:hidden}#${APP_ID} .nsit-machine-tab:hover,#${APP_ID} .nsit-machine-tab.is-active{width:210px;border-color:#d9961c;background:#fff8ea;color:#875800}#${APP_ID} .nsit-machine-tab.is-active{font-weight:650}#${APP_ID} .nsit-machine-logo{position:relative;display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:5px;background:#edf2f8;color:#52627c;font-size:11px;font-weight:700;overflow:hidden}#${APP_ID} .nsit-machine-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}#${APP_ID} .nsit-machine-tab.is-active .nsit-machine-logo{background:#f4c96c;color:#6d4900}#${APP_ID} .nsit-machine-index{flex:none;color:#8794aa;font-size:11px}#${APP_ID} .nsit-machine-name{overflow:hidden;text-overflow:ellipsis}#${APP_ID} .nsit-machine-meta{display:none;margin-left:auto;font-size:12px;color:#718096}#${APP_ID} .nsit-machine-tab:hover .nsit-machine-meta,#${APP_ID} .nsit-machine-tab.is-active .nsit-machine-meta{display:inline}#${APP_ID} .nsit-machine-add{border-style:dashed;background:#fff;color:#718096}#${APP_ID} .nsit-machine-add:disabled{cursor:not-allowed;opacity:.45}#${APP_ID} .nsit-machine-add:not(:disabled):hover{border-color:#d9961c;background:#fff8ea;color:#875800}
@@ -238,7 +262,7 @@ function escapeHtml(value) {
         #${APP_ID} input,#${APP_ID} select,#${APP_ID} textarea{width:100%;min-width:0;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:var(--nsit-ink);padding:8px 9px;font:inherit;outline:none}#${APP_ID} textarea{resize:vertical}#${APP_ID} input:focus,#${APP_ID} select:focus,#${APP_ID} textarea:focus{border-color:var(--nsit-accent);box-shadow:0 0 0 3px rgba(217,150,28,.14)}#${APP_ID} .nsit-picker{position:relative;z-index:0;display:block;isolation:isolate}#${APP_ID} .nsit-picker input{padding-right:35px}#${APP_ID} .nsit-picker-toggle{position:absolute;z-index:1;top:50%;right:8px;display:grid;place-items:center;width:20px;height:20px;margin:0;padding:0;transform:translateY(-50%);border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:#52627c}#${APP_ID} .nsit-picker-toggle i{display:block;width:18px;height:18px;background:center/18px 18px no-repeat url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 48 48' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M36 18L24 30L12 18' stroke='%23333' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}#${APP_ID} .nsit-picker-toggle:hover{color:#27334a}#${APP_ID} .nsit-picker-menu{display:none;position:absolute;z-index:20;top:calc(100% + 5px);left:0;width:100%;max-height:180px;overflow:auto;border:1px solid #d8e0eb;border-radius:8px;background:#fff;box-shadow:0 8px 18px rgba(31,44,67,.18);padding:5px}#${APP_ID} .nsit-picker.is-open{z-index:30}#${APP_ID} .nsit-picker.is-open .nsit-picker-menu{display:grid;gap:2px}#${APP_ID} .nsit-picker-menu [data-nsit-picker-option]{display:block;width:100%;margin:0;border:0;border-radius:5px;background:transparent;padding:7px 9px;text-align:left;color:#33425a;font:inherit;cursor:pointer}#${APP_ID} .nsit-picker-menu [data-nsit-picker-option]:hover,#${APP_ID} .nsit-picker-menu [data-nsit-picker-option].is-active{background:#fff3da;color:#885700}#${APP_ID} .nsit-picker-menu [data-nsit-picker-option][hidden]{display:none}#${APP_ID} .nsit-model-suggest{position:relative;z-index:0;display:block}#${APP_ID} .nsit-model-suggest-menu{display:none;position:absolute;z-index:40;top:calc(100% + 5px);left:0;width:100%;max-height:260px;overflow:auto;border:1px solid #d8e0eb;border-radius:8px;background:#fff;box-shadow:0 8px 18px rgba(31,44,67,.18);padding:5px}#${APP_ID} .nsit-model-suggest.is-open{z-index:35}#${APP_ID} .nsit-model-suggest.is-open .nsit-model-suggest-menu{display:grid;gap:2px}#${APP_ID} .nsit-model-suggestion{display:grid;width:100%;grid-template-columns:minmax(0,1fr) auto;gap:5px 10px;margin:0;border:0;border-radius:6px;background:transparent;padding:8px 9px;color:#33425a;font:inherit;text-align:left;cursor:pointer}#${APP_ID} .nsit-model-suggestion:hover{background:#fff3da;color:#885700}#${APP_ID} .nsit-model-suggestion strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#${APP_ID} .nsit-model-suggestion small{color:#718096;font-size:12px;white-space:nowrap}#${APP_ID} .nsit-model-suggestion span{grid-column:1/-1;color:#66758d;font-size:12px;line-height:1.45}#${APP_ID} .nsit-model-suggest-empty{margin:0;padding:8px 9px;color:#718096;font-size:12px}#${APP_ID} .nsit-asking-price{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}#${APP_ID} .nsit-asking-price .nsit-field{min-width:0}#${APP_ID} .nsit-price-preview{min-height:37px;border:1px solid #f0d49c;border-radius:7px;background:#fff8e9;padding:8px 10px;color:#8b641e;font-size:14px;line-height:19px;white-space:nowrap}#${APP_ID} .nsit-report-remarks{display:grid;grid-template-columns:1fr;gap:12px}#${APP_ID} .nsit-report-remarks .nsit-field{min-width:0}#${APP_ID} .nsit-report-remarks .nsit-field-wide{grid-column:auto}#${APP_ID} .nsit-report-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}#${APP_ID} .nsit-tag-list{display:flex;flex-wrap:wrap;gap:8px}#${APP_ID} .nsit-tag{position:relative;cursor:pointer}#${APP_ID} .nsit-tag input{position:absolute;opacity:0;pointer-events:none}#${APP_ID} .nsit-tag span{display:block;border:1px solid #d8e0eb;border-radius:999px;background:#fff;padding:6px 11px;color:#506078;font-size:14px;transition:.15s}#${APP_ID} .nsit-tag--transfer input:checked + span{border-color:#a9c6f5;background:#f2f7ff;color:#316ab7}#${APP_ID} .nsit-tag--identity input:checked + span{border-color:#cbb7ee;background:#f8f3ff;color:#7452ae}#${APP_ID} .nsit-tag--brokerWalk input:checked + span,#${APP_ID} .nsit-tag--broker input:checked + span{border-color:#83d1bf;background:#f0fbf7;color:#187961}#${APP_ID} .nsit-tag--push input:checked + span{border-color:#f2bd91;background:#fff6ee;color:#b35c20}#${APP_ID} .nsit-tag--payment input:checked + span{border-color:#e7ba74;background:#fff9ec;color:#996009}#${APP_ID} .nsit-tag--extras input:checked + span{border-color:#ea9db4;background:#fff3f6;color:#ad3c61}#${APP_ID} .nsit-tag input:checked + span{box-shadow:inset 0 0 0 1px currentColor;font-weight:650;filter:saturate(1.25)}#${APP_ID} .nsit-tag:hover span{transform:translateY(-1px)}
         #${APP_ID} .nsit-value-card{margin:14px 0;border:1px solid #f0cf8a;border-radius:12px;background:linear-gradient(145deg,#fff,#fff8e9);padding:14px}#${APP_ID} .nsit-value-inputs{display:grid;gap:8px;margin-bottom:8px}#${APP_ID} .nsit-value-row-one,#${APP_ID} .nsit-value-row-two{grid-template-columns:repeat(3,minmax(0,1fr))}#${APP_ID} .nsit-value-row-two{padding-bottom:8px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-value-inputs .nsit-field{gap:3px}#${APP_ID} .nsit-value-inputs .nsit-field span{font-size:14px;color:#506078}#${APP_ID} .nsit-value-inputs .nsit-field--askingPrice > span{color:#27834a}#${APP_ID} .nsit-value-inputs .nsit-field--askingPremium > span{color:#c04444}#${APP_ID} .nsit-value-inputs input,#${APP_ID} .nsit-value-inputs select{padding:6px 7px;font-size:14px}#${APP_ID} .nsit-amount-input{display:flex;min-width:0}#${APP_ID} .nsit-amount-input .nsit-currency-picker{width:112px;flex:none}#${APP_ID} .nsit-amount-input .nsit-currency-picker input{margin:0;border-radius:7px 0 0 7px;cursor:pointer}#${APP_ID} .nsit-currency-picker .nsit-picker-menu{width:max-content;min-width:100%}#${APP_ID} .nsit-currency-picker .nsit-picker-menu [data-nsit-picker-option]{white-space:nowrap}#${APP_ID} .nsit-amount-input > input{margin-left:-1px;border-radius:0 7px 7px 0}#${APP_ID} .nsit-value-inputs .nsit-picker input{padding-right:30px}#${APP_ID} .nsit-value-inputs .nsit-picker-toggle{right:5px;width:18px;height:18px}#${APP_ID} .nsit-value-inputs .nsit-picker-toggle i{width:15px;height:15px;background-size:15px 15px}#${APP_ID} .nsit-rate-value{display:flex;align-items:center;min-width:0;gap:4px;white-space:nowrap}#${APP_ID} .nsit-value-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;color:#8b6a2b;font-weight:600}#${APP_ID} .nsit-value-heading>.nsit-rate-value{margin-right:auto;color:#2c8a4e;font-weight:400}#${APP_ID} .nsit-value-heading>.nsit-rate-value strong{min-width:0;overflow:hidden;color:inherit;font-size:14px;font-weight:650;text-overflow:ellipsis}#${APP_ID} .nsit-value-heading>.nsit-rate-value button{width:auto;height:auto;margin:0;padding:0;border:0;background:transparent;color:inherit;font-size:16px;line-height:1;cursor:pointer}#${APP_ID} .nsit-value-stats{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;white-space:nowrap}#${APP_ID} .nsit-value-heading strong{color:#8b641e;font-size:14px}#${APP_ID} .nsit-title-progress{display:block;width:62px;height:6px;overflow:hidden;border-radius:999px;background:#def0e3}.nsit-title-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6fbc82,#239652);transition:width .15s ease}#${APP_ID} .nsit-value-result{display:flex;align-items:flex-start;gap:12px;min-height:54px;margin-top:12px}#${APP_ID} .nsit-value{flex:none;margin:0;color:var(--nsit-accent);font-size:34px;font-weight:750;letter-spacing:-1px;line-height:1;word-break:break-all}#${APP_ID} .nsit-value small{margin-right:4px;font-size:15px;font-weight:inherit}#${APP_ID} .nsit-value-result .nsit-price-preview{display:flex;flex:1;align-items:flex-end;justify-content:flex-end;gap:8px;align-self:flex-start;min-width:0;padding:0;border:0;background:transparent;color:#718096;font-size:18px;font-weight:650;line-height:1.3;text-align:right;white-space:normal}#${APP_ID} .nsit-price-preview span{min-width:0}#${APP_ID} .nsit-price-preview b{display:inline-block;flex:none;font-size:34px;letter-spacing:-1px;line-height:1;white-space:nowrap}#${APP_ID} .nsit-price-preview[data-price-state="fair"]{color:#27834a}#${APP_ID} .nsit-price-preview[data-price-state="premium"]{color:#c04444}
         #${APP_ID} .nsit-formula{margin:0;font-size:14px;color:var(--nsit-muted)}#${APP_ID} .nsit-action-dock{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:12px 18px;border-top:1px solid var(--nsit-line);background:#fff;box-shadow:0 -8px 18px rgba(29,40,65,.05)}#${APP_ID} .nsit-toggle-group,#${APP_ID} .nsit-actions{display:flex;flex-wrap:wrap;gap:8px}#${APP_ID} .nsit-actions{justify-content:flex-end}#${APP_ID} .nsit-card-toggle{display:flex;align-items:center;gap:6px;color:#506078;cursor:pointer;white-space:nowrap}#${APP_ID} .nsit-card-toggle input{width:15px;height:15px;margin:0;accent-color:var(--nsit-accent)}#${APP_ID} .nsit-config-check-toggle{position:relative;gap:4px}#${APP_ID} .nsit-config-check-help{display:grid;place-items:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-weight:700;line-height:1}#${APP_ID} .nsit-config-check-tooltip{position:absolute;z-index:10;bottom:calc(100% + 8px);left:0;width:310px;padding:9px 11px;border-radius:7px;background:#27334a;color:#fff;font-size:12px;font-weight:400;line-height:1.55;white-space:normal;box-shadow:0 8px 18px rgba(31,44,67,.2);opacity:0;pointer-events:none;transform:translateY(3px);transition:opacity .15s,transform .15s}#${APP_ID} .nsit-config-check-tooltip::after{position:absolute;top:100%;left:22px;border:5px solid transparent;border-top-color:#27334a;content:""}#${APP_ID} .nsit-config-check-toggle:hover .nsit-config-check-tooltip{opacity:1;transform:translateY(0)}#${APP_ID} button{border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#40506a;padding:8px 11px;font:inherit;cursor:pointer}#${APP_ID} button:hover{border-color:var(--nsit-accent);color:#8b5c00}#${APP_ID} button.nsit-primary{background:#d9961c;border-color:#d9961c;color:#fff}#${APP_ID} .nsit-status{position:absolute;right:18px;bottom:100%;max-width:calc(100% - 36px);margin:0 0 7px;padding:4px 7px;border-radius:5px;background:rgba(39,51,74,.88);color:#fff;font-size:14px;opacity:0;pointer-events:none;transition:opacity .15s}.nsit-status:not(:empty){opacity:1}
-        #${APP_ID} .nsit-trigger{display:inline;margin:0 7px 0 0;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:600 13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;vertical-align:baseline}#${APP_ID} .nsit-trigger:hover{border-color:#b87500;background:#d9961c;color:#fff}#${APP_ID} .nsit-modal{display:none;position:fixed;z-index:2147483647;inset:0;overflow:auto;padding:28px 16px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-open .nsit-modal{display:grid;place-items:center}#${APP_ID} .nsit-dialog-wrap{position:relative;width:min(980px,100%);max-height:calc(100vh - 56px);margin:auto}#${APP_ID} .nsit-modal .nsit-shell{position:relative;display:flex;flex-direction:column;width:100%;max-height:calc(100vh - 56px);margin:0;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-close{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:transparent;font-size:25px;line-height:1;color:#62708a}#${APP_ID} .nsit-close:hover{background:#f0f3f8;color:#27334a}#${APP_ID} .nsit-head>div{min-width:0}#${APP_ID} .nsit-head>div:last-child{display:flex;align-items:center;gap:8px;white-space:nowrap}
+        #${APP_ID} .nsit-trigger{display:inline;margin:0 7px 0 0;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:600 13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;vertical-align:baseline}#${APP_ID} .nsit-trigger:hover{border-color:#b87500;background:#d9961c;color:#fff}#${APP_ID} .nsit-modal{display:none;position:fixed;z-index:2147483647;inset:0;overflow:auto;padding:28px 16px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-open .nsit-modal{display:grid;place-items:center}#${APP_ID} .nsit-dialog-wrap{position:relative;width:min(980px,100%);max-height:calc(100vh - 56px);margin:auto}#${APP_ID} .nsit-modal .nsit-shell{position:relative;display:flex;flex-direction:column;width:100%;max-height:calc(100vh - 56px);margin:0;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-close{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:transparent;font-size:25px;line-height:1;color:#62708a}#${APP_ID} .nsit-close:hover{background:#f0f3f8;color:#27334a}#${APP_ID} .nsit-head>div{min-width:0}#${APP_ID} .nsit-head>div:last-child{display:flex;align-items:center;gap:8px;white-space:nowrap}#${APP_ID} .nsit-personalization-trigger{display:inline-flex;align-items:center;height:28px;gap:5px;margin:0;padding:0 4px;border:0;background:transparent;color:var(--nsit-accent);font:inherit;font-weight:600;line-height:1}#${APP_ID} .nsit-personalization-trigger:hover{border-color:transparent;background:#fff3da;color:#a56b00}#${APP_ID} .nsit-personalization-trigger svg{width:18px;height:18px;fill:currentColor}#${APP_ID} .nsit-head-divider{width:1px;height:18px;background:#d8e0eb}
         #${APP_ID} .nsit-catalog-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-catalog-open .nsit-catalog-modal{display:grid;place-items:center}#${APP_ID} .nsit-catalog-dialog{width:min(720px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-catalog-head h3{font-size:16px}#${APP_ID} .nsit-catalog-head-copy{display:flex;align-items:baseline;gap:8px;min-width:0}#${APP_ID} .nsit-catalog-head-copy small{color:var(--nsit-muted);font-size:12px}#${APP_ID} .nsit-catalog-search{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-catalog-search button{white-space:nowrap}#${APP_ID} .nsit-catalog-results{display:grid;gap:8px;min-height:88px;padding:14px 16px}#${APP_ID} .nsit-catalog-empty{margin:auto;color:var(--nsit-muted);font-size:14px}#${APP_ID} .nsit-catalog-result{display:grid;width:100%;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 12px;text-align:left}#${APP_ID} .nsit-catalog-result strong{color:#27334a}#${APP_ID} .nsit-catalog-result span{color:#506078;font-size:13px;line-height:1.55}#${APP_ID} .nsit-catalog-result small{align-self:end;color:#8794aa;font-size:12px;white-space:nowrap}#${APP_ID} .nsit-report-remarks{grid-template-columns:1fr}@media(max-width:820px){#${APP_ID} .nsit-body{display:block}#${APP_ID} .nsit-side{border-left:0;border-top:1px solid var(--nsit-line)}#${APP_ID} .nsit-value-card{position:static}}@media(max-width:520px){#${APP_ID} .nsit-grid,#${APP_ID} .nsit-basic .nsit-grid,#${APP_ID} .nsit-report-remarks,#${APP_ID} .nsit-asking-price,#${APP_ID} .nsit-catalog-search{grid-template-columns:1fr}#${APP_ID} .nsit-value-row-one,#${APP_ID} .nsit-value-row-two{grid-template-columns:repeat(3,minmax(0,1fr))}#${APP_ID} .nsit-basic .nsit-field--vendor,#${APP_ID} .nsit-basic .nsit-field--model,#${APP_ID} .nsit-basic .nsit-field--cpu,#${APP_ID} .nsit-basic .nsit-field--memory,#${APP_ID} .nsit-basic .nsit-field--disk,#${APP_ID} .nsit-basic .nsit-field--bandwidth,#${APP_ID} .nsit-basic .nsit-field--traffic,#${APP_ID} .nsit-basic .nsit-field--remainingTraffic{grid-column:auto}#${APP_ID} .nsit-modal{padding:8px}#${APP_ID} .nsit-head small{display:none}#${APP_ID} .nsit-catalog-head-copy{align-items:flex-start;flex-direction:column;gap:2px}}
         #${APP_ID} .nsit-value-inputs .nsit-field--renewalAmount > span:first-child{display:flex;align-items:center;justify-content:space-between;gap:4px}#${APP_ID} .nsit-value-inputs .nsit-field--renewalAmount [data-nsit-amount-cny]{color:#2c8a4e;font-size:12px;font-weight:650;white-space:nowrap}#${APP_ID} .nsit-field-icon{display:inline-flex;vertical-align:-3px;margin-right:4px;color:inherit}#${APP_ID} .nsit-field-icon svg,#${APP_ID} .nsit-value-heading-icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}#${APP_ID} .nsit-field--askingPrice .nsit-field-icon,#${APP_ID} .nsit-field--askingPrice .nsit-field-icon svg{color:#27834a}#${APP_ID} .nsit-field--askingPremium .nsit-field-icon,#${APP_ID} .nsit-field--askingPremium .nsit-field-icon svg{color:#c04444}#${APP_ID} .nsit-value-heading-icon{display:inline-block;margin-right:4px;vertical-align:-3px}#${APP_ID} .nsit-contact-post-remarks{display:grid;gap:10px}#${APP_ID} .nsit-value-result{align-items:flex-end}#${APP_ID} .nsit-value-result .nsit-price-preview{align-self:flex-end}#${APP_ID} .nsit-price-typing{display:flex;align-items:flex-end;justify-content:flex-end;gap:8px;animation:nsit-type-in .24s steps(12,end)}@keyframes nsit-type-in{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}@keyframes nsit-progress-slide{from{width:0;opacity:0;transform:translateX(-8px)}to{width:62px;opacity:1;transform:translateX(0)}}#${APP_ID} .nsit-title-progress.is-visible{animation:nsit-progress-slide .32s ease-out}#${APP_ID} .nsit-vendor-picker input{padding-left:34px}#${APP_ID} .nsit-vendor-input-icon{position:absolute;z-index:2;top:50%;left:9px;transform:translateY(-50%)}#${APP_ID} .nsit-vendor-icon{position:relative;display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:4px;background:#edf2f8;color:#52627c;font-size:11px;font-style:normal;overflow:hidden}#${APP_ID} .nsit-vendor-icon img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}#${APP_ID} .nsit-vendor-icon b{font:700 11px/1 sans-serif}#${APP_ID} .nsit-picker-menu [data-nsit-picker-option]{display:flex;align-items:center;gap:7px}
       `;
@@ -257,15 +281,20 @@ function escapeHtml(value) {
       #${APP_ID} .nsit-machine-registered .nsit-machine-logo{border-radius:4px 4px 2px 2px;background:#dce8f8;color:#3f6d9f}
       #${APP_ID} .nsit-registered-machine-configs-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}
       #${APP_ID}.nsit-registered-machine-configs-open .nsit-registered-machine-configs-modal{display:grid;place-items:center}
-      #${APP_ID} .nsit-registered-machine-configs-dialog{width:min(720px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}
+      #${APP_ID} .nsit-registered-machine-configs-dialog{display:flex;flex-direction:column;width:min(720px,100%);height:620px;max-height:calc(100vh - 40px);overflow:hidden;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}
       #${APP_ID} .nsit-registered-machine-configs-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}
       #${APP_ID} .nsit-registered-machine-configs-head h3{font-size:16px}
-      #${APP_ID} .nsit-registered-machine-configs{display:grid;gap:8px;min-height:120px;padding:14px 16px}
+      #${APP_ID} .nsit-registered-machine-configs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));flex:1;align-content:start;gap:8px;min-height:0;overflow-y:auto;padding:14px 16px}
       #${APP_ID} .nsit-registered-machine-config{display:grid;gap:4px;border:1px solid #e2e8f0;border-radius:8px;background:#fbfcfe;padding:11px 12px}
       #${APP_ID} .nsit-registered-machine-config strong{color:#27334a}
       #${APP_ID} .nsit-registered-machine-config span{color:#506078;font-size:13px;line-height:1.55}
       #${APP_ID} .nsit-registered-machine-config small{color:#8794aa;font-size:12px}
-      #${APP_ID} [data-nsit-personal-tags]{display:contents}#${APP_ID} .nsit-personalization-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-personalization-open .nsit-personalization-modal{display:grid;place-items:center}#${APP_ID} .nsit-personalization-dialog{display:flex;flex-direction:column;width:min(680px,100%);height:720px;max-height:calc(100vh - 40px);overflow:hidden;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-personalization-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-personalization-head>div{display:flex;align-items:baseline;gap:8px;min-width:0}#${APP_ID} .nsit-personalization-head h3{font-size:16px}#${APP_ID} .nsit-personalization-head small{color:var(--nsit-muted);font-size:12px;white-space:nowrap}#${APP_ID} [data-nsit-personalization-body]{display:flex;flex:1 1 0;min-height:0;overflow:hidden}#${APP_ID} .nsit-personalization-form{display:flex;flex:1 1 0;min-height:0;flex-direction:column;overflow:hidden}#${APP_ID} .nsit-personalization-content{display:grid;flex:1 1 0;gap:16px;min-height:0;overflow:auto;padding:16px}#${APP_ID} .nsit-personalization-form section{display:grid;gap:9px}#${APP_ID} .nsit-setting-label{display:flex;align-items:baseline;gap:8px}#${APP_ID} .nsit-personalization-form h4{margin:0;white-space:nowrap;font-size:14px}#${APP_ID} .nsit-personalization-form p{margin:0;color:var(--nsit-muted);font-size:12px}#${APP_ID} .nsit-setting-checks{display:flex;flex-wrap:wrap;gap:8px 12px}#${APP_ID} .nsit-setting-checks label{display:flex;align-items:center;gap:5px;color:#506078}#${APP_ID} .nsit-setting-checks input{width:15px;height:15px;margin:0;accent-color:var(--nsit-accent)}#${APP_ID} .nsit-personalization-tags{align-items:center}#${APP_ID} .nsit-custom-tag-entry{display:inline-flex;gap:0}#${APP_ID} .nsit-custom-tag-entry input{width:100px;min-width:100px;height:32px;border-radius:999px 0 0 999px;padding:5px 8px;font-size:13px}#${APP_ID} .nsit-custom-tag-entry button{height:32px;margin-left:-1px;border-radius:0 999px 999px 0;padding:5px 8px;font-size:13px}#${APP_ID} .nsit-custom-tag-list{display:contents}#${APP_ID} .nsit-custom-tag{position:relative;display:inline-flex;align-items:center;border:1px solid #e7ba74;border-radius:999px;background:#fff9ec;padding:4px 20px 4px 9px;color:#996009;font-size:13px}#${APP_ID} .nsit-custom-tag button{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;width:15px;height:15px;margin:0;padding:0;border:1px solid #d8e0eb;border-radius:50%;background:#fff;color:#718096;font-size:13px;line-height:1}#${APP_ID} .nsit-custom-tag button:hover{border-color:#c04444;color:#c04444}#${APP_ID} .nsit-title-preview{border:1px solid #f0d49c;border-radius:6px;background:#fff8e9;padding:7px 9px;color:#8b641e;font-size:13px}#${APP_ID} .nsit-transfer-box{display:grid;grid-template-columns:1fr 1fr;gap:10px}#${APP_ID} .nsit-title-field-order{display:grid;align-content:start;gap:5px;min-height:180px;max-height:270px;margin:0;padding:8px;overflow:auto;border:1px solid #e2e8f0;border-radius:7px;list-style:none}#${APP_ID} .nsit-title-field-order::before{color:#8794aa;font-size:12px;font-weight:600}#${APP_ID} [data-nsit-title-field-available]::before{content:"所有字段"}#${APP_ID} [data-nsit-title-field-order]::before{content:"已选字段"}#${APP_ID} .nsit-title-field-order li{display:flex;align-items:center;gap:4px;border:1px solid #e2e8f0;border-radius:6px;padding:5px 7px;color:#506078}#${APP_ID} .nsit-title-field-order li span{margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#${APP_ID} .nsit-title-field-order button{padding:1px 5px;font-size:13px}#${APP_ID} [data-nsit-title-field-available] [data-action="remove-title-field"],#${APP_ID} [data-nsit-title-field-available] [data-action="move-title-field"],#${APP_ID} [data-nsit-title-field-order] [data-action="add-title-field"]{display:none}#${APP_ID} .nsit-personalization-form footer{display:flex;justify-content:flex-end;gap:8px;flex:none;padding:12px 16px;border-top:1px solid var(--nsit-line);background:#fff}
+      @media(max-width:620px){#${APP_ID} .nsit-registered-machine-configs{grid-template-columns:1fr}}
+      #${APP_ID} [data-nsit-personal-tags]{display:contents}#${APP_ID} .nsit-personalization-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-personalization-open .nsit-personalization-modal{display:grid;place-items:center}#${APP_ID} .nsit-personalization-dialog{display:flex;flex-direction:column;width:min(680px,100%);height:720px;max-height:calc(100vh - 40px);overflow:hidden;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-personalization-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-personalization-head>div{display:flex;align-items:baseline;gap:8px;min-width:0}#${APP_ID} .nsit-personalization-head h3{font-size:16px}#${APP_ID} .nsit-personalization-head small{color:var(--nsit-muted);font-size:12px;white-space:nowrap}#${APP_ID} [data-nsit-personalization-body]{display:flex;flex:1 1 0;min-height:0;overflow:hidden}#${APP_ID} .nsit-personalization-form{display:flex;flex:1 1 0;min-height:0;flex-direction:column;overflow:hidden}#${APP_ID} .nsit-personalization-content{display:grid;flex:1 1 0;gap:16px;min-height:0;overflow:auto;padding:16px}#${APP_ID} .nsit-personalization-form section{display:grid;gap:9px}#${APP_ID} .nsit-setting-label{display:flex;align-items:baseline;gap:8px}#${APP_ID} .nsit-personalization-form h4{margin:0;white-space:nowrap;font-size:14px}#${APP_ID} .nsit-personalization-form p{margin:0;color:var(--nsit-muted);font-size:12px}#${APP_ID} .nsit-setting-checks{display:flex;flex-wrap:wrap;gap:8px 12px}#${APP_ID} .nsit-setting-checks label{display:flex;align-items:center;gap:5px;color:#506078}#${APP_ID} .nsit-setting-checks input{width:15px;height:15px;margin:0;accent-color:var(--nsit-accent)}#${APP_ID} .nsit-personalization-tags{align-items:center}#${APP_ID} .nsit-custom-tag-entry{display:inline-flex;gap:0}#${APP_ID} .nsit-custom-tag-entry input{width:100px;min-width:100px;height:32px;border-radius:999px 0 0 999px;padding:5px 8px;font-size:13px}#${APP_ID} .nsit-custom-tag-entry button{height:32px;margin-left:-1px;border-radius:0 999px 999px 0;padding:5px 8px;font-size:13px}#${APP_ID} .nsit-custom-tag-list{display:contents}#${APP_ID} .nsit-custom-tag{position:relative;display:inline-flex;align-items:center;border:1px solid #e7ba74;border-radius:999px;background:#fff9ec;padding:4px 20px 4px 9px;color:#996009;font-size:13px}#${APP_ID} .nsit-custom-tag button{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;width:15px;height:15px;margin:0;padding:0;border:1px solid #d8e0eb;border-radius:50%;background:#fff;color:#718096;font-size:13px;line-height:1}#${APP_ID} .nsit-custom-tag button:hover{border-color:#c04444;color:#c04444}#${APP_ID} .nsit-title-preview{border:1px solid #f0d49c;border-radius:6px;background:#fff8e9;padding:7px 9px;color:#8b641e;font-size:13px}#${APP_ID} .nsit-transfer-box{display:grid;grid-template-columns:1fr 1fr;gap:10px}#${APP_ID} .nsit-title-field-order{display:grid;align-content:start;gap:5px;min-height:180px;max-height:270px;margin:0;padding:8px;overflow:auto;border:1px solid #e2e8f0;border-radius:7px;list-style:none}#${APP_ID} .nsit-title-field-order::before{color:#8794aa;font-size:12px;font-weight:600}#${APP_ID} [data-nsit-title-field-available]::before{content:"所有字段"}#${APP_ID} [data-nsit-title-field-order]::before{content:"已选字段"}#${APP_ID} .nsit-title-field-order li{display:flex;align-items:center;gap:4px;border:1px solid #e2e8f0;border-radius:6px;padding:5px 7px;color:#506078}#${APP_ID} .nsit-title-field-order li span{margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#${APP_ID} .nsit-title-field-order button{padding:1px 5px;font-size:13px}#${APP_ID} [data-nsit-title-field-available] [data-action="remove-title-field"],#${APP_ID} [data-nsit-title-field-available] [data-action="move-title-field"],#${APP_ID} [data-nsit-title-field-order] [data-action="add-title-field"]{display:none}#${APP_ID} .nsit-value-card-style-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}#${APP_ID} .nsit-value-card-style{position:relative;display:block;min-width:0;cursor:pointer}#${APP_ID} .nsit-value-card-style>input{position:absolute;opacity:0;pointer-events:none}#${APP_ID} .nsit-value-card-style-preview{position:relative;display:block;overflow:hidden;aspect-ratio:2.18;border:2px solid #d8e0eb;border-radius:8px;background:#f8fafc;box-shadow:0 1px 2px rgba(31,44,67,.08);transition:border-color .15s ease,box-shadow .15s ease}#${APP_ID} .nsit-value-card-style-preview>img{display:block;width:100%;height:100%;object-fit:cover}#${APP_ID} .nsit-value-card-style-preview>strong{position:absolute;right:6px;bottom:6px;padding:2px 6px;border-radius:4px;background:rgba(35,47,67,.76);color:#fff;font-size:11px;line-height:1.35}#${APP_ID} .nsit-value-card-style>input:checked+.nsit-value-card-style-preview{border-color:var(--nsit-accent);box-shadow:0 0 0 3px rgba(217,150,28,.18)}#${APP_ID} .nsit-value-card-style>input:checked+.nsit-value-card-style-preview::after{position:absolute;top:5px;right:5px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--nsit-accent);color:#fff;content:"✓";font-size:12px;font-weight:800}#${APP_ID} .nsit-personalization-form footer{display:flex;justify-content:flex-end;gap:8px;flex:none;padding:12px 16px;border-top:1px solid var(--nsit-line);background:#fff}
+        #${APP_ID} .nsit-value-card-custom-empty{display:grid;width:100%;height:100%;place-items:center;background:linear-gradient(135deg,#eaf8ff,#fff4df);color:#718096;font-size:12px}#${APP_ID} .nsit-value-card-upload{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;color:#506078;font-size:13px}#${APP_ID} .nsit-value-card-upload input{min-width:0;padding:5px}#${APP_ID} .nsit-value-card-upload small{grid-column:1/-1;color:var(--nsit-muted);font-size:12px}
+        #${APP_ID} .nsit-body{position:relative}#${APP_ID} .nsit-inline-catalog{position:absolute;z-index:60;top:0;bottom:0;left:0;display:flex;flex-direction:column;width:320px;overflow:hidden;border-right:1px solid var(--nsit-line);background:#fff;box-shadow:8px 0 20px rgba(31,44,67,.18);transform:translateX(-101%);transition:transform .22s ease}#${APP_ID} .nsit-inline-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;padding:8px 14px;border-bottom:1px solid var(--nsit-line);background:linear-gradient(110deg,#f9fbff,#fff8ea)}#${APP_ID} .nsit-inline-catalog-head h3{font-size:15px}#${APP_ID} .nsit-inline-catalog-close{display:none}#${APP_ID}.nsit-machine-catalog-ready.nsit-inline-catalog-open .nsit-inline-catalog-close{display:grid}#${APP_ID} .nsit-inline-catalog-search{display:block;flex:none;padding:12px 14px 8px}#${APP_ID} .nsit-inline-catalog-search input{padding:8px 9px}#${APP_ID} .nsit-inline-catalog-results{display:grid;align-content:start;gap:7px;min-height:0;overflow:auto;padding:6px 10px 12px}#${APP_ID} .nsit-inline-catalog-result{display:grid;width:100%;gap:4px;margin:0;padding:10px;border-color:#e2e8f0;background:#fff;text-align:left}#${APP_ID} .nsit-inline-catalog-result:hover{background:#fff8ea}#${APP_ID} .nsit-inline-catalog-result strong{color:#27334a}#${APP_ID} .nsit-inline-catalog-result span{color:#506078;font-size:12px;line-height:1.5}#${APP_ID} .nsit-inline-catalog-result .nsit-inline-catalog-spec{display:flex;align-items:center;gap:8px;min-width:0}#${APP_ID} .nsit-inline-catalog-spec>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#${APP_ID} .nsit-inline-catalog-result small{flex:none;margin-left:auto;color:#8794aa;font-size:12px;white-space:nowrap}#${APP_ID} .nsit-catalog-drawer-toggle{position:absolute;z-index:4;top:50%;left:-32px;display:none;width:32px;height:52px;margin:0;padding:5px;transform:translateY(-50%);border-radius:8px 0 0 8px;background:#fff;box-shadow:-3px 4px 12px rgba(31,44,67,.16)}#${APP_ID} .nsit-catalog-drawer-toggle svg{display:block;width:22px;height:22px}#${APP_ID}.nsit-inline-catalog-open .nsit-inline-catalog{transform:translateX(0)}#${APP_ID}.nsit-machine-catalog-ready:not(.nsit-inline-catalog-open) .nsit-catalog-drawer-toggle{display:grid;place-items:center}#${APP_ID}.nsit-catalog-required .nsit-side{display:none}#${APP_ID}.nsit-catalog-required .nsit-form{grid-column:1/-1}#${APP_ID}.nsit-catalog-required .nsit-inline-catalog{transform:translateX(0)}#${APP_ID}.nsit-catalog-required .nsit-catalog-drawer-toggle{display:none}@media(max-width:820px){#${APP_ID} .nsit-inline-catalog{width:min(320px,88vw)}}
+        #${APP_ID}.nsit-catalog-required .nsit-body{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(0,1.65fr)}#${APP_ID}.nsit-catalog-required .nsit-inline-catalog{position:relative;z-index:0;top:auto;bottom:auto;left:auto;width:auto;min-height:0;box-shadow:none;transform:none}#${APP_ID}.nsit-catalog-required .nsit-inline-catalog-results{flex:1}#${APP_ID}.nsit-catalog-required .nsit-form{grid-column:auto}@media(max-width:640px){#${APP_ID}.nsit-catalog-required .nsit-body{grid-template-columns:minmax(190px,.8fr) minmax(0,1.2fr)}}
+        #${APP_ID} .nsit-catalog-drawer-toggle{display:none!important}#${APP_ID} .nsit-vendor-label{display:flex;align-items:center;justify-content:space-between;gap:8px}#${APP_ID} .nsit-machine-catalog-trigger{display:none;align-items:center;gap:4px;margin:-4px 0;padding:2px 5px;border:0;background:transparent;color:#718096;font-size:12px;line-height:18px;white-space:nowrap}#${APP_ID} .nsit-machine-catalog-trigger svg{width:18px;height:18px;flex:none}#${APP_ID} .nsit-machine-catalog-trigger:hover{background:#fff8ea;color:#8b5c00}#${APP_ID}.nsit-machine-catalog-ready:not(.nsit-inline-catalog-open) .nsit-machine-catalog-trigger{display:inline-flex}
     `;
     injectStyles(`${styles}\n${modelSuggestionStyles}`);
     app.innerHTML = `
@@ -274,8 +303,9 @@ function escapeHtml(value) {
       <div class="nsit-dialog-wrap">
         ${machineTabsMarkup()}
       <div class="nsit-shell" role="dialog" aria-modal="true" aria-label="单机转让帖模板">
-        <header class="nsit-head"><div class="nsit-head-copy"><h2>出鸡</h2><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div><div><button type="button" data-action="open-personalization">个性化配置</button><small>不会自动发布</small><button type="button" class="nsit-close" data-action="close" aria-label="关闭表单" title="关闭">×</button></div></header>
+        <header class="nsit-head"><div class="nsit-head-copy"><h2>出鸡</h2><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div><div><button type="button" class="nsit-personalization-trigger" data-action="open-personalization"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M204.060444 555.463111c-14.506667 1.763556-26.225778 15.473778-27.761777 32.540445-2.104889 23.324444 14.620444 43.064889 34.702222 40.618666 14.449778-1.763556 26.168889-15.530667 27.761778-32.654222 2.048-23.324444-14.791111-42.951111-34.702223-40.504889zM265.102222 495.388444c21.845333-2.275556 39.480889-22.926222 41.472-48.583111 2.503111-33.507556-21.219556-61.44-49.777778-58.368-21.788444 2.275556-39.424 22.869333-41.415111 48.583111-2.616889 33.336889 21.219556 61.269333 49.720889 58.368zM415.687111 252.586667c-28.501333 2.104889-51.655111 29.240889-53.475555 62.691555-2.161778 40.448 26.453333 74.069333 60.984888 71.452445 28.558222-2.104889 51.655111-29.240889 53.475556-62.691556 2.104889-40.618667-26.453333-74.069333-60.984889-71.452444z m206.336-15.36c-35.100444 2.56-63.431111 35.84-65.649778 76.970666-2.730667 49.777778 32.426667 91.079111 74.865778 87.779556 35.157333-2.56 63.488-35.896889 65.706667-76.970667 2.787556-49.777778-32.369778-91.022222-74.922667-87.779555zM967.111111 263.793778a35.441778 35.441778 0 0 0-9.841778-23.04l-0.682666-0.682667a26.510222 26.510222 0 0 0-18.773334-8.192 26.908444 26.908444 0 0 0-21.617777 11.605333l-342.072889 461.653334-43.52 100.352 1.137777 1.024-4.949333 13.312 11.093333-6.940445 1.536 1.536 78.051556-63.715555 342.698667-462.506667a37.603556 37.603556 0 0 0 6.940444-24.462222z m-68.835555 234.609778c-13.767111-1.649778-26.737778 8.704-30.378667 24.291555-6.940444 28.899556-19.342222 75.719111-35.157333 114.801778-22.812444 56.604444-64.967111 135.395556-135.736889 189.212444-72.248889 55.068444-142.904889 66.56-189.44 66.56-37.034667 0-72.248889-7.168-101.831111-20.764444-26.908444-12.344889-46.421333-28.899556-54.954667-46.648889-3.413333-7.111111-7.224889-15.075556-11.207111-23.665778-17.237333-36.522667-36.636444-78.051556-49.777778-90.851555-15.928889-15.473778-39.139556-17.635556-59.847111-17.635556-8.135111 0-40.846222 1.536-48.583111 1.536-33.109333 0-49.493333-7.623111-56.149334-26.282667-17.806222-49.607111-7.281778-134.144 26.851556-215.267555C204.8 328.362667 299.747556 236.657778 412.444444 202.24c40.049778-12.401778 81.294222-22.186667 121.457778-22.186667 85.674667 0 188.017778 38.570667 252.757334 90.680889 11.377778 9.102222 26.965333 6.826667 35.783111-5.802666 10.410667-14.791111 7.111111-36.807111-6.826667-46.648889-23.324444-16.497778-58.026667-39.936-86.414222-55.296A392.931556 392.931556 0 0 0 539.875556 113.777778c-68.152889 0-148.935111 19.228444-217.429334 55.409778-78.222222 41.073778-135.395556 99.783111-179.598222 173.112888-36.408889 60.302222-67.868444 130.389333-80.213333 197.973334-7.509333 41.244444-6.826667 67.413333-2.389334 103.082666 4.209778 34.304 13.425778 61.667556 26.908445 79.246223 22.414222 29.468444 51.598222 43.918222 89.144889 43.918222 13.880889 0 56.32-5.859556 63.146666-5.859556 7.395556 0 12.231111 1.365333 14.392889 4.437334 6.428444 8.704 14.449778 26.282667 23.779556 46.819555 7.509333 16.554667 15.928889 35.328 25.429333 53.191111 12.060444 22.869333 36.920889 47.445333 66.56 65.592889 27.022222 16.554667 71.964444 36.408889 132.323556 36.408889 72.135111 0 148.48-27.704889 226.986666-82.261333 74.979556-52.110222 123.164444-139.605333 150.357334-203.776 19.057778-44.942222 34.759111-102.4 43.861333-139.832889 4.835556-20.309333-6.997333-40.732444-24.803556-42.837333z"/></svg><span>个性化设置</span></button><i class="nsit-head-divider" aria-hidden="true"></i><button type="button" class="nsit-close" data-action="close" aria-label="关闭表单" title="关闭">×</button></div></header>
         <div class="nsit-body">
+          ${inlineMachineCatalogMarkup()}
           <form id="nsit-form" class="nsit-form" novalidate>
             ${basicConfigMarkup()}
             ${valueCardMarkup()}
@@ -285,7 +315,9 @@ function escapeHtml(value) {
           <aside class="nsit-side">${reportsAndRemarksMarkup()}${transferTagsMarkup()}${contactAndPostRemarksMarkup()}</aside>
         </div>
         <div class="nsit-action-dock"><div class="nsit-toggle-group"><label class="nsit-card-toggle"><input type="checkbox" name="generateCard" checked>生成剩余价值图片</label><label class="nsit-card-toggle nsit-config-check-toggle"><input type="checkbox" name="checkMachineConfig" checked><span>授权检查配置并提示</span><i class="nsit-config-check-help" aria-hidden="true">?</i><span class="nsit-config-check-tooltip" role="tooltip">感谢贡献机器配置，配置包含厂商、型号、CPU、内存、硬盘、带宽、流量、续费周期和续费金额，请确认配置信息准确。出鸡时使用配置将看到贡献者的昵称。</span></label></div><div class="nsit-actions"><button type="button" class="nsit-primary" data-action="fill">生成文本模式</button><button type="button" data-action="fill-table">生成表格模式</button><button type="button" data-action="clear">清空表单</button></div><div class="nsit-status" role="status"></div></div>
+        <div class="nsit-generation-loading" aria-hidden="true"><div class="nsit-generation-loading-content" role="status" aria-live="polite"><i class="nsit-generation-spinner" aria-hidden="true"></i><span>正在生成，请稍候…</span></div></div>
       </div>
+      <button type="button" class="nsit-catalog-drawer-toggle" data-action="toggle-inline-machine-catalog" aria-label="打开机器配置库" title="打开机器配置库"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M224.304762 951.398942a290.043034 52.373898 0 1 0 580.086067 0 290.043034 52.373898 0 1 0-580.086067 0Z" fill="#C5C1BD"></path><path d="M404.182011 772.244092h79.102645v155.315696h-79.102645zM472.809877 956.094533h-61.403881c-18.782363 0-34.313933-15.53157-34.313933-34.313933v-12.280776c0-18.782363 15.53157-34.313933 34.313933-34.313933h61.403881c18.782363 0 34.313933 15.53157 34.313933 34.313933v12.280776c0 19.143563-15.53157 34.313933-34.313933 34.313933zM551.551323 772.244092h79.102645v155.315696h-79.102645zM620.179189 956.094533h-61.40388c-18.782363 0-34.313933-15.53157-34.313933-34.313933v-12.280776c0-18.782363 15.53157-34.313933 34.313933-34.313933h61.40388c18.782363 0 34.313933 15.53157 34.313933 34.313933v12.280776c0 19.143563-15.53157 34.313933-34.313933 34.313933z" fill="#EFA124"></path><path d="M131.115344 703.977425l-19.504762-13.725573c-30.340741-21.671958-37.564727-63.932275-15.892769-94.273016L285.347443 328.330159c21.671958-30.340741 63.932275-37.564727 94.273016-15.892769l19.504761 13.725573c30.340741 21.671958 37.564727 63.932275 15.892769 94.273016l-189.990829 267.648677c-20.949559 30.340741-63.571076 37.564727-93.911816 15.892769zM900.469841 703.977425l19.504762-13.725573c30.340741-21.671958 37.564727-63.932275 15.892769-94.273016l-189.990829-267.648677c-21.671958-30.340741-63.932275-37.564727-94.273016-15.892769l-19.504762 13.725573c-30.340741 21.671958-37.564727 63.932275-15.892769 94.273016l189.990829 267.648677c21.310758 30.340741 63.932275 37.564727 94.273016 15.892769z" fill="#F2B121"></path><path d="M832.203175 499.177425c0 202.994004-107.998589 338.804938-315.688184 338.804938-195.047619 0-315.688183-135.810935-315.688183-338.804938S342.416931 103.302998 516.87619 103.302998s315.326984 192.880423 315.326985 395.874427z" fill="#F5D021"></path><path d="M621.623986 403.459612c-28.173545 0-50.929101-28.534744-50.929101-63.571076 0-35.036332 22.755556-63.571076 50.929101-63.571076s50.929101 28.534744 50.9291 63.571076c0.361199 35.036332-22.755556 63.571076-50.9291 63.571076zM409.961199 403.459612c-28.173545 0-50.929101-28.534744-50.9291-63.571076 0-35.036332 22.755556-63.571076 50.9291-63.571076s50.929101 28.534744 50.929101 63.571076c0.361199 35.036332-22.755556 63.571076-50.929101 63.571076z" fill="#1F1204"></path><path d="M514.347795 373.84127c-35.75873 0-65.015873 28.895944-65.015873 67.183069 0 27.089947 29.257143 33.591534 65.015873 33.591534s65.015873-6.862787 65.015873-33.591534c-0.361199-38.648325-29.257143-67.183069-65.015873-67.183069z" fill="#F29D27"></path><path d="M515.070194 443.913933c-24.922751 0-40.454321-9.391182-41.17672-9.752381-4.334392-2.889594-5.779189-8.668783-3.250793-13.003175 2.889594-4.334392 8.668783-5.779189 13.003174-3.250793 1.083598 0.722399 27.812346 15.892769 67.544268-0.722399 4.695591-2.167196 10.47478 0.361199 12.280776 5.05679 2.167196 4.695591-0.361199 10.47478-5.05679 12.280776-16.253968 7.223986-30.70194 9.391182-43.343915 9.391182z" fill="#DA4E2A"></path><path d="M607.898413 81.269841c0-30.340741-24.561552-54.902293-54.902293-54.902292-13.725573 0-26.006349 5.05679-35.75873 13.003174-9.752381-8.307584-22.033157-13.003175-35.75873-13.003174-30.340741 0-54.902293 24.561552-54.902293 54.902292s24.561552 54.902293 54.902293 54.902293c3.973192 0 7.585185-0.361199 11.558377-1.083598v24.922751s88.132628-23.116755 99.691005-40.81552c9.391182-9.752381 15.17037-23.477954 15.170371-37.925926z" fill="#E34227"></path></svg></button>
       </div>
       </div>
       <div class="nsit-catalog-modal" aria-hidden="true">
@@ -315,7 +347,7 @@ function formValues(app) {
 
   function personalSettings() {
     const defaults = {
-      presetTags: [], customTags: [], titleFields: DEFAULT_TITLE_FIELDS, tgContact: '', postRemarks: '', renewalFields: DEFAULT_RENEWAL_FIELDS,
+      presetTags: [], customTags: [], titleFields: DEFAULT_TITLE_FIELDS, tgContact: '', postRemarks: '', renewalFields: DEFAULT_RENEWAL_FIELDS, valueCardStyle: 'stardew-spring', customValueCardBackground: '',
     };
     try {
       const saved = JSON.parse(localStorage.getItem(PERSONALIZATION_KEY) || '{}');
@@ -328,6 +360,8 @@ function formValues(app) {
         postRemarks: String(saved.postRemarks || (Array.isArray(saved.remarks) ? saved.remarks.filter(Boolean).join('\n') : saved.remarks) || '').trim(),
         titleFields: Array.isArray(saved.titleFields) ? saved.titleFields.filter((name) => TITLE_FIELD_OPTIONS.some(([value]) => value === name)) : defaults.titleFields,
         renewalFields: Array.isArray(saved.renewalFields) ? saved.renewalFields.filter((name) => DEFAULT_RENEWAL_FIELDS.includes(name)) : defaults.renewalFields,
+        valueCardStyle: VALUE_CARD_STYLES.some(([value]) => value === saved.valueCardStyle) ? saved.valueCardStyle : defaults.valueCardStyle,
+        customValueCardBackground: typeof saved.customValueCardBackground === 'string' && saved.customValueCardBackground.startsWith('data:image/') ? saved.customValueCardBackground : '',
         tgContact: String(saved.tgContact || legacyTgContact).trim(),
       };
     } catch (_) { return defaults; }
@@ -335,6 +369,29 @@ function formValues(app) {
 
   function savePersonalSettings(settings) {
     localStorage.setItem(PERSONALIZATION_KEY, JSON.stringify(settings));
+  }
+
+  function compressValueCardBackground(file) {
+    return new Promise((resolve, reject) => {
+      if (!file?.type.startsWith('image/')) { reject(new Error('请选择图片文件')); return; }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('背景图片读取失败'));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(new Error('背景图片解析失败'));
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 600; canvas.height = 275;
+          const context = canvas.getContext('2d');
+          const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+          const width = image.width * scale; const height = image.height * scale;
+          context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+          resolve(canvas.toDataURL('image/jpeg', .86));
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   function renderPersonalization(app) {
@@ -376,7 +433,12 @@ function formValues(app) {
     };
     const available = TITLE_FIELD_OPTIONS.map(([value]) => value).filter((value) => !settings.titleFields.includes(value));
     const titlePreview = settings.titleFields.map((value) => TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1]).filter(Boolean).join(' · ') || '未选择字段';
-    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
+    const valueCardStyle = VALUE_CARD_STYLES.map(([value, label]) => {
+      const previewSource = value === 'custom' ? settings.customValueCardBackground : VALUE_CARD_BACKGROUNDS[value];
+      const preview = previewSource ? `<img src="${previewSource}" alt="${escapeHtml(label)}主题预览">` : '<span class="nsit-value-card-custom-empty">上传背景图</span>';
+      return `<label class="nsit-value-card-style"><input type="radio" name="valueCardStyle" value="${value}"${settings.valueCardStyle === value ? ' checked' : ''}><span class="nsit-value-card-style-preview">${preview}<strong>${escapeHtml(label)}</strong></span></label>`;
+    }).join('');
+    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section><section><div class="nsit-setting-label"><h4>剩余价值图片风格</h4><p>仅影响导出的单张剩余价值图片；自定义背景仅存本机浏览器。</p></div><div class="nsit-value-card-style-grid">${valueCardStyle}</div><label class="nsit-value-card-upload">自定义背景<input type="file" accept="image/*" data-nsit-custom-value-card-background><small>自动缩放压缩至 600 × 275，上传后选择“自定义背景”即可使用。</small></label></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
   }
 
   function refreshTitlePreview(app) {
@@ -406,6 +468,8 @@ function formValues(app) {
       tgContact: form.elements.tgContact.value.trim(),
       postRemarks: form.elements.postRemarks.value.trim(),
       renewalFields: Array.from(form.querySelectorAll('[name="renewalFields"]:checked'), (input) => input.value),
+      valueCardStyle: form.querySelector('[name="valueCardStyle"]:checked')?.value || 'stardew-spring',
+      customValueCardBackground: form.dataset.nsitCustomValueCardBackground || personalSettings().customValueCardBackground,
     };
     savePersonalSettings(settings);
     const tg = app.querySelector('[name="tgContact"]');
@@ -443,6 +507,7 @@ function formValues(app) {
     app.querySelectorAll('[name="transferTags"]').forEach((control) => { control.checked = (machine.transferTags || []).includes(control.value); });
     renderPersonalization(app);
     syncPriceFields(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); loadRate(app);
+    syncInlineMachineCatalogState(app);
   }
 
   function renderMachineTabs(app) {
@@ -820,10 +885,260 @@ function formValues(app) {
     setPricePreview(app, 'fair', `<span>${formatPreviewOperand(askingPrice)} ÷ ${formatPreviewOperand(remainingCny)} =</span><b>${(askingPrice / remainingCny * 10).toFixed(1)} 折</b>`);
   }
 
+  function createStardewValueCard(values, rate, result, askingPrice, style) {
+    const cardWidth = 600;
+    const cardHeight = 275;
+    const canvas = document.createElement('canvas');
+    canvas.width = cardWidth; canvas.height = cardHeight;
+    const background = new Image();
+    const seasonName = { 'stardew-spring': '春', 'stardew-summer': '夏', 'stardew-autumn': '秋', 'stardew-winter': '冬' }[style] || '春';
+    const accent = { 'stardew-spring': '#519b48', 'stardew-summer': '#d78d25', 'stardew-autumn': '#b65524', 'stardew-winter': '#5194bd' }[style] || '#519b48';
+    const roundedBox = (context, x, y, width, height, radius, fill, stroke = '') => {
+      context.beginPath();
+      context.roundRect(x, y, width, height, radius);
+      if (fill) { context.fillStyle = fill; context.fill(); }
+      if (stroke) { context.strokeStyle = stroke; context.lineWidth = 2; context.stroke(); }
+    };
+    const text = (context, value, x, y, font, color, align = 'left') => {
+      context.font = font;
+      context.fillStyle = color;
+      context.textAlign = align;
+      context.fillText(value, x, y);
+    };
+    return new Promise((resolve, reject) => {
+      background.onload = () => {
+        const context = canvas.getContext('2d');
+        const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+        const cny = result.value * rate.rate;
+        const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
+        const rateText = values.currency === 'CNY' ? '今日汇率 · 人民币' : `今日汇率 · ${rate.rate.toFixed(4)}`;
+        const dateText = `${seasonName} · ${values.tradeDate || '—'}`;
+        const progressText = `${result.daysLeft} / ${result.cycleDays} 天 · ${result.percentage.toFixed(1)}%`;
+        const filledPixels = Math.max(0, Math.min(10, Math.round(result.percentage / 10)));
+        context.drawImage(background, 0, 0, cardWidth, cardHeight);
+        context.beginPath(); context.roundRect(1.5, 1.5, 597, 272, 5); context.strokeStyle = '#714321'; context.lineWidth = 3; context.stroke();
+        roundedBox(context, 17, 13, 566, 249, 5, 'rgba(255,243,210,.94)', '#70451f');
+        context.beginPath(); context.roundRect(19.5, 15.5, 561, 244, 4); context.strokeStyle = 'rgba(255,250,229,.68)'; context.lineWidth = 2; context.stroke();
+        context.save();
+        context.beginPath(); context.roundRect(19, 15, 562, 245, 4); context.clip();
+        context.strokeStyle = 'rgba(130,83,39,.10)'; context.lineWidth = 1;
+        for (let y = 31; y < 260; y += 21) { context.beginPath(); context.moveTo(19, y); context.lineTo(581, y); context.stroke(); }
+        context.restore();
+
+        roundedBox(context, 30, 27, 132, 22, 6, '#b5d94c', '#518238');
+        roundedBox(context, 436, 27, 134, 22, 6, '#b5d94c', '#518238');
+        text(context, rateText, 96, 42, `700 12px ${sans}`, '#274f25', 'center');
+        text(context, dateText, 503, 42, `700 12px ${sans}`, '#274f25', 'center');
+
+        roundedBox(context, 191, 3, 218, 34, 4, accent, '#73431f');
+        context.strokeStyle = 'rgba(255,239,179,.72)'; context.lineWidth = 1; context.strokeRect(194, 6, 212, 28);
+        context.fillStyle = '#edcb78'; context.beginPath(); context.arc(198, 9, 2.5, 0, Math.PI * 2); context.fill(); context.beginPath(); context.arc(402, 9, 2.5, 0, Math.PI * 2); context.fill();
+        text(context, '剩余价值', 300, 26, `800 17px ${sans}`, '#fff6d7', 'center');
+
+        roundedBox(context, 31, 68, 207, 120, 5, 'rgba(255,248,231,.94)', '#c99444');
+        context.beginPath(); context.roundRect(33, 70, 203, 116, 3); context.strokeStyle = '#f6dfac'; context.lineWidth = 2; context.stroke();
+        roundedBox(context, 43, 96, 43, 43, 21, '#f4b13a', '#60983e');
+        context.beginPath(); context.arc(64.5, 117.5, 17.5, 0, Math.PI * 2); context.strokeStyle = '#ffe37c'; context.lineWidth = 3; context.stroke();
+        context.beginPath(); context.ellipse(65, 87, 7, 10, -0.28, 0, Math.PI * 2); context.fillStyle = '#8fca54'; context.fill(); context.strokeStyle = '#4b8a38'; context.lineWidth = 2; context.stroke();
+        text(context, '剩余价值', 96, 94, `700 12px ${sans}`, '#876232');
+        text(context, `¥${cny.toFixed(2)}`, 96, 126, `800 27px ${sans}`, '#9b5c19');
+        text(context, `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} × ${result.daysLeft} 天`, 96, 146, `500 12px ${sans}`, '#80633e');
+        text(context, `÷ ${result.cycleDays} 天 = ${currencySymbol(values.currency)}${formatAmount(result.value)}`, 96, 163, `500 12px ${sans}`, '#80633e');
+
+        roundedBox(context, 250, 68, 319, 64, 4, 'rgba(255,250,229,.80)', '#d6ac67');
+        context.strokeStyle = '#e0c48e'; context.lineWidth = 1; context.beginPath(); context.moveTo(409.5, 69); context.lineTo(409.5, 131); context.stroke();
+        text(context, '续费金额 / 周期', 262, 91, `400 12px ${sans}`, '#8b6b42');
+        text(context, renewal, 262, 117, `700 13px ${sans}`, '#365a31');
+        text(context, '到期日期', 422, 91, `400 12px ${sans}`, '#8b6b42');
+        text(context, values.expiryDate || '—', 422, 117, `700 13px ${sans}`, '#365a31');
+        roundedBox(context, 250, 144, 319, 44, 4, '#fff8e6', '#d5aa62');
+        text(context, '剩余天数 / 周期', 262, 160, `400 12px ${sans}`, '#8b6b42');
+        text(context, progressText, 262, 178, `700 12px ${sans}`, '#2e6b39');
+        for (let index = 0; index < 10; index += 1) {
+          const x = 447 + index * 12;
+          context.fillStyle = index < filledPixels ? accent : '#f1e6c6';
+          context.fillRect(x, 169, 10, 8);
+          context.strokeStyle = index < filledPixels ? '#2e7331' : '#b89b67'; context.lineWidth = 1; context.strokeRect(x + .5, 169.5, 9, 7);
+        }
+
+        let previewTop = '未填写预出价格';
+        let previewBottom = '填写总价或溢价后显示预览';
+        let previewColor = '#718096';
+        if (Number.isFinite(askingPrice) && askingPrice >= 0) {
+          if (cny === 0) { previewTop = `溢价 ¥${askingPrice.toFixed(2)}`; previewBottom = '剩余价值为 0'; previewColor = '#c04444'; }
+          else if (askingPrice > cny) { previewTop = `溢价 ¥${(askingPrice - cny).toFixed(2)}`; previewBottom = `总价 ¥${askingPrice.toFixed(2)} − 剩余价值 ¥${cny.toFixed(2)}`; previewColor = '#c04444'; }
+          else if (askingPrice === cny) { previewTop = '剩余价值出'; previewBottom = `总价 ¥${askingPrice.toFixed(2)}`; previewColor = '#27834a'; }
+          else { previewTop = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewBottom = `总价 ¥${askingPrice.toFixed(2)} ÷ 剩余价值 ¥${cny.toFixed(2)}`; previewColor = '#27834a'; }
+        }
+        roundedBox(context, 31, 200, 538, 43, 5, '#f2d681', '#a6702a');
+        context.beginPath(); context.roundRect(33, 202, 534, 39, 3); context.strokeStyle = '#ffe8a8'; context.lineWidth = 2; context.stroke();
+        roundedBox(context, 42, 208, 29, 29, 15, '#f3b632', '#966326');
+        text(context, '¥', 56.5, 230, `800 16px Georgia`, '#8b5520', 'center');
+        text(context, '价格预览', 82, 228, `700 12px ${sans}`, '#7c4b20');
+        context.font = `800 20px ${sans}`;
+        const previewTopWidth = context.measureText(previewTop).width;
+        text(context, previewTop, 140, 232, `800 20px ${sans}`, previewColor);
+        text(context, previewBottom, Math.min(558, 148 + previewTopWidth), 229, `500 12px ${sans}`, '#89633a');
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png');
+      };
+      background.onerror = () => reject(new Error('卡片背景加载失败'));
+      background.crossOrigin = 'anonymous';
+      background.src = VALUE_CARD_BACKGROUNDS[style];
+    });
+  }
+
+  function createCustomValueCard(values, rate, result, askingPrice, backgroundSource) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600; canvas.height = 275;
+    const background = new Image();
+    const box = (context, x, y, width, height, radius, fill, stroke = '') => {
+      context.beginPath(); context.roundRect(x, y, width, height, radius);
+      if (fill) { context.fillStyle = fill; context.fill(); }
+      if (stroke) { context.strokeStyle = stroke; context.lineWidth = 1; context.stroke(); }
+      if (fill) {
+        context.save(); context.beginPath(); context.roundRect(x + 1, y + 1, width - 2, height - 2, Math.max(0, radius - 1)); context.clip();
+        const highlight = context.createLinearGradient(0, y, 0, y + 12); highlight.addColorStop(0, 'rgba(255,255,255,.24)'); highlight.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = highlight; context.fillRect(x + 1, y + 1, width - 2, 12); context.restore();
+      }
+    };
+    const text = (context, value, x, y, font, color, align = 'left', shadow = '') => {
+      context.save(); context.font = font; context.fillStyle = color; context.textAlign = align;
+      if (shadow) { context.shadowColor = shadow; context.shadowBlur = 2; context.shadowOffsetY = 1; }
+      context.fillText(value, x, y); context.restore();
+    };
+    return new Promise((resolve, reject) => {
+      background.onload = () => {
+        const context = canvas.getContext('2d');
+        const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+        const cny = result.value * rate.rate;
+        const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
+        const rateText = values.currency === 'CNY' ? '人民币计价' : `$1 = ¥${rate.rate.toFixed(5)}`;
+        let preview = '未填写预出价格'; let previewColor = '#ff95ca';
+        if (Number.isFinite(askingPrice) && askingPrice >= 0) {
+          if (cny === 0) preview = `溢价 ¥${askingPrice.toFixed(2)}`;
+          else if (askingPrice > cny) preview = `溢价 ¥${(askingPrice - cny).toFixed(2)}`;
+          else if (askingPrice === cny) { preview = '剩余价值出'; previewColor = '#91ffb2'; }
+          else { preview = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewColor = '#91ffb2'; }
+        }
+        const backdrop = document.createElement('canvas'); backdrop.width = 600; backdrop.height = 275;
+        const backdropContext = backdrop.getContext('2d');
+        backdropContext.save(); backdropContext.beginPath(); backdropContext.roundRect(0, 0, 600, 275, 24); backdropContext.clip();
+        backdropContext.filter = 'brightness(1.04) saturate(1.05)'; backdropContext.drawImage(background, -6, -3, 612, 281); backdropContext.filter = 'none';
+        const shade = backdropContext.createLinearGradient(0, 0, 600, 275);
+        shade.addColorStop(0, 'rgba(72,192,255,.08)'); shade.addColorStop(.48, 'rgba(255,255,255,.03)'); shade.addColorStop(1, 'rgba(255,182,127,.08)');
+        backdropContext.fillStyle = shade; backdropContext.fillRect(0, 0, 600, 275); backdropContext.restore();
+        context.save(); context.beginPath(); context.roundRect(0, 0, 600, 275, 24); context.clip();
+        context.drawImage(backdrop, 0, 0);
+        context.filter = 'blur(4px) saturate(160%)'; context.drawImage(backdrop, 0, 0); context.filter = 'none';
+        context.fillStyle = 'rgba(255,255,255,.10)'; context.fillRect(0, 0, 600, 275);
+        const top = context.createLinearGradient(0, 0, 600, 0); top.addColorStop(0, '#83e7ff'); top.addColorStop(.48, '#fff19a'); top.addColorStop(1, '#ffb3d5'); context.fillStyle = top; context.fillRect(0, 0, 600, 4);
+        context.restore();
+        context.beginPath(); context.roundRect(.5, .5, 599, 274, 24); context.strokeStyle = 'rgba(255,255,255,.56)'; context.stroke();
+        text(context, '剩余价值', 24, 32, `800 14px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)');
+        text(context, `¥${cny.toFixed(2)}`, 24, 65, `800 30px ${sans}`, '#fff36b', 'left', 'rgba(80,50,0,.58)');
+        text(context, '价值计算日期', 576, 29, `700 12px ${sans}`, '#fff', 'right', 'rgba(7,42,67,.58)');
+        text(context, values.tradeDate || '—', 576, 51, `700 14px ${sans}`, '#7eeaff', 'right', 'rgba(0,67,93,.68)');
+        const cards = [
+          ['续费金额 / 周期', renewal, '#fff069'],
+          ['到期日期', values.expiryDate || '—', '#73eaff'],
+          ['剩余天数', `${result.daysLeft} 天`, '#91ffb2'],
+        ];
+        cards.forEach(([label, value, color], index) => {
+          const x = 24 + index * 188;
+          box(context, x, 80, 176, 69, 14, 'rgba(255,255,255,.16)', 'rgba(255,255,255,.35)');
+          text(context, label, x + 13, 106, `700 12px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)');
+          text(context, value, x + 13, 130, `700 15px ${sans}`, color, 'left', color === '#fff069' ? 'rgba(80,50,0,.6)' : color === '#73eaff' ? 'rgba(0,67,93,.7)' : 'rgba(0,74,37,.7)');
+        });
+        box(context, 24, 159, 264, 34, 12, 'rgba(255,255,255,.13)');
+        box(context, 300, 159, 276, 34, 12, 'rgba(255,255,255,.13)');
+        text(context, '剩余百分比', 37, 181, `700 12px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)'); text(context, `${result.percentage.toFixed(1)}%`, 275, 181, `700 15px ${sans}`, '#fff069', 'right', 'rgba(80,50,0,.6)');
+        text(context, '今日汇率', 313, 181, `700 12px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)'); text(context, rateText, 563, 181, `700 15px ${sans}`, '#91ffb2', 'right', 'rgba(0,74,37,.7)');
+        context.beginPath(); context.moveTo(24, 214.5); context.lineTo(576, 214.5); context.strokeStyle = 'rgba(255,255,255,.35)'; context.stroke();
+        text(context, '价格预览', 24, 244, `800 13px ${sans}`, '#fff', 'left', 'rgba(7,42,67,.58)'); text(context, preview, 576, 246, `800 21px ${sans}`, previewColor, 'right', previewColor === '#ff95ca' ? 'rgba(105,0,55,.68)' : 'rgba(0,74,37,.7)');
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png');
+      };
+      background.onerror = () => reject(new Error('自定义背景加载失败'));
+      background.src = backgroundSource;
+    });
+  }
+
+  function createTankValueCard(values, rate, result, askingPrice) {
+    const cardWidth = 600;
+    const cardHeight = 275;
+    const canvas = document.createElement('canvas');
+    canvas.width = cardWidth; canvas.height = cardHeight;
+    const background = new Image();
+    const text = (context, value, x, y, font, color, align = 'left') => {
+      context.font = font;
+      context.fillStyle = color;
+      context.textAlign = align;
+      context.fillText(value, x, y);
+    };
+    return new Promise((resolve, reject) => {
+      background.onload = () => {
+        const context = canvas.getContext('2d');
+        const font = '"Courier New",monospace';
+        const cny = result.value * rate.rate;
+        const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
+        const currency = currencyCode(values.currency) || values.currency || '—';
+        const rateText = values.currency === 'CNY' ? '人民币计价' : `${currencySymbol(values.currency)}1 = ¥${rate.rate.toFixed(5)}`;
+        const rows = [
+          ['续费金额 / 周期', renewal, '#d7bb82'],
+          ['到期日期', values.expiryDate || '—', '#d7bb82'],
+          ['剩余天数', `${result.daysLeft} 天`, '#f4f0df'],
+          ['剩余百分比', `${result.percentage.toFixed(1)}%`, '#f4f0df'],
+          ['今日汇率', rateText, '#6ac66f'],
+        ];
+        let previewTop = '未填写预出价格';
+        let previewColor = '#d7bb82';
+        if (Number.isFinite(askingPrice) && askingPrice >= 0) {
+          if (cny === 0) { previewTop = `溢价 ¥${askingPrice.toFixed(2)}`; previewColor = '#dc6560'; }
+          else if (askingPrice > cny) { previewTop = `溢价 ¥${(askingPrice - cny).toFixed(2)}`; previewColor = '#dc6560'; }
+          else if (askingPrice === cny) { previewTop = '剩余价值出'; previewColor = '#6ac66f'; }
+          else { previewTop = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewColor = '#6ac66f'; }
+        }
+
+        context.drawImage(background, 0, 0, cardWidth, cardHeight);
+        context.strokeStyle = '#b8b9b4'; context.lineWidth = 3; context.strokeRect(10.5, 10.5, 579, 254);
+        context.strokeStyle = '#30312e'; context.lineWidth = 1; context.strokeRect(14.5, 14.5, 571, 246);
+        context.beginPath(); context.moveTo(137.5, 10); context.lineTo(137.5, 265); context.moveTo(462.5, 10); context.lineTo(462.5, 265); context.strokeStyle = '#f4f0df'; context.lineWidth = 2; context.stroke();
+        text(context, '剩余价值', 148, 31, `900 15px ${font}`, '#b94b4a');
+        text(context, `¥${cny.toFixed(2)}`, 452, 31, `900 16px ${font}`, '#d7bb82', 'right');
+        text(context, '结算日期', 285, 54, `900 14px ${font}`, '#f4f0df', 'right');
+        text(context, values.tradeDate || '—', 312, 54, `900 14px ${font}`, '#d7bb82');
+
+        rows.forEach(([label, value, color], index) => {
+          const y = 87 + index * 31;
+          text(context, label, 254, y, `900 14px ${font}`, '#f4f0df', 'right');
+          text(context, value, 312, y, `900 14px ${font}`, color);
+          if (index < rows.length - 1) {
+            context.beginPath(); context.setLineDash([2, 2]); context.moveTo(148, y + 9.5); context.lineTo(452, y + 9.5); context.strokeStyle = '#555'; context.lineWidth = 1; context.stroke(); context.setLineDash([]);
+          }
+        });
+
+        context.beginPath(); context.moveTo(148, 234); context.lineTo(452, 234); context.strokeStyle = '#f4f0df'; context.lineWidth = 2; context.stroke();
+        text(context, '价格预览', 148, 257, `900 14px ${font}`, '#f4f0df');
+        text(context, previewTop, 452, 257, `900 15px ${font}`, previewColor, 'right');
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('卡片生成失败')), 'image/png');
+      };
+      background.onerror = () => reject(new Error('卡片背景加载失败'));
+      background.crossOrigin = 'anonymous';
+      background.src = VALUE_CARD_BACKGROUNDS.tank;
+    });
+  }
+
   function createValueCard(values, app, rate = activeRate(app)) {
     const result = calculation(values);
     if (!result || !rate) throw new Error('请先填写有效的续费信息并等待汇率加载完成');
     const askingPrice = effectiveAskingPrice(values, rate);
+    const settings = personalSettings();
+    const style = settings.valueCardStyle;
+    if (style === 'custom') {
+      if (!settings.customValueCardBackground) throw new Error('请先在个性化配置上传自定义背景');
+      return createCustomValueCard(values, rate, result, askingPrice, settings.customValueCardBackground);
+    }
+    if (style === 'tank') return createTankValueCard(values, rate, result, askingPrice);
+    if (style !== 'default') return createStardewValueCard(values, rate, result, askingPrice, style);
     const cny = result.value * rate.rate;
     const canvas = document.createElement('canvas');
     const cardWidth = 1200;
@@ -1338,6 +1653,14 @@ function formValues(app) {
     app.querySelector('.nsit-status').textContent = message;
   }
 
+  function setGenerating(app, generating) {
+    app.classList.toggle('nsit-generating', generating);
+    app.querySelector('.nsit-generation-loading')?.setAttribute('aria-hidden', String(!generating));
+    app.querySelectorAll('[data-action="fill"], [data-action="fill-table"]').forEach((button) => {
+      button.disabled = generating;
+    });
+  }
+
   function missingRequiredMachineField(machine) {
     return MACHINE_FIELDS.find((name) => !OPTIONAL_FIELDS.has(name) && !String(machine[name] || '').trim()) || '';
   }
@@ -1403,6 +1726,62 @@ function formValues(app) {
     }
     container.innerHTML = records.map((record, index) => `<button type="button" class="nsit-catalog-result" data-catalog-result="${index}"><span><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><br>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)} · ${escapeHtml(record.bandwidth)} · ${escapeHtml(record.traffic)}</span><small>首次收录：${escapeHtml(record.submittedByNickname)}</small></button>`).join('');
     app._nsitCatalogResults = records;
+  }
+
+  function syncInlineMachineCatalogState(app) {
+    const values = formValues(app);
+    const required = !(String(values.vendor || '').trim() && String(values.model || '').trim());
+    app.classList.toggle('nsit-catalog-required', required);
+    app.classList.toggle('nsit-machine-catalog-ready', !required);
+    if (required) app.classList.add('nsit-inline-catalog-open');
+    else app.classList.remove('nsit-inline-catalog-open');
+    return required;
+  }
+
+  function renderInlineMachineCatalogResults(app, records) {
+    const container = app.querySelector('[data-nsit-inline-catalog-results]');
+    if (!container) return;
+    if (!records.length) {
+      container.innerHTML = '<p class="nsit-catalog-empty">没有找到匹配的机器配置。</p>';
+      return;
+    }
+    container.innerHTML = records.map((record, index) => `<button type="button" class="nsit-inline-catalog-result" data-nsit-inline-catalog-result="${index}"><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><span class="nsit-inline-catalog-spec"><span>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)}</span><small>@${escapeHtml(record.submittedByNickname)}</small></span><span>流量 ${escapeHtml(record.traffic)} · 带宽 ${escapeHtml(record.bandwidth)}</span></button>`).join('');
+    app._nsitInlineCatalogResults = records;
+  }
+
+  async function loadInlineMachineCatalog(app) {
+    const input = app.querySelector('[data-nsit-inline-catalog-search]');
+    const container = app.querySelector('[data-nsit-inline-catalog-results]');
+    if (!input || !container) return;
+    const query = input.value.trim();
+    app._nsitInlineCatalogSearchAbort?.abort();
+    app._nsitInlineCatalogSearchSignature = query;
+    if (!MACHINE_CATALOG_API_URL) {
+      container.innerHTML = '<p class="nsit-catalog-empty">共享配置服务尚未配置。</p>';
+      return;
+    }
+    container.innerHTML = '<p class="nsit-catalog-empty">正在加载机器配置…</p>';
+    try {
+      const controller = new AbortController();
+      app._nsitInlineCatalogSearchAbort = controller;
+      const response = await fetch(catalogApiUrl('v1/public/machine-configs', { q: query, limit: 30 }), { signal: controller.signal });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `查询失败（HTTP ${response.status}）`);
+      if (app._nsitInlineCatalogSearchSignature !== query) return;
+      renderInlineMachineCatalogResults(app, data.records || []);
+    } catch (error) {
+      if (error?.name === 'AbortError' || app._nsitInlineCatalogSearchSignature !== query) return;
+      container.innerHTML = `<p class="nsit-catalog-empty">${escapeHtml(error.message || '查询失败，请稍后重试。')}</p>`;
+    }
+  }
+
+  function scheduleInlineMachineCatalogSearch(app, immediate = false) {
+    clearTimeout(app._nsitInlineCatalogSearchTimer);
+    if (immediate) {
+      loadInlineMachineCatalog(app);
+      return;
+    }
+    app._nsitInlineCatalogSearchTimer = setTimeout(() => loadInlineMachineCatalog(app), 220);
   }
 
   function openMachineCatalog(app) {
@@ -1518,6 +1897,7 @@ function formValues(app) {
     refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
     refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
     saveActiveMachine(app); renderMachineTabs(app);
+    syncInlineMachineCatalogState(app);
     closeModelSuggestions(app);
     setStatus(app, '已回填共享配置。');
   }
@@ -1555,7 +1935,21 @@ function formValues(app) {
     refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
     refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
     saveActiveMachine(app); renderMachineTabs(app);
+    syncInlineMachineCatalogState(app);
     closeMachineCatalog(app);
+    setStatus(app, '已回填共享配置。');
+  }
+
+  function applyInlineMachineCatalogRecord(app, record) {
+    MACHINE_CATALOG_FIELDS.forEach((name) => {
+      const control = app.querySelector(`[name="${CSS.escape(name)}"]`);
+      if (control) control.value = record[name] || '';
+    });
+    refreshVendorPicker(app.querySelector('.nsit-vendor-picker'));
+    refreshTitle(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
+    saveActiveMachine(app); renderMachineTabs(app);
+    syncInlineMachineCatalogState(app);
+    closeModelSuggestions(app);
     setStatus(app, '已回填共享配置。');
   }
 
@@ -1600,6 +1994,8 @@ function formValues(app) {
   }
 
   async function fillPost(app, mode = 'text') {
+    if (app.classList.contains('nsit-generating')) return;
+    setGenerating(app, true);
     try {
       saveActiveMachine(app);
       const incompleteIndex = app._nsitMachines.findIndex((machine) => machineReady(machine) && missingRequiredMachineField(machine));
@@ -1651,6 +2047,8 @@ function formValues(app) {
     } catch (error) {
       console.error('[NSIT]', '生成异常', error);
       setStatus(app, `生成失败：${error?.message || '未知错误'}`);
+    } finally {
+      setGenerating(app, false);
     }
   }
 
@@ -1700,6 +2098,8 @@ function initialize() {
     const editor = document.querySelector('#editor-body, .CodeMirror');
     if (!title || !editor) return;
     const app = createApp();
+    const closeButton = app.querySelector('.nsit-shell [data-action="close"]');
+    if (closeButton) closeButton.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
     const hint = document.querySelector('#editor-body .window_header a[href*="runoob.com/markdown"]');
     if (hint?.parentElement) hint.parentElement.prepend(app);
     else title.before(app);
@@ -1714,6 +2114,10 @@ function initialize() {
     refreshRemainingTrafficValidity(app);
     loadRate(app);
     app.addEventListener('input', (event) => {
+      if (event.target.matches('[data-nsit-inline-catalog-search]')) {
+        scheduleInlineMachineCatalogSearch(app);
+        return;
+      }
       if (event.target.matches('[data-nsit-traffic-used], [data-nsit-traffic-used-slider]')) {
         if (event.target.matches('[data-nsit-traffic-used]')) {
           const [integer, decimals = ''] = event.target.value.split('.');
@@ -1736,7 +2140,10 @@ function initialize() {
       if (event.target.name !== 'postTitle') refreshTitle(app);
       refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
       saveActiveMachine(app); renderMachineTabs(app);
-      if (event.target.name === 'vendor' || event.target.name === 'model') searchModelSuggestions(app);
+      if (event.target.name === 'vendor' || event.target.name === 'model') {
+        searchModelSuggestions(app);
+        syncInlineMachineCatalogState(app);
+      }
       if (event.target.name === 'currency') loadRate(app);
     });
     app.addEventListener('focusin', (event) => {
@@ -1759,6 +2166,18 @@ function initialize() {
       }
     });
     app.addEventListener('change', (event) => {
+      if (event.target.matches('[data-nsit-custom-value-card-background]')) {
+        const form = event.target.closest('[data-nsit-personalization-form]');
+        const file = event.target.files?.[0];
+        if (!form || !file) return;
+        compressValueCardBackground(file).then((dataUrl) => {
+          form.dataset.nsitCustomValueCardBackground = dataUrl;
+          const preview = form.querySelector('.nsit-value-card-style input[value="custom"] + .nsit-value-card-style-preview');
+          if (preview) preview.innerHTML = `<img src="${dataUrl}" alt="自定义背景主题预览"><strong>自定义背景</strong>`;
+          form.querySelector('[name="valueCardStyle"][value="custom"]')?.click();
+        }).catch((error) => setStatus(app, error.message));
+        return;
+      }
       if (['renewalAmount', 'askingPrice', 'askingPremium'].includes(event.target.name)) {
         const amount = formatAmount(event.target.value);
         if (amount) event.target.value = amount;
@@ -1836,6 +2255,12 @@ function initialize() {
         if (record) applyModelSuggestion(app, record);
         return;
       }
+      const inlineCatalogResultIndex = event.target.closest('[data-nsit-inline-catalog-result]')?.dataset.nsitInlineCatalogResult;
+      if (inlineCatalogResultIndex !== undefined) {
+        const record = app._nsitInlineCatalogResults?.[Number(inlineCatalogResultIndex)];
+        if (record) applyInlineMachineCatalogRecord(app, record);
+        return;
+      }
       const pickerInput = event.target.matches('[data-nsit-picker-input="true"]') ? event.target : null;
       if (pickerInput) {
         const picker = pickerInput.closest('.nsit-picker');
@@ -1867,6 +2292,18 @@ function initialize() {
       }
       if (action === 'add-machine') {
         addMachine(app);
+        return;
+      }
+      if (action === 'toggle-inline-machine-catalog') {
+        app.classList.toggle('nsit-inline-catalog-open');
+        if (app.classList.contains('nsit-inline-catalog-open')) {
+          app.querySelector('[data-nsit-inline-catalog-search]')?.focus();
+          scheduleInlineMachineCatalogSearch(app, true);
+        }
+        return;
+      }
+      if (action === 'close-inline-machine-catalog') {
+        app.classList.remove('nsit-inline-catalog-open');
         return;
       }
       if (action === 'refresh-rate') {
@@ -1966,6 +2403,7 @@ function initialize() {
         app.querySelector('[name="tradeDate"]').value = today();
         app.querySelector('[name="remainingTraffic"]').value = '';
         app._nsitMachines[app._nsitActiveMachine] = machineSnapshot(app);
+        syncInlineMachineCatalogState(app);
         refreshTitle(app);
         localStorage.removeItem(STORAGE_KEY); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); setStatus(app, '已清空表单。'); return;
       }
@@ -1999,7 +2437,9 @@ function initialize() {
       syncPriceFields(app);
       saveActiveMachine(app); renderMachineTabs(app);
       if (/!\[[^\]]*\]\(https:\/\/cdn\.nodeimage\.com\/i\//.test(editorContent(app))) app.querySelector('[name="generateCard"]').checked = true;
-      app.querySelector('[name="postTitle"]').focus();
+      const catalogRequired = syncInlineMachineCatalogState(app);
+      scheduleInlineMachineCatalogSearch(app, true);
+      (catalogRequired ? app.querySelector('[data-nsit-inline-catalog-search]') : app.querySelector('[name="postTitle"]'))?.focus();
       getNodeImageApiKey(true).catch(() => {});
     });
     app.querySelector('.nsit-modal').addEventListener('click', (event) => {

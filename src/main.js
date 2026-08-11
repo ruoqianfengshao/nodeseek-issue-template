@@ -14,6 +14,7 @@
     else title.before(app);
     restoreDraft(app);
     restoreCardToggle(app);
+    restoreBuyDraft(app);
     applyPersonalSettings(app);
     syncPriceFields(app);
     initializeMachines(app);
@@ -23,6 +24,22 @@
     refreshRemainingTrafficValidity(app);
     loadRate(app);
     app.addEventListener('input', (event) => {
+      if (event.target.matches('[data-nsit-buy-catalog-search]')) {
+        scheduleBuyMachineCatalogSearch(app);
+        return;
+      }
+      if (event.target.closest('#nsit-buy-form')) {
+        event.target.setCustomValidity?.('');
+        const picker = event.target.matches('[data-nsit-picker-input="true"]') ? event.target.closest('.nsit-picker') : null;
+        if (picker) {
+          app.querySelectorAll('.nsit-picker.is-open').forEach((item) => { if (item !== picker) setPickerOpen(item, false); });
+          filterPicker(picker); setPickerOpen(picker, true); refreshVendorPicker(picker);
+        }
+        if (event.target.matches('[name^="buyPriceValue-"]')) normalizeBuyPriceInput(event.target);
+        if (event.target.name === 'buyModel') searchBuyModelSuggestions(app);
+        syncBuyPriceInputs(app); refreshBuyTitle(app); saveBuyDraft(app);
+        return;
+      }
       if (event.target.matches('[data-nsit-inline-catalog-search]')) {
         scheduleInlineMachineCatalogSearch(app);
         return;
@@ -56,6 +73,12 @@
       if (event.target.name === 'currency') loadRate(app);
     });
     app.addEventListener('focusin', (event) => {
+      if (event.target.matches('[name="buyPriceMode"]') && !event.target.checked) {
+        event.target.checked = true;
+        app.querySelectorAll('[name^="buyPriceValue-"]').forEach((input) => { if (input.name !== `buyPriceValue-${event.target.value}`) input.value = ''; });
+        syncBuyPriceInputs(app); refreshBuyTitle(app); saveBuyDraft(app);
+        focusBuyPriceValue(app, event.target.value);
+      }
       if (event.target.matches('input[type="date"]') && typeof event.target.showPicker === 'function') {
         try { event.target.showPicker(); } catch (_) { /* 已由浏览器打开或当前环境不允许 */ }
       }
@@ -75,6 +98,17 @@
       }
     });
     app.addEventListener('change', (event) => {
+      if (event.target.closest('#nsit-buy-form')) {
+        const tag = event.target.matches('[name="buyTags"]') ? event.target : null;
+        if (tag?.checked) app.querySelectorAll(`[name="buyTags"][data-buy-tag-group="${tag.dataset.buyTagGroup}"]`).forEach((input) => { if (input !== tag) input.checked = false; });
+        if (event.target.matches('[name="buyPriceMode"]')) app.querySelectorAll('[name^="buyPriceValue-"]').forEach((input) => { if (input.name !== `buyPriceValue-${event.target.value}`) input.value = ''; });
+        if (event.target.name === 'buyVendor') refreshVendorPicker(event.target.closest('.nsit-vendor-picker'));
+        syncBuyPriceInputs(app); refreshBuyTitle(app); saveBuyDraft(app);
+        if (event.target.matches('[name="buyPriceMode"]')) focusBuyPriceValue(app, event.target.value);
+        return;
+      }
+      const presetTag = event.target.matches('[name="buyPresetTags"]') ? event.target : null;
+      if (presetTag?.checked) app.querySelectorAll(`[name="buyPresetTags"][data-buy-preset-tag-group="${presetTag.dataset.buyPresetTagGroup}"]`).forEach((input) => { if (input !== presetTag) input.checked = false; });
       if (event.target.matches('[data-nsit-custom-value-card-background]')) {
         const form = event.target.closest('[data-nsit-personalization-form]');
         const file = event.target.files?.[0];
@@ -108,6 +142,11 @@
       if (event.key === 'Enter' && event.target.matches('[data-nsit-custom-tag-input]')) {
         event.preventDefault();
         event.target.closest('[data-nsit-personalization-form]')?.querySelector('[data-action="add-custom-tag"]')?.click();
+        return;
+      }
+      if (event.key === 'Enter' && event.target.matches('[data-nsit-buy-custom-tag-input]')) {
+        event.preventDefault();
+        event.target.closest('[data-nsit-buy-personalization-form]')?.querySelector('[data-action="add-buy-custom-tag"]')?.click();
         return;
       }
       const picker = event.target.matches('[data-nsit-picker-input="true"]') ? event.target.closest('.nsit-picker') : null;
@@ -154,6 +193,12 @@
       choosePickerOption(pickerOption.closest('.nsit-picker'), pickerOption.dataset.value);
     }, true);
     app.addEventListener('click', async (event) => {
+      const buyCatalogResultIndex = event.target.closest('[data-nsit-buy-catalog-result]')?.dataset.nsitBuyCatalogResult;
+      if (buyCatalogResultIndex !== undefined) {
+        const record = app._nsitBuyCatalogResults?.[Number(buyCatalogResultIndex)];
+        if (record) applyBuyMachineCatalogRecord(app, record);
+        return;
+      }
       const pickerOption = event.target.closest('.nsit-picker-menu [data-nsit-picker-option]');
       if (pickerOption) {
         return;
@@ -162,6 +207,12 @@
       if (modelSuggestionIndex !== undefined) {
         const record = app._nsitModelSuggestions?.[Number(modelSuggestionIndex)];
         if (record) applyModelSuggestion(app, record);
+        return;
+      }
+      const buyModelSuggestionIndex = event.target.closest('[data-nsit-buy-model-suggestion]')?.dataset.nsitBuyModelSuggestion;
+      if (buyModelSuggestionIndex !== undefined) {
+        const record = app._nsitBuyModelSuggestions?.[Number(buyModelSuggestionIndex)];
+        if (record) applyBuyModelSuggestion(app, record);
         return;
       }
       const inlineCatalogResultIndex = event.target.closest('[data-nsit-inline-catalog-result]')?.dataset.nsitInlineCatalogResult;
@@ -223,8 +274,49 @@
         openPersonalization(app);
         return;
       }
+      if (action === 'open-buy-personalization') {
+        openBuyPersonalization(app);
+        return;
+      }
       if (action === 'close-personalization') {
         closePersonalization(app);
+        return;
+      }
+      if (action === 'close-buy-personalization') {
+        closeBuyPersonalization(app);
+        return;
+      }
+      if (action === 'move-buy-title-field') {
+        const item = event.target.closest('[data-nsit-buy-title-field]');
+        const target = event.target.dataset.direction === 'up' ? item?.previousElementSibling : item?.nextElementSibling;
+        if (item && target) item.parentElement.insertBefore(item, event.target.dataset.direction === 'up' ? target : target.nextElementSibling);
+        refreshBuyTitlePreview(app);
+        return;
+      }
+      if (action === 'add-buy-title-field' || action === 'remove-buy-title-field') {
+        const item = event.target.closest('[data-nsit-buy-title-field]');
+        const destination = app.querySelector(action === 'add-buy-title-field' ? '[data-nsit-buy-title-field-order]' : '[data-nsit-buy-title-field-available]');
+        if (item && destination) destination.append(item);
+        refreshBuyTitlePreview(app);
+        return;
+      }
+      if (action === 'add-buy-custom-tag') {
+        const form = event.target.closest('[data-nsit-buy-personalization-form]');
+        const input = form?.querySelector('[data-nsit-buy-custom-tag-input]');
+        const list = form?.querySelector('[data-nsit-buy-custom-tag-list]');
+        const value = input?.value.trim();
+        if (value && list && !Array.from(list.querySelectorAll('[data-nsit-buy-custom-tag]')).some((item) => item.dataset.nsitBuyCustomTag === value)) {
+          const tag = document.createElement('span');
+          tag.className = 'nsit-custom-tag'; tag.dataset.nsitBuyCustomTag = value; tag.append(document.createTextNode(value));
+          const remove = document.createElement('button');
+          remove.type = 'button'; remove.dataset.action = 'remove-buy-custom-tag'; remove.setAttribute('aria-label', `删除 ${value}`); remove.textContent = '×';
+          tag.append(remove); list.append(tag); input.value = '';
+        }
+        input?.focus();
+        return;
+      }
+      if (action === 'remove-buy-custom-tag') {
+        event.target.closest('[data-nsit-buy-custom-tag]')?.remove();
         return;
       }
       if (action === 'move-title-field') {
@@ -300,6 +392,21 @@
         closeModal(app);
         return;
       }
+      if (action === 'close-buy') {
+        app.classList.remove('nsit-buy-open');
+        app.querySelector('.nsit-buy-modal').setAttribute('aria-hidden', 'true');
+        return;
+      }
+      if (action === 'fill-buy') {
+        fillBuyPost(app);
+        return;
+      }
+      if (action === 'clear-buy') {
+        app.querySelector('#nsit-buy-form').reset();
+        syncBuyPriceInputs(app); refreshBuyTitle(app); saveBuyDraft(app);
+        app.querySelector('[data-nsit-buy-status]').textContent = '已清空表单。';
+        return;
+      }
       if (!action) return;
       if (action === 'fill' || action === 'fill-table') return;
       if (action === 'clear') {
@@ -334,10 +441,18 @@
     app.querySelector('.nsit-personalization-modal').addEventListener('click', (event) => {
       if (event.target === event.currentTarget) closePersonalization(app);
     });
+    app.querySelector('.nsit-buy-personalization-modal').addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) closeBuyPersonalization(app);
+    });
     app.addEventListener('submit', (event) => {
-      if (!event.target.matches('[data-nsit-personalization-form]')) return;
-      event.preventDefault();
-      savePersonalizationForm(app);
+      if (event.target.matches('[data-nsit-personalization-form]')) {
+        event.preventDefault();
+        savePersonalizationForm(app);
+      }
+      if (event.target.matches('[data-nsit-buy-personalization-form]')) {
+        event.preventDefault();
+        saveBuyPersonalizationForm(app);
+      }
     });
     app.querySelector('.nsit-trigger').addEventListener('click', () => {
       app.classList.add('nsit-open');
@@ -351,9 +466,31 @@
       (catalogRequired ? app.querySelector('[data-nsit-inline-catalog-search]') : app.querySelector('[name="postTitle"]'))?.focus();
       getNodeImageApiKey(true).catch(() => {});
     });
+    app.querySelector('.nsit-buy-trigger').addEventListener('click', () => {
+      app.classList.add('nsit-buy-open');
+      app.querySelector('.nsit-buy-modal').setAttribute('aria-hidden', 'false');
+      restoreBuyDraft(app);
+      renderBuyPersonalization(app);
+      const hasBuyDraft = ['buyVendor', 'buyModel', 'buyCpu', 'buyMemory', 'buyDisk', 'buyBandwidth', 'buyTraffic', 'buyRenewalCycle', 'buyRenewalAmount', 'buyPostRemarks']
+        .some((name) => app.querySelector(`[name="${name}"]`)?.value.trim()) || Boolean(app.querySelector('[name="buyTags"]:checked')) || Boolean(app.querySelector('[name^="buyPriceValue-"]')?.value.trim());
+      const defaultBuyTags = buyPersonalSettings().presetTags;
+      if (!hasBuyDraft && defaultBuyTags.length) {
+        app.querySelectorAll('[name="buyTags"]').forEach((input) => { input.checked = defaultBuyTags.includes(input.value); });
+        refreshBuyTitle(app); saveBuyDraft(app);
+      }
+      applyBuyPersonalSettings(app);
+      scheduleBuyMachineCatalogSearch(app, true);
+      app.querySelector('[data-nsit-buy-catalog-search]')?.focus();
+    });
     app.querySelector('.nsit-modal').addEventListener('click', (event) => {
       if (event.target === event.currentTarget) {
         closeModal(app);
+      }
+    });
+    app.querySelector('.nsit-buy-modal').addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) {
+        app.classList.remove('nsit-buy-open');
+        app.querySelector('.nsit-buy-modal').setAttribute('aria-hidden', 'true');
       }
     });
     app.querySelector('.nsit-catalog-modal').addEventListener('click', (event) => {
@@ -368,6 +505,7 @@
         if (!picker.contains(event.target)) setPickerOpen(picker, false);
       });
       if (!app.querySelector('.nsit-model-suggest')?.contains(event.target)) closeModelSuggestions(app);
+      if (!app.querySelector('.nsit-buy-model-suggest')?.contains(event.target)) closeBuyModelSuggestions(app);
       if (!app.querySelector('.nsit-traffic-field')?.contains(event.target)) {
         const popover = app.querySelector('[data-nsit-traffic-usage-popover]');
         if (popover) popover.hidden = true;

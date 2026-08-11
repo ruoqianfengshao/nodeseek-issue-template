@@ -1,5 +1,5 @@
   function formValues(app) {
-    const form = app.querySelector('form');
+    const form = app.querySelector('#nsit-form');
     const values = Object.fromEntries(new FormData(form).entries());
     values.transferTags = Array.from(app.querySelectorAll('[name="transferTags"]:checked'), (input) => input.value);
     return values;
@@ -982,6 +982,310 @@
       ? multiMachineTitle(machines, app)
       : suggestedTitle(formValues(app), activeRate(app));
     if (suggestion) title.value = suggestion;
+  }
+
+  function buyFormValues(app) {
+    const values = Object.fromEntries(new FormData(app.querySelector('#nsit-buy-form')).entries());
+    values.buyTags = Array.from(app.querySelectorAll('[name="buyTags"]:checked'), (input) => input.value);
+    return values;
+  }
+
+  function buyPersonalSettings() {
+    const defaults = { presetTags: [], customTags: [], titleFields: DEFAULT_BUY_TITLE_FIELDS, postRemarks: '' };
+    try {
+      const saved = JSON.parse(localStorage.getItem(BUY_PERSONALIZATION_KEY) || '{}');
+      return {
+        presetTags: Array.isArray(saved.presetTags) ? saved.presetTags.filter((tag) => BUY_PRESET_TAGS.includes(tag)) : defaults.presetTags,
+        customTags: Array.isArray(saved.customTags) ? saved.customTags.filter(Boolean) : defaults.customTags,
+        titleFields: Array.isArray(saved.titleFields) ? saved.titleFields.filter((field) => BUY_TITLE_FIELD_OPTIONS.some(([value]) => value === field)) : defaults.titleFields,
+        postRemarks: String(saved.postRemarks || '').trim(),
+      };
+    } catch (_) { return defaults; }
+  }
+
+  function renderBuyPersonalization(app) {
+    const container = app.querySelector('[data-nsit-buy-personal-tags]');
+    if (!container) return;
+    const settings = buyPersonalSettings();
+    const selected = new Set(Array.from(app.querySelectorAll('[name="buyTags"]:checked'), (input) => input.value));
+    const baseTags = new Set(BUY_PRESET_TAGS);
+    container.innerHTML = settings.customTags.filter((tag) => !baseTags.has(tag)).map((tag) => `<label class="nsit-tag nsit-tag--extras"><input type="checkbox" name="buyTags" value="${escapeHtml(tag)}"${selected.has(tag) ? ' checked' : ''}><span>${escapeHtml(tag)}</span></label>`).join('');
+  }
+
+  function applyBuyPersonalSettings(app) {
+    const postRemarks = app.querySelector('[name="buyPostRemarks"]');
+    const settings = buyPersonalSettings();
+    if (postRemarks && settings.postRemarks && !postRemarks.value.trim()) postRemarks.value = settings.postRemarks;
+  }
+
+  function buyPersonalizationDialogMarkup() {
+    const settings = buyPersonalSettings();
+    const tag = (value) => `<label class="nsit-tag nsit-tag--${BUY_TAG_GROUPS[value]}"><input type="checkbox" name="buyPresetTags" value="${escapeHtml(value)}" data-buy-preset-tag-group="${BUY_TAG_GROUPS[value]}"${settings.presetTags.includes(value) ? ' checked' : ''}><span>${escapeHtml(value)}</span></label>`;
+    const customTag = (value) => `<span class="nsit-custom-tag" data-nsit-buy-custom-tag="${escapeHtml(value)}">${escapeHtml(value)}<button type="button" data-action="remove-buy-custom-tag" aria-label="删除 ${escapeHtml(value)}">×</button></span>`;
+    const titleItem = (value) => `<li data-nsit-buy-title-field="${value}"><span>${escapeHtml(BUY_TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1] || value)}</span><button type="button" data-action="add-buy-title-field" aria-label="加入">＋</button><button type="button" data-action="remove-buy-title-field" aria-label="移除">−</button><button type="button" data-action="move-buy-title-field" data-direction="up" aria-label="上移">↑</button><button type="button" data-action="move-buy-title-field" data-direction="down" aria-label="下移">↓</button></li>`;
+    const available = BUY_TITLE_FIELD_OPTIONS.map(([value]) => value).filter((value) => !settings.titleFields.includes(value));
+    const preview = settings.titleFields.map((value) => BUY_TITLE_FIELD_OPTIONS.find(([key]) => key === value)?.[1]).filter(Boolean).join(' · ') || '未选择字段';
+    return `<form class="nsit-personalization-form" data-nsit-buy-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新收鸡帖默认勾选；自定义标签会追加到收鸡表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${BUY_PRESET_TAGS.map(tag).join('')}<span class="nsit-custom-tag-list" data-nsit-buy-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-buy-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-buy-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-buy-title-preview>标题预览：${escapeHtml(preview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-buy-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-buy-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>常用备注</h4><p>打开收鸡表单时自动填入，已有备注不覆盖。</p></div><textarea name="buyPostRemarks" rows="4" placeholder="输入自己常用的收鸡备注">${escapeHtml(settings.postRemarks)}</textarea></section></div><footer><button type="button" data-action="close-buy-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
+  }
+
+  function openBuyPersonalization(app) {
+    app.querySelector('[data-nsit-buy-personalization-body]').innerHTML = buyPersonalizationDialogMarkup();
+    app.classList.add('nsit-buy-personalization-open');
+  }
+
+  function closeBuyPersonalization(app) { app.classList.remove('nsit-buy-personalization-open'); }
+
+  function refreshBuyTitlePreview(app) {
+    const preview = app.querySelector('[data-nsit-buy-title-preview]');
+    if (preview) preview.textContent = `标题预览：${Array.from(app.querySelectorAll('[data-nsit-buy-title-field-order] [data-nsit-buy-title-field]'), (item) => item.querySelector('span')?.textContent).filter(Boolean).join(' · ') || '未选择字段'}`;
+  }
+
+  function saveBuyPersonalizationForm(app) {
+    const form = app.querySelector('[data-nsit-buy-personalization-form]');
+    if (!form) return;
+    const presetTags = Array.from(form.querySelectorAll('[name="buyPresetTags"]:checked'), (input) => input.value);
+    localStorage.setItem(BUY_PERSONALIZATION_KEY, JSON.stringify({
+      presetTags,
+      customTags: Array.from(form.querySelectorAll('[data-nsit-buy-custom-tag]'), (item) => item.dataset.nsitBuyCustomTag),
+      titleFields: Array.from(form.querySelectorAll('[data-nsit-buy-title-field-order] [data-nsit-buy-title-field]'), (item) => item.dataset.nsitBuyTitleField),
+      postRemarks: form.elements.buyPostRemarks.value.trim(),
+    }));
+    renderBuyPersonalization(app);
+    refreshBuyTitle(app); saveBuyDraft(app); closeBuyPersonalization(app);
+    app.querySelector('[data-nsit-buy-status]').textContent = '个性化配置已保存到本地。';
+  }
+
+  function buyPriceText(values, compact = false) {
+    const amount = () => {
+      const value = String(values[`buyPriceValue-${values.buyPriceMode}`] || '').trim();
+      return value ? Number(value) : NaN;
+    };
+    const displayAmount = () => compact ? String(amount()) : amount().toFixed(2);
+    if (values.buyPriceMode === 'remainingValue') return '剩余价值收';
+    if (values.buyPriceMode === 'premium' && Number.isFinite(amount()) && amount() > .01) return `剩余价值 + ¥${displayAmount()} 收`;
+    if (values.buyPriceMode === 'discount' && Number.isFinite(amount()) && amount() >= .1 && amount() <= 9.9) return `剩余价值 ${displayAmount()} 折收`;
+    if (values.buyPriceMode === 'remainingValueMinus' && Number.isFinite(amount()) && amount() > .01) return `剩余价值 − ¥${displayAmount()} 收`;
+    if (values.buyPriceMode === 'total' && Number.isFinite(amount()) && amount() > .01) return `总价 ¥${displayAmount()} 收`;
+    if (values.buyPriceMode === 'offer') return '带价来';
+    return '';
+  }
+
+  function suggestedBuyTitle(values) {
+    const renewal = [values.buyRenewalAmount ? `${currencySymbol(values.buyRenewalCurrency)}${values.buyRenewalAmount}` : '', values.buyRenewalCycle].filter(Boolean).join(' / ');
+    const fields = { price: buyPriceText(values, true), vendor: values.buyVendor, model: values.buyModel, cpu: values.buyCpu, memory: values.buyMemory, disk: values.buyDisk, bandwidth: values.buyBandwidth, traffic: values.buyTraffic, renewal, tags: values.buyTags?.join('、') };
+    const parts = buyPersonalSettings().titleFields.map((field) => String(fields[field] || '').trim()).filter(Boolean);
+    return parts.length ? `【收】${parts.join(' · ')}` : '';
+  }
+
+  function refreshBuyTitle(app) {
+    const title = app.querySelector('[name="buyPostTitle"]');
+    if (title) title.value = suggestedBuyTitle(buyFormValues(app));
+  }
+
+  function syncBuyPriceInputs(app) {
+    const mode = app.querySelector('[name="buyPriceMode"]:checked')?.value;
+    BUY_PRICE_MODES.forEach(([value]) => {
+      const input = app.querySelector(`[name="buyPriceValue-${value}"]`);
+      if (input) input.disabled = value !== mode;
+    });
+  }
+
+  function focusBuyPriceValue(app, mode) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const input = app.querySelector(`[name="buyPriceValue-${mode}"]`);
+      if (input && !input.disabled) input.focus();
+    }));
+  }
+
+  function normalizeBuyPriceInput(input) {
+    const raw = String(input.value || '').replace(/[^\d.]/g, '');
+    const [whole = '', ...fractionParts] = raw.split('.');
+    const fraction = fractionParts.join('').slice(0, 2);
+    const normalizedWhole = whole.replace(/^0+(?=\d)/, '') || (raw ? '0' : '');
+    let value = fractionParts.length ? `${normalizedWhole}.${fraction}` : normalizedWhole;
+    if (input.name === 'buyPriceValue-discount') {
+      const amount = Number(value);
+      if (Number.isFinite(amount) && amount > 9.9) value = '9.9';
+    }
+    input.value = value;
+  }
+
+  function renderBuyMachineCatalogResults(app, records) {
+    const container = app.querySelector('[data-nsit-buy-catalog-results]');
+    if (!container) return;
+    if (!records.length) {
+      container.innerHTML = '<p class="nsit-catalog-empty">没有找到匹配的机器配置。</p>';
+      return;
+    }
+    container.innerHTML = records.map((record, index) => `<button type="button" class="nsit-buy-catalog-result" data-nsit-buy-catalog-result="${index}"><strong>${escapeHtml(record.vendor)} · ${escapeHtml(record.model)}</strong><span>${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)}</span><small>${escapeHtml(record.bandwidth)} · ${escapeHtml(record.traffic)}</small></button>`).join('');
+    app._nsitBuyCatalogResults = records;
+  }
+
+  async function loadBuyMachineCatalog(app) {
+    const input = app.querySelector('[data-nsit-buy-catalog-search]');
+    const container = app.querySelector('[data-nsit-buy-catalog-results]');
+    if (!input || !container) return;
+    const query = input.value.trim();
+    app._nsitBuyCatalogSearchAbort?.abort();
+    app._nsitBuyCatalogSearchSignature = query;
+    if (!MACHINE_CATALOG_API_URL) {
+      container.innerHTML = '<p class="nsit-catalog-empty">共享配置服务尚未配置。</p>';
+      return;
+    }
+    container.innerHTML = '<p class="nsit-catalog-empty">正在加载机器配置…</p>';
+    try {
+      const controller = new AbortController();
+      app._nsitBuyCatalogSearchAbort = controller;
+      const response = await fetch(catalogApiUrl('v1/public/machine-configs', { q: query, limit: 30 }), { signal: controller.signal });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || `查询失败（HTTP ${response.status}）`);
+      if (app._nsitBuyCatalogSearchSignature !== query) return;
+      renderBuyMachineCatalogResults(app, data.records || []);
+    } catch (error) {
+      if (error?.name === 'AbortError' || app._nsitBuyCatalogSearchSignature !== query) return;
+      container.innerHTML = `<p class="nsit-catalog-empty">${escapeHtml(error.message || '查询失败，请稍后重试。')}</p>`;
+    }
+  }
+
+  function scheduleBuyMachineCatalogSearch(app, immediate = false) {
+    clearTimeout(app._nsitBuyCatalogSearchTimer);
+    if (immediate) { loadBuyMachineCatalog(app); return; }
+    app._nsitBuyCatalogSearchTimer = setTimeout(() => loadBuyMachineCatalog(app), 220);
+  }
+
+  function applyBuyMachineCatalogRecord(app, record) {
+    const setValue = (name, value) => {
+      const control = app.querySelector(`[name="${name}"]`);
+      if (control) control.value = value;
+    };
+    setValue('buyVendor', record.vendor || '');
+    setValue('buyModel', record.model || '');
+    setValue('buyCpu', record.cpu || '');
+    setValue('buyMemory', record.memory || '');
+    setValue('buyDisk', record.disk || '');
+    setValue('buyBandwidth', record.bandwidth || '');
+    setValue('buyTraffic', record.traffic || '');
+    setValue('buyRenewalCycle', record.renewalCycle || '');
+    setValue('buyRenewalAmount', record.renewalAmount || '');
+    setValue('buyRenewalCurrency', record.currency || 'USD 美元');
+    refreshBuyTitle(app); saveBuyDraft(app);
+    app.querySelector(`[name="buyPriceValue-${app.querySelector('[name="buyPriceMode"]:checked')?.value}"]`)?.focus();
+  }
+
+  function closeBuyModelSuggestions(app) {
+    app.querySelector('.nsit-buy-model-suggest')?.classList.remove('is-open');
+  }
+
+  function searchBuyModelSuggestions(app) {
+    const vendor = String(app.querySelector('[name="buyVendor"]')?.value || '').trim();
+    const model = String(app.querySelector('[name="buyModel"]')?.value || '').trim();
+    const signature = `${vendor}\u0000${model}`;
+    clearTimeout(app._nsitBuyModelSearchTimer);
+    app._nsitBuyModelSearchAbort?.abort();
+    app._nsitBuyModelSearchSignature = signature;
+    if (!MACHINE_CATALOG_API_URL || !model) { closeBuyModelSuggestions(app); return; }
+    app._nsitBuyModelSearchTimer = setTimeout(async () => {
+      try {
+        const controller = new AbortController();
+        app._nsitBuyModelSearchAbort = controller;
+        const response = await fetch(catalogApiUrl('v1/machine-configs/search', { vendor, model }), { signal: controller.signal });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || `查询失败（HTTP ${response.status}）`);
+        if (app._nsitBuyModelSearchSignature !== signature) return;
+        const records = data.records || [];
+        const menu = app.querySelector('[data-nsit-buy-model-suggest-menu]');
+        const suggest = app.querySelector('.nsit-buy-model-suggest');
+        if (!menu || !suggest) return;
+        menu.innerHTML = records.length
+          ? records.map((record, index) => `<button type="button" class="nsit-model-suggestion" data-nsit-buy-model-suggestion="${index}"><strong>${escapeHtml(record.model)}</strong><small>@${escapeHtml(record.submittedByNickname)}</small><span class="nsit-model-suggestion-vendor">${escapeHtml(record.vendor)}</span><span class="nsit-model-suggestion-spec">${escapeHtml(record.cpu)} · ${escapeHtml(record.memory)} · ${escapeHtml(record.disk)}</span><span class="nsit-model-suggestion-network">流量 ${escapeHtml(record.traffic)} · 带宽 ${escapeHtml(record.bandwidth)}</span></button>`).join('')
+          : '<p class="nsit-model-suggest-empty">未匹配到配置，直接输入即可</p>';
+        app._nsitBuyModelSuggestions = records;
+        suggest.classList.add('is-open');
+      } catch (error) {
+        if (error.name !== 'AbortError' && app._nsitBuyModelSearchSignature === signature) closeBuyModelSuggestions(app);
+      }
+    }, 300);
+  }
+
+  function applyBuyModelSuggestion(app, record) {
+    [['buyVendor', 'vendor'], ['buyModel', 'model'], ['buyCpu', 'cpu'], ['buyMemory', 'memory'], ['buyDisk', 'disk'], ['buyBandwidth', 'bandwidth'], ['buyTraffic', 'traffic'], ['buyRenewalCycle', 'renewalCycle'], ['buyRenewalAmount', 'renewalAmount'], ['buyRenewalCurrency', 'currency']].forEach(([name, key]) => {
+      const control = app.querySelector(`[name="${name}"]`);
+      if (control) control.value = record[key] || '';
+    });
+    refreshVendorPicker(app.querySelector('#nsit-buy-form .nsit-vendor-picker'));
+    closeBuyModelSuggestions(app);
+    refreshBuyTitle(app); saveBuyDraft(app);
+  }
+
+  function saveBuyDraft(app) {
+    try { localStorage.setItem(BUY_STORAGE_KEY, JSON.stringify(buyFormValues(app))); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  function restoreBuyDraft(app) {
+    let draft = {};
+    try {
+      draft = JSON.parse(localStorage.getItem(BUY_STORAGE_KEY) || '{}');
+      Object.entries(draft).forEach(([name, value]) => {
+        if (name === 'buyTags') return;
+        const controls = app.querySelectorAll(`[name="${CSS.escape(name)}"]`);
+        controls.forEach((control) => {
+          if (control.type === 'radio') control.checked = control.value === value;
+          else control.value = value;
+        });
+      });
+    } catch (_) { /* 无效草稿时忽略 */ }
+    const savedTags = Array.isArray(draft.buyTags) ? draft.buyTags : [];
+    app.querySelectorAll('[name="buyTags"]').forEach((input) => { input.checked = savedTags.includes(input.value); });
+    const tg = app.querySelector('[name="buyTgContact"]');
+    if (tg && !tg.value) tg.value = personalSettings().tgContact;
+    syncBuyPriceInputs(app); refreshBuyTitle(app);
+  }
+
+  function buyMarkdown(values) {
+    const pair = (label, value) => String(value || '').trim() ? `- ${label}：${String(value).trim()}` : '';
+    const tg = String(values.buyTgContact || '').trim();
+    const tgContact = /^https?:\/\/\S+$/i.test(tg) ? `[${tg}](${tg})` : tg;
+    const target = [values.buyVendor, values.buyModel].map((value) => String(value || '').trim()).filter(Boolean).join(' ');
+    const config = [['CPU', values.buyCpu], ['内存', values.buyMemory], ['硬盘', values.buyDisk], ['带宽', values.buyBandwidth], ['流量', values.buyTraffic]].filter(([, value]) => String(value || '').trim()).map(([label, value]) => `${label}：${String(value).trim()}`).join('，');
+    const renewal = [values.buyRenewalAmount ? `${currencySymbol(values.buyRenewalCurrency)}${values.buyRenewalAmount}（${values.buyRenewalCurrency}）` : '', values.buyRenewalCycle].filter(Boolean).join(' / ');
+    const lines = [pair('目标机器', target), pair('目标配置', config), pair('续费金额 / 周期', renewal), pair('收购价格', buyPriceText(values)), values.buyTags?.length ? `- 交易要求：${values.buyTags.join('、')}` : ''].filter(Boolean);
+    const parts = [`## 收购需求\n${lines.join('\n')}`];
+    if (tgContact) parts.push(`## 联系方式\n- TG 联系：${tgContact}`);
+    if (String(values.buyPostRemarks || '').trim()) parts.push(`## 备注\n${String(values.buyPostRemarks).trim()}`);
+    return parts.join('\n\n');
+  }
+
+  function fillBuyPost(app) {
+    const values = buyFormValues(app);
+    const hasTarget = ['buyVendor', 'buyModel', 'buyCpu', 'buyMemory', 'buyDisk', 'buyBandwidth', 'buyTraffic'].some((name) => String(values[name] || '').trim());
+    const price = buyPriceText(values);
+    const status = app.querySelector('[data-nsit-buy-status]');
+    const showValidation = (name, message) => {
+      const field = app.querySelector(`[name="${name}"]`);
+      status.textContent = message;
+      if (!field) return;
+      field.setCustomValidity(message);
+      field.reportValidity();
+      field.focus();
+    };
+    app.querySelectorAll('#nsit-buy-form input, #nsit-buy-form textarea').forEach((field) => field.setCustomValidity(''));
+    if (!hasTarget) { showValidation('buyVendor', '请至少填写厂商、型号或目标配置。'); return; }
+    if (Boolean(String(values.buyRenewalCycle || '').trim()) !== Boolean(String(values.buyRenewalAmount || '').trim())) {
+      showValidation(values.buyRenewalCycle ? 'buyRenewalAmount' : 'buyRenewalCycle', '续费周期和续费金额请同时填写，或同时留空。');
+      return;
+    }
+    if (!price) { showValidation(`buyPriceValue-${values.buyPriceMode}`, '请填写收购方式对应的金额或折数。'); return; }
+    const title = values.buyPostTitle.trim() || suggestedBuyTitle(values);
+    const titleField = document.querySelector('#mde-title');
+    if (title && titleField) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(titleField, title);
+      titleField.dispatchEvent(new Event('input', { bubbles: true }));
+      titleField.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const didFill = setEditorContent(app, buyMarkdown(values));
+    if (didFill) { selectTradeCategory(); app.classList.remove('nsit-buy-open'); app.querySelector('.nsit-buy-modal').setAttribute('aria-hidden', 'true'); }
+    status.textContent = didFill ? '已回填标题和 Markdown；请检查后手动发布。' : '未找到 NodeSeek 正文编辑器，请刷新页面后重试。';
   }
 
   function markdown(values, cardMarkdown = '', rate = null) {

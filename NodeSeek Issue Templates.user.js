@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.3.2
+// @version      1.3.3
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -39,11 +39,11 @@ const APP_ID = 'nsit-app';
     ['custom', '自定义背景'],
   ];
   const VALUE_CARD_BACKGROUNDS = {
-    'stardew-spring': 'https://cdn.nodeimage.com/i/SQSTxp0RlRIUdo3lBXxSMtkqGEwyZRNu.png',
-    'stardew-summer': 'https://cdn.nodeimage.com/i/WG5DqOymMnoLadNkK0RZZI8Y14YZWQIC.png',
-    'stardew-autumn': 'https://cdn.nodeimage.com/i/jisdumIB5PqfVFFMZ4fSlhupk4DUANRz.png',
-    'stardew-winter': 'https://cdn.nodeimage.com/i/Zlw3BGEfrkEqmRD5kkHOkykh3LK19vFN.png',
-    tank: 'https://cdn.nodeimage.com/i/kyNRM2d3M5RTtRBBXQxP4iMrITKqmV1T.png',
+    'stardew-spring': 'https://raw.githubusercontent.com/ruoqianfengshao/nodeseek-issue-template/main/assets/value-cards/stardew-spring.jpg',
+    'stardew-summer': 'https://raw.githubusercontent.com/ruoqianfengshao/nodeseek-issue-template/main/assets/value-cards/stardew-summer.jpg',
+    'stardew-autumn': 'https://raw.githubusercontent.com/ruoqianfengshao/nodeseek-issue-template/main/assets/value-cards/stardew-autumn.jpg',
+    'stardew-winter': 'https://raw.githubusercontent.com/ruoqianfengshao/nodeseek-issue-template/main/assets/value-cards/stardew-winter.jpg',
+    tank: 'https://raw.githubusercontent.com/ruoqianfengshao/nodeseek-issue-template/main/assets/value-cards/tank.png',
   };
   const RENEWAL_FIELD_OPTIONS = [
     ['renewal', '续费金额 / 周期'], ['expiryDate', '到期日期'], ['tradeDate', '交易日期'], ['remainingValue', '剩余价值'],
@@ -445,7 +445,7 @@ function formValues(app) {
         image.onerror = () => reject(new Error('背景图片解析失败'));
         image.onload = () => {
           const canvas = document.createElement('canvas');
-          canvas.width = 600; canvas.height = 275;
+          canvas.width = 1200; canvas.height = 550;
           const context = canvas.getContext('2d');
           const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
           const width = image.width * scale; const height = image.height * scale;
@@ -502,7 +502,7 @@ function formValues(app) {
       const preview = previewSource ? `<img src="${previewSource}" alt="${escapeHtml(label)}主题预览">` : '<span class="nsit-value-card-custom-empty">上传背景图</span>';
       return `<label class="nsit-value-card-style"><input type="radio" name="valueCardStyle" value="${value}"${settings.valueCardStyle === value ? ' checked' : ''}><span class="nsit-value-card-style-preview">${preview}<strong>${escapeHtml(label)}</strong></span></label>`;
     }).join('');
-    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section><section><div class="nsit-setting-label"><h4>剩余价值图片风格</h4><p>仅影响导出的单张剩余价值图片；自定义背景仅存本机浏览器。</p></div><div class="nsit-value-card-style-grid">${valueCardStyle}</div><label class="nsit-value-card-upload">自定义背景<input type="file" accept="image/*" data-nsit-custom-value-card-background><small>自动缩放压缩至 600 × 275，上传后选择“自定义背景”即可使用。</small></label></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
+    return `<form class="nsit-personalization-form" data-nsit-personalization-form><div class="nsit-personalization-content"><section><div class="nsit-setting-label"><h4>标签设置</h4><p>预置标签可设为新建单机默认勾选；自定义标签仅追加到主表单。</p></div><div class="nsit-tag-list nsit-personalization-tags">${PRESET_TRANSFER_TAGS.map(presetTag).join('')}<span class="nsit-custom-tag-list" data-nsit-custom-tag-list>${settings.customTags.map(customTag).join('')}</span><span class="nsit-custom-tag-entry"><input data-nsit-custom-tag-input placeholder="自定义标签"><button type="button" data-action="add-custom-tag">添加</button></span></div></section><section><div class="nsit-setting-label"><h4>标题字段和顺序</h4><p>左侧所有字段，右侧为已选字段；用按钮移动和排序。</p></div><div class="nsit-title-preview" data-nsit-title-preview>标题预览：${escapeHtml(titlePreview)}</div><div class="nsit-transfer-box"><ol class="nsit-title-field-order" data-nsit-title-field-available>${available.map(titleItem).join('')}</ol><ol class="nsit-title-field-order" data-nsit-title-field-order>${settings.titleFields.map(titleItem).join('')}</ol></div></section><section><div class="nsit-setting-label"><h4>TG 默认配置</h4><p>仅在当前 TG 字段为空时自动填入。</p></div><input name="tgContact" value="${escapeHtml(settings.tgContact)}" placeholder="@username 或 https://t.me/..." autocomplete="off"></section><section><div class="nsit-setting-label"><h4>整贴备注</h4><p>打开空表单时完整自动填入，已有备注不覆盖。</p></div><textarea name="postRemarks" rows="4" placeholder="例如：到期前可协助迁移\n不接受议价">${escapeHtml(settings.postRemarks)}</textarea></section><section><div class="nsit-setting-label"><h4>续费与价值展示</h4><p>仅控制生成内容中的展示，不影响表单填写。</p></div><div class="nsit-setting-checks">${checkboxes(RENEWAL_FIELD_OPTIONS, settings.renewalFields, 'renewalFields')}</div></section><section><div class="nsit-setting-label"><h4>剩余价值图片风格</h4><p>仅影响导出的单张剩余价值图片；自定义背景仅存本机浏览器。</p></div><div class="nsit-value-card-style-grid">${valueCardStyle}</div><label class="nsit-value-card-upload">自定义背景<input type="file" accept="image/*" data-nsit-custom-value-card-background><small>自动缩放压缩至 1200 × 550，上传后选择“自定义背景”即可使用。</small></label></section></div><footer><button type="button" data-action="close-personalization">取消</button><button type="submit" class="nsit-primary">保存配置</button></footer></form>`;
   }
 
   function refreshTitlePreview(app) {
@@ -959,7 +959,7 @@ function formValues(app) {
     const cardWidth = 600;
     const cardHeight = 275;
     const canvas = document.createElement('canvas');
-    canvas.width = cardWidth; canvas.height = cardHeight;
+    canvas.width = cardWidth * 2; canvas.height = cardHeight * 2;
     const background = new Image();
     const seasonName = { 'stardew-spring': '春', 'stardew-summer': '夏', 'stardew-autumn': '秋', 'stardew-winter': '冬' }[style] || '春';
     const accent = { 'stardew-spring': '#519b48', 'stardew-summer': '#d78d25', 'stardew-autumn': '#b65524', 'stardew-winter': '#5194bd' }[style] || '#519b48';
@@ -978,6 +978,7 @@ function formValues(app) {
     return new Promise((resolve, reject) => {
       background.onload = () => {
         const context = canvas.getContext('2d');
+        context.scale(2, 2);
         const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
         const cny = result.value * rate.rate;
         const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
@@ -1058,8 +1059,10 @@ function formValues(app) {
   }
 
   function createCustomValueCard(values, rate, result, askingPrice, backgroundSource) {
+    const cardWidth = 600;
+    const cardHeight = 275;
     const canvas = document.createElement('canvas');
-    canvas.width = 600; canvas.height = 275;
+    canvas.width = cardWidth * 2; canvas.height = cardHeight * 2;
     const background = new Image();
     const box = (context, x, y, width, height, radius, fill, stroke = '') => {
       context.beginPath(); context.roundRect(x, y, width, height, radius);
@@ -1079,6 +1082,7 @@ function formValues(app) {
     return new Promise((resolve, reject) => {
       background.onload = () => {
         const context = canvas.getContext('2d');
+        context.scale(2, 2);
         const sans = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
         const cny = result.value * rate.rate;
         const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;
@@ -1090,16 +1094,17 @@ function formValues(app) {
           else if (askingPrice === cny) { preview = '剩余价值出'; previewColor = '#91ffb2'; }
           else { preview = `${(askingPrice / cny * 10).toFixed(1)} 折`; previewColor = '#91ffb2'; }
         }
-        const backdrop = document.createElement('canvas'); backdrop.width = 600; backdrop.height = 275;
+        const backdrop = document.createElement('canvas'); backdrop.width = cardWidth * 2; backdrop.height = cardHeight * 2;
         const backdropContext = backdrop.getContext('2d');
+        backdropContext.scale(2, 2);
         backdropContext.save(); backdropContext.beginPath(); backdropContext.roundRect(0, 0, 600, 275, 24); backdropContext.clip();
         backdropContext.filter = 'brightness(1.04) saturate(1.05)'; backdropContext.drawImage(background, -6, -3, 612, 281); backdropContext.filter = 'none';
         const shade = backdropContext.createLinearGradient(0, 0, 600, 275);
         shade.addColorStop(0, 'rgba(72,192,255,.08)'); shade.addColorStop(.48, 'rgba(255,255,255,.03)'); shade.addColorStop(1, 'rgba(255,182,127,.08)');
         backdropContext.fillStyle = shade; backdropContext.fillRect(0, 0, 600, 275); backdropContext.restore();
         context.save(); context.beginPath(); context.roundRect(0, 0, 600, 275, 24); context.clip();
-        context.drawImage(backdrop, 0, 0);
-        context.filter = 'blur(4px) saturate(160%)'; context.drawImage(backdrop, 0, 0); context.filter = 'none';
+        context.drawImage(backdrop, 0, 0, cardWidth, cardHeight);
+        context.filter = 'blur(4px) saturate(160%)'; context.drawImage(backdrop, 0, 0, cardWidth, cardHeight); context.filter = 'none';
         context.fillStyle = 'rgba(255,255,255,.10)'; context.fillRect(0, 0, 600, 275);
         const top = context.createLinearGradient(0, 0, 600, 0); top.addColorStop(0, '#83e7ff'); top.addColorStop(.48, '#fff19a'); top.addColorStop(1, '#ffb3d5'); context.fillStyle = top; context.fillRect(0, 0, 600, 4);
         context.restore();
@@ -1136,7 +1141,7 @@ function formValues(app) {
     const cardWidth = 600;
     const cardHeight = 275;
     const canvas = document.createElement('canvas');
-    canvas.width = cardWidth; canvas.height = cardHeight;
+    canvas.width = cardWidth * 2; canvas.height = cardHeight * 2;
     const background = new Image();
     const text = (context, value, x, y, font, color, align = 'left') => {
       context.font = font;
@@ -1147,6 +1152,7 @@ function formValues(app) {
     return new Promise((resolve, reject) => {
       background.onload = () => {
         const context = canvas.getContext('2d');
+        context.scale(2, 2);
         const font = '"Courier New",monospace';
         const cny = result.value * rate.rate;
         const renewal = `${currencySymbol(values.currency)}${formatAmount(values.renewalAmount)} / ${values.renewalCycle || '—'}`;

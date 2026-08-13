@@ -514,7 +514,15 @@
   }
 
   window[RUNTIME_KEY]?.disconnect?.();
-  const observer = new MutationObserver(initialize);
+  installCommentListResponseListener();
+  const observer = new MutationObserver(() => {
+    initialize();
+    renderRepliedPostMenu();
+    renderRepliedPostLabels();
+  });
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
   initialize();
+  renderRepliedPostMenu();
+  renderRepliedPostLabels();
+  syncRepliedComments();

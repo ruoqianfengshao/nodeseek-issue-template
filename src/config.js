@@ -8,6 +8,8 @@
   const TG_CONTACT_KEY = 'nsit-tg-contact-v1';
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
   const PERSONALIZATION_KEY = 'nsit-personalization-v1';
+  const REPLIED_POSTS_STORAGE_KEY = 'nsit-replied-posts-v1';
+  const COMMENT_LISTENER_KEY = '__nodeSeekIssueTemplatesCommentListener__';
   const VALUE_CARD_STYLES = [
     ['stardew-spring', '星露谷 · 春'],
     ['stardew-summer', '星露谷 · 夏'],

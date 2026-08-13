@@ -1697,6 +1697,247 @@
     return '';
   }
 
+  function mergeRepliedComments(payload) {
+    if (!payload?.success || !Array.isArray(payload.comments)) return;
+    let posts = {};
+    try {
+      const saved = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) posts = saved;
+    } catch (_) { /* 损坏或不可用的本地存储直接从空记录开始 */ }
+
+    let changed = false;
+    payload.comments.forEach((comment) => {
+      const postId = Number(comment?.post_id);
+      const floorId = Number(comment?.floor_id);
+      if (!Number.isInteger(postId) || postId <= 0 || !Number.isInteger(floorId) || floorId < 0) return;
+      const key = String(postId);
+      const floors = Array.isArray(posts[key]) ? posts[key].filter((floor) => Number.isInteger(floor) && floor >= 0) : [];
+      if (!floors.includes(floorId)) {
+        floors.push(floorId);
+        posts[key] = floors.sort((left, right) => left - right);
+        changed = true;
+      }
+    });
+    if (changed) {
+      try { localStorage.setItem(REPLIED_POSTS_STORAGE_KEY, JSON.stringify(posts)); } catch (_) { /* 存储不可用时忽略 */ }
+      renderRepliedPostMenu();
+      renderRepliedPostLabels();
+    }
+  }
+
+  function currentPostId() {
+    const match = location.pathname.match(/(?:^|\/)post-(\d+)(?:-|$)|(?:^|\/)post\/(\d+)(?:\/|$)/);
+    return match?.[1] || match?.[2] || '';
+  }
+
+  function currentPostPage() {
+    return Number(location.pathname.match(/\/post-\d+-(\d+)(?:\/|$)/)?.[1] || 1);
+  }
+
+  function currentNodeSeekUserId() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const configuredId = pageWindow.__config__?.user?.member_id || pageWindow.__config__?.user?.id;
+    if (/^\d+$/.test(String(configuredId || ''))) return String(configuredId);
+    const href = document.querySelector('.Username[href^="/space/"]')?.getAttribute('href') || '';
+    return href.match(/^\/space\/(\d+)/)?.[1] || '';
+  }
+
+  function repliedFloors(postId) {
+    try {
+      const posts = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
+      const floors = posts?.[postId];
+      return Array.isArray(floors) ? floors.filter((floor) => Number.isInteger(floor) && floor >= 0).sort((left, right) => left - right) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function postIdFromUrl(url) {
+    return String(url || '').match(/\/post-(\d+)(?:-|$)/)?.[1] || '';
+  }
+
+  function renderRepliedPostLabels() {
+    let posts = {};
+    try {
+      const saved = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) posts = saved;
+    } catch (_) { /* 无法读取本地记录时不展示标签 */ }
+
+    document.querySelectorAll('.post-list-item').forEach((item) => {
+      const postId = postIdFromUrl(item.querySelector('.post-title a[href*="/post-"]')?.getAttribute('href'));
+      const content = item.querySelector('.post-list-content');
+      const existing = item.querySelector('[data-nsit-replied-post-label]');
+      if (!postId || !content || !Array.isArray(posts[postId]) || !posts[postId].length) {
+        existing?.remove();
+        return;
+      }
+      if (existing) return;
+      const label = document.createElement('span');
+      label.className = 'nsit-replied-post-label-badge';
+      label.dataset.nsitRepliedPostLabel = '';
+      label.textContent = '已回复';
+      content.append(label);
+    });
+  }
+
+  function scrollToRepliedFloor(floorId) {
+    const escapedFloor = CSS.escape(String(floorId));
+    const directTarget = document.querySelector(`#comment-${escapedFloor}, #floor-${escapedFloor}, [data-floor-id="${escapedFloor}"], [data-floor="${escapedFloor}"], [data-comment-floor="${escapedFloor}"]`);
+    const floorLink = Array.from(document.querySelectorAll('a[href]')).find((link) => {
+      const href = link.getAttribute('href') || '';
+      return href === `#${floorId}` || href === `#comment-${floorId}` || href.includes(`floor_id=${floorId}`);
+    });
+    const target = directTarget || floorLink?.closest('.comment, [class*="comment"]') || floorLink;
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const postId = currentPostId();
+    if (!postId) return;
+    const page = Math.floor(floorId / 10) + 1;
+    location.assign(`/post-${postId}-${page}#${floorId}`);
+  }
+
+  function renderRepliedPostMenu() {
+    const postId = currentPostId();
+    const menu = document.querySelector('.comment-menu');
+    const current = document.querySelector('[data-nsit-replied-post-menu]');
+    const floors = postId ? repliedFloors(postId) : [];
+    if (!menu || !floors.length) {
+      current?.remove();
+      return;
+    }
+
+    const visible = floors.slice(0, 10);
+    const extra = floors.slice(10);
+    const signature = floors.join(',');
+    const post = menu.closest('.nsk-post');
+    const title = post?.querySelector('.post-title');
+    const topPager = document.querySelector('.post-top-pager');
+    const pagerNavigation = topPager?.querySelector('[role="navigation"]');
+    const pagerRow = topPager?.parentElement;
+    const showWithPager = currentPostPage() > 1 && Boolean(pagerNavigation && pagerRow);
+    if (current?.dataset.nsitRepliedFloors === signature) {
+      if (showWithPager) {
+        if (current.parentElement !== pagerRow || current.nextElementSibling !== topPager) {
+          current.classList.add('nsit-replied-post-menu--pager');
+          topPager.before(current);
+        }
+      } else if (title && current.previousElementSibling !== title) {
+        current.classList.remove('nsit-replied-post-menu--pager');
+        title.after(current);
+      }
+      return;
+    }
+    current?.remove();
+
+    const tracker = document.createElement('span');
+    tracker.className = 'nsit-replied-post-menu';
+    tracker.dataset.nsitRepliedPostMenu = '';
+    tracker.dataset.nsitRepliedFloors = signature;
+    tracker.innerHTML = `<span class="nsit-replied-post-label">我的回复</span>${visible.map((floor) => `<button type="button" data-nsit-replied-floor="${floor}">#${floor}</button>`).join('')}${extra.length ? `<span class="nsit-replied-more-wrap"><button type="button" data-nsit-replied-more aria-expanded="false">更多 (${extra.length})</button><span class="nsit-replied-more-panel" hidden>${extra.map((floor) => `<button type="button" data-nsit-replied-floor="${floor}">#${floor}</button>`).join('')}</span></span>` : ''}`;
+    if (showWithPager) {
+      tracker.classList.add('nsit-replied-post-menu--pager');
+      topPager.before(tracker);
+    }
+    else if (title) title.after(tracker);
+    else (menu.closest('.content-item') || menu.parentElement)?.before(tracker);
+  }
+
+  async function syncRepliedComments() {
+    const uid = currentNodeSeekUserId();
+    if (!uid || !currentPostId()) return;
+    const before = repliedFloors(currentPostId());
+    const hasLocalData = before.length > 0;
+    for (let page = 1; page <= 3; page += 1) {
+      try {
+        const response = await fetch(`/api/content/list-comments?uid=${encodeURIComponent(uid)}&page=${page}`);
+        const payload = await response.json();
+        if (!response.ok || !payload?.success || !Array.isArray(payload.comments)) return;
+        const encounteredKnownComment = hasLocalData && payload.comments.some((comment) => before.includes(Number(comment?.floor_id)) && String(comment?.post_id) === currentPostId());
+        mergeRepliedComments(payload);
+        if (encounteredKnownComment || !payload.comments.length) return;
+      } catch (_) {
+        return;
+      }
+    }
+  }
+
+  function isCommentListRequest(url) {
+    try {
+      const requestUrl = new URL(url, location.href);
+      return requestUrl.origin === location.origin && requestUrl.pathname === '/api/content/list-comments';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function installCommentListResponseListener() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[COMMENT_LISTENER_KEY]) return;
+
+    GM_addStyle('.nsit-replied-post-menu{position:relative;display:flex;box-sizing:border-box;align-items:center;flex-wrap:wrap;gap:5px;width:100%;max-width:100%;margin:0 0 10px;padding:8px 10px;border:1px solid #f0d49c;border-radius:7px;background:#fff8e9;color:#8b641e;font-size:12px;line-height:1.4}.nsit-replied-post-menu--pager{display:inline-flex;width:fit-content;max-width:100%;margin:0 auto 0 0;padding:7px 10px}.nsit-replied-post-label{margin-right:2px;font-weight:600;white-space:nowrap}.nsit-replied-post-menu button{margin:0;padding:0;border:0;background:transparent;color:#3976bc;font:inherit;font-size:12px;cursor:pointer}.nsit-replied-post-menu button:hover{text-decoration:underline}.nsit-replied-more-wrap{position:relative;display:inline-flex}.nsit-replied-more-panel{position:absolute;z-index:1000;top:calc(100% + 6px);right:0;display:flex;flex-wrap:wrap;gap:6px;width:max-content;max-width:240px;padding:8px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;box-shadow:0 8px 18px rgba(31,44,67,.18)}.post-list-item:has(.nsit-replied-post-label-badge){position:relative;background:rgba(239,250,243,.82)}.nsit-replied-post-label-badge{position:absolute;z-index:1;right:56px;bottom:7px;display:inline-block;margin:0;padding:2px 6px;border:1px solid #9ad6b1;border-radius:4px;background:#effaf3;color:#27834a;font-size:12px;line-height:16px;pointer-events:none}');
+    document.addEventListener('click', (event) => {
+      const floorButton = event.target.closest('[data-nsit-replied-floor]');
+      if (floorButton) {
+        event.preventDefault();
+        scrollToRepliedFloor(Number(floorButton.dataset.nsitRepliedFloor));
+        floorButton.closest('[data-nsit-replied-post-menu]')?.querySelector('[data-nsit-replied-more-panel]')?.setAttribute('hidden', '');
+        floorButton.closest('[data-nsit-replied-post-menu]')?.querySelector('[data-nsit-replied-more]')?.setAttribute('aria-expanded', 'false');
+        return;
+      }
+      const moreButton = event.target.closest('[data-nsit-replied-more]');
+      if (moreButton) {
+        const panel = moreButton.parentElement?.querySelector('[data-nsit-replied-more-panel]');
+        if (!panel) return;
+        panel.hidden = !panel.hidden;
+        moreButton.setAttribute('aria-expanded', String(!panel.hidden));
+        return;
+      }
+      document.querySelectorAll('[data-nsit-replied-more-panel]:not([hidden])').forEach((panel) => { panel.hidden = true; });
+      document.querySelectorAll('[data-nsit-replied-more][aria-expanded="true"]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    });
+
+    const handleResponse = (response) => {
+      if (!response?.ok) return;
+      response.clone().json().then(mergeRepliedComments).catch(() => {});
+    };
+    const originalFetch = pageWindow.fetch;
+    if (typeof originalFetch === 'function') {
+      pageWindow.fetch = function (...args) {
+        const response = originalFetch.apply(this, args);
+        const request = args[0];
+        const url = typeof request === 'string' || request instanceof URL ? request : request?.url;
+        if (isCommentListRequest(url)) Promise.resolve(response).then(handleResponse).catch(() => {});
+        return response;
+      };
+    }
+
+    const xhrPrototype = pageWindow.XMLHttpRequest?.prototype;
+    if (xhrPrototype) {
+      const originalOpen = xhrPrototype.open;
+      const originalSend = xhrPrototype.send;
+      xhrPrototype.open = function (method, url, ...args) {
+        this.__nsitCommentListRequest = isCommentListRequest(url);
+        return originalOpen.call(this, method, url, ...args);
+      };
+      xhrPrototype.send = function (...args) {
+        if (this.__nsitCommentListRequest) {
+          this.addEventListener('load', () => {
+            if (this.status < 200 || this.status >= 300) return;
+            try {
+              const payload = this.responseType === 'json' ? this.response : JSON.parse(this.responseText);
+              mergeRepliedComments(payload);
+            } catch (_) { /* 非 JSON 或不可读响应直接忽略 */ }
+          }, { once: true });
+        }
+        return originalSend.apply(this, args);
+      };
+    }
+
+    pageWindow[COMMENT_LISTENER_KEY] = true;
+  }
+
   function renderCatalogResults(app, records) {
     const container = app.querySelector('[data-nsit-catalog-results]');
     if (!records.length) {

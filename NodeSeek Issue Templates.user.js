@@ -2115,7 +2115,7 @@ function formValues(app) {
     payload.comments.forEach((comment) => {
       const postId = Number(comment?.post_id);
       const floorId = Number(comment?.floor_id);
-      if (!Number.isInteger(postId) || postId <= 0 || !Number.isInteger(floorId) || floorId < 0) return;
+      if (!Number.isInteger(postId) || postId <= 0 || !Number.isInteger(floorId) || floorId <= 0) return;
       const key = String(postId);
       const floors = Array.isArray(posts[key]) ? posts[key].filter((floor) => Number.isInteger(floor) && floor >= 0) : [];
       if (!floors.includes(floorId)) {
@@ -2152,7 +2152,7 @@ function formValues(app) {
     try {
       const posts = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
       const floors = posts?.[postId];
-      return Array.isArray(floors) ? floors.filter((floor) => Number.isInteger(floor) && floor >= 0).sort((left, right) => left - right) : [];
+      return Array.isArray(floors) ? floors.filter((floor) => Number.isInteger(floor) && floor > 0).sort((left, right) => left - right) : [];
     } catch (_) {
       return [];
     }

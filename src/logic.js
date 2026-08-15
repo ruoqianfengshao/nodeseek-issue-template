@@ -1699,9 +1699,11 @@
 
   function mergeRepliedComments(payload) {
     if (!payload?.success || !Array.isArray(payload.comments)) return;
+    const storageKey = repliedPostsStorageKey();
+    if (!storageKey) return;
     let posts = {};
     try {
-      const saved = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
       if (saved && typeof saved === 'object' && !Array.isArray(saved)) posts = saved;
     } catch (_) { /* 损坏或不可用的本地存储直接从空记录开始 */ }
 
@@ -1719,7 +1721,7 @@
       }
     });
     if (changed) {
-      try { localStorage.setItem(REPLIED_POSTS_STORAGE_KEY, JSON.stringify(posts)); } catch (_) { /* 存储不可用时忽略 */ }
+      try { localStorage.setItem(storageKey, JSON.stringify(posts)); } catch (_) { /* 存储不可用时忽略 */ }
       renderRepliedPostMenu();
       renderRepliedPostLabels();
     }
@@ -1742,9 +1744,16 @@
     return href.match(/^\/space\/(\d+)/)?.[1] || '';
   }
 
+  function repliedPostsStorageKey() {
+    const uid = currentNodeSeekUserId();
+    return uid ? `${REPLIED_POSTS_STORAGE_KEY}-${uid}` : '';
+  }
+
   function repliedFloors(postId) {
+    const storageKey = repliedPostsStorageKey();
+    if (!storageKey) return [];
     try {
-      const posts = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
+      const posts = JSON.parse(localStorage.getItem(storageKey) || '{}');
       const floors = posts?.[postId];
       return Array.isArray(floors) ? floors.filter((floor) => Number.isInteger(floor) && floor > 0).sort((left, right) => left - right) : [];
     } catch (_) {
@@ -1758,8 +1767,10 @@
 
   function renderRepliedPostLabels() {
     let posts = {};
+    const storageKey = repliedPostsStorageKey();
+    if (!storageKey) return;
     try {
-      const saved = JSON.parse(localStorage.getItem(REPLIED_POSTS_STORAGE_KEY) || '{}');
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
       if (saved && typeof saved === 'object' && !Array.isArray(saved)) posts = saved;
     } catch (_) { /* 无法读取本地记录时不展示标签 */ }
 
@@ -1794,7 +1805,7 @@
     }
     const postId = currentPostId();
     if (!postId) return;
-    const page = Math.floor(floorId / 10) + 1;
+    const page = Math.floor((floorId - 1) / 10) + 1;
     location.assign(`/post-${postId}-${page}#${floorId}`);
   }
 
@@ -1863,10 +1874,12 @@
     }
   }
 
-  function isCommentListRequest(url) {
+  function isOwnCommentListRequest(url) {
     try {
       const requestUrl = new URL(url, location.href);
-      return requestUrl.origin === location.origin && requestUrl.pathname === '/api/content/list-comments';
+      return requestUrl.origin === location.origin
+        && requestUrl.pathname === '/api/content/list-comments'
+        && requestUrl.searchParams.get('uid') === currentNodeSeekUserId();
     } catch (_) {
       return false;
     }
@@ -1908,7 +1921,7 @@
         const response = originalFetch.apply(this, args);
         const request = args[0];
         const url = typeof request === 'string' || request instanceof URL ? request : request?.url;
-        if (isCommentListRequest(url)) Promise.resolve(response).then(handleResponse).catch(() => {});
+        if (isOwnCommentListRequest(url)) Promise.resolve(response).then(handleResponse).catch(() => {});
         return response;
       };
     }
@@ -1918,7 +1931,7 @@
       const originalOpen = xhrPrototype.open;
       const originalSend = xhrPrototype.send;
       xhrPrototype.open = function (method, url, ...args) {
-        this.__nsitCommentListRequest = isCommentListRequest(url);
+        this.__nsitCommentListRequest = isOwnCommentListRequest(url);
         return originalOpen.call(this, method, url, ...args);
       };
       xhrPrototype.send = function (...args) {

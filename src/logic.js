@@ -2546,7 +2546,7 @@
       if (didFill && app.dataset.nsitReplyMode !== 'true') selectTradeCategory();
       setStatus(app, didFill ? (app.dataset.nsitReplyMode === 'true' ? '已回填回帖 Markdown；请检查后手动发布。' : '已回填标题和 Markdown；请检查后手动发布。') : '未找到 NodeSeek 正文编辑器，请刷新页面后重试。');
       if (didFill) closeModal(app);
-      if (didFill && app.querySelector('[name="checkMachineConfig"]').checked) offerMissingMachineConfigs(app, machines);
+      if (didFill && app.dataset.nsitReplyMode !== 'true' && app.querySelector('[name="checkMachineConfig"]')?.checked) offerMissingMachineConfigs(app, machines);
     } catch (error) {
       console.error('[NSIT]', '生成异常', error);
       setStatus(app, `生成失败：${error?.message || '未知错误'}`);

@@ -2535,7 +2535,7 @@
       const cards = generateCard ? await Promise.all(machines.map((machine) => uploadValueCard(machine, app, rateForValues(app, machine)))) : [];
       const content = mode === 'table' ? tableMarkdownForMachines(machines, app, cards, shared) : textMarkdownForMachines(machines, app, cards, shared);
       const titleField = document.querySelector('#mde-title');
-      const title = machines.length > 1 ? multiMachineTitle(machines, app) : shared.postTitle.trim();
+      const title = app.dataset.nsitReplyMode === 'true' ? '' : machines.length > 1 ? multiMachineTitle(machines, app) : String(shared.postTitle || '').trim();
       if (title && titleField) {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
         setter.call(titleField, title);

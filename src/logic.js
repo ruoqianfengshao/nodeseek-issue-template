@@ -1450,10 +1450,16 @@
     } catch (_) { /* 存储不可用时使用默认勾选 */ }
   }
 
+  function editorTarget(app) {
+    if (app._nsitEditor?.isConnected) return app._nsitEditor;
+    return document.querySelector('#editor-body') || Array.from(document.querySelectorAll('.CodeMirror')).find((element) => !app.contains(element)) || null;
+  }
+
   function editorContent(app) {
-    const codeMirror = Array.from(document.querySelectorAll('.CodeMirror')).find((element) => !app.contains(element));
+    const target = editorTarget(app);
+    const codeMirror = target?.matches?.('.CodeMirror') ? target : target?.querySelector?.('.CodeMirror');
     if (codeMirror?.CodeMirror && typeof codeMirror.CodeMirror.getValue === 'function') return codeMirror.CodeMirror.getValue();
-    const textarea = Array.from(document.querySelectorAll('#mde-title ~ textarea, textarea')).find((element) => !app.contains(element));
+    const textarea = target?.matches?.('textarea') ? target : target?.querySelector?.('textarea') || Array.from(document.querySelectorAll('#mde-title ~ textarea, textarea')).find((element) => !app.contains(element));
     return textarea?.value || '';
   }
 
@@ -1604,13 +1610,14 @@
   }
 
   function setEditorContent(app, content) {
-    const codeMirror = Array.from(document.querySelectorAll('.CodeMirror')).find((element) => !app.contains(element));
+    const target = editorTarget(app);
+    const codeMirror = target?.matches?.('.CodeMirror') ? target : target?.querySelector?.('.CodeMirror');
     if (codeMirror && codeMirror.CodeMirror && typeof codeMirror.CodeMirror.setValue === 'function') {
       codeMirror.CodeMirror.setValue(content);
       codeMirror.CodeMirror.focus();
       return true;
     }
-    const textarea = Array.from(document.querySelectorAll('#mde-title ~ textarea, textarea')).find((element) => !app.contains(element));
+    const textarea = target?.matches?.('textarea') ? target : target?.querySelector?.('textarea') || Array.from(document.querySelectorAll('#mde-title ~ textarea, textarea')).find((element) => !app.contains(element));
     if (!textarea) return false;
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
     setter.call(textarea, content);
@@ -1763,6 +1770,269 @@
 
   function postIdFromUrl(url) {
     return String(url || '').match(/\/post-(\d+)(?:-|$)/)?.[1] || '';
+  }
+
+  function postFilterRules() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(POST_FILTER_RULES_STORAGE_KEY) || '[]');
+      if (!Array.isArray(saved)) return [];
+      return saved.map((rule) => ({
+        id: String(rule?.id || ''),
+        keywords: String(rule?.keywords || '').trim(),
+        keywordMode: rule?.keywordMode === 'all' ? 'all' : 'any',
+        author: String(rule?.author || '').trim(),
+        action: ['hide', 'fold', 'highlight'].includes(rule?.action) ? rule.action : 'fold',
+        color: /^#[0-9a-f]{6}$/i.test(rule?.color || '') ? rule.color : '#fff9c4',
+        enabled: rule?.enabled !== false,
+        createdAt: Number(rule?.createdAt) || 0,
+      })).filter((rule) => rule.id && (rule.keywords || rule.author));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function savePostFilterRules(rules) {
+    localStorage.setItem(POST_FILTER_RULES_STORAGE_KEY, JSON.stringify(rules));
+  }
+
+  function postFilterKeywords(rule) {
+    return rule.keywords.split(/[，,]/).map((word) => word.trim().toLocaleLowerCase()).filter(Boolean);
+  }
+
+  function postFilterUsers(rule) {
+    return rule.author.split(/[，,]/).map((name) => name.trim().toLocaleLowerCase()).filter(Boolean);
+  }
+
+  function postFilterAuthor(item) {
+    const selectors = [
+      '[data-user-nickname]', '[data-username]', '.info-author', '.post-author', '.post-list-author',
+      '.post-list-meta a[href^="/space/"]', '.post-list-info a[href^="/space/"]',
+      'a[href^="/space/"]', 'a[href^="/u/"]',
+    ];
+    for (const selector of selectors) {
+      const element = item.querySelector(selector);
+      const name = element?.dataset.userNickname || element?.dataset.username || element?.textContent?.trim();
+      if (name) return name.toLocaleLowerCase();
+    }
+    return '';
+  }
+
+  function postFilterRuleMatches(rule, title, author) {
+    if (!rule.enabled) return false;
+    const words = postFilterKeywords(rule);
+    const keywordMatches = !words.length || (rule.keywordMode === 'all'
+      ? words.every((word) => title.includes(word))
+      : words.some((word) => title.includes(word)));
+    const users = postFilterUsers(rule);
+    return keywordMatches && (!users.length || users.includes(author));
+  }
+
+  function resetPostFilterItem(item) {
+    item.classList.remove('nsit-filter-hidden', 'nsit-filter-folded', 'nsit-filter-highlighted');
+    item.style.removeProperty('--nsit-filter-highlight');
+    item.querySelectorAll('[data-nsit-filter-fold-notice]').forEach((notice) => notice.remove());
+    delete item.dataset.nsitFilterProcessed;
+    delete item.dataset.nsitFilterUnfolded;
+  }
+
+  function addPostFilterFoldNotice(item, rules) {
+    if (item.querySelector('[data-nsit-filter-fold-notice]')) return;
+    const notice = document.createElement('div');
+    notice.className = 'nsit-filter-fold-notice';
+    notice.dataset.nsitFilterFoldNotice = '';
+    const labels = rules.map((rule) => rule.keywords || `用户：${rule.author}`).join('、');
+    notice.innerHTML = `<span>已折叠匹配过滤条件「${escapeHtml(labels)}」的主题</span><button type="button">查看</button>`;
+    notice.querySelector('button').addEventListener('click', () => {
+      item.classList.remove('nsit-filter-folded');
+      item.dataset.nsitFilterUnfolded = 'true';
+      notice.remove();
+    });
+    item.prepend(notice);
+  }
+
+  function filterPostListItems({ reapply = false } = {}) {
+    const rules = postFilterRules();
+    document.querySelectorAll('.post-list-item').forEach((item) => {
+      if (reapply) resetPostFilterItem(item);
+      if (item.dataset.nsitFilterProcessed || item.dataset.nsitFilterUnfolded) return;
+      const title = item.querySelector('.post-title > a')?.textContent?.trim().toLocaleLowerCase() || '';
+      if (!title) return;
+      const matches = rules.filter((rule) => postFilterRuleMatches(rule, title, postFilterAuthor(item)));
+      if (!matches.length) return;
+      const hidden = matches.some((rule) => rule.action === 'hide');
+      const folded = matches.filter((rule) => rule.action === 'fold');
+      const colors = [...new Set(matches.filter((rule) => rule.action === 'highlight').map((rule) => rule.color))];
+      if (hidden) item.classList.add('nsit-filter-hidden');
+      else if (folded.length) {
+        item.classList.add('nsit-filter-folded');
+        addPostFilterFoldNotice(item, folded);
+      } else if (colors.length) {
+        item.classList.add('nsit-filter-highlighted');
+        item.style.setProperty('--nsit-filter-highlight', colors.length === 1 ? colors[0] : `linear-gradient(90deg, ${colors.join(', ')})`);
+      }
+      item.dataset.nsitFilterProcessed = 'true';
+    });
+  }
+
+  function postFilterRuleSummary(rule) {
+    const relation = rule.keywords ? (rule.keywordMode === 'all' ? '全部命中' : '任一命中') : '不限制关键词';
+    const author = rule.author ? ` · 用户昵称（任一完全匹配）：${rule.author}` : '';
+    const action = { hide: '彻底隐藏', fold: '折叠展示', highlight: '高亮' }[rule.action];
+    return `${relation}${author} · ${action}`;
+  }
+
+  function postFilterRuleTitle(rule) {
+    if (rule.author && rule.keywords) return `@${rule.author} · ${rule.keywords}`;
+    if (rule.author) return `@${rule.author}`;
+    return rule.keywords;
+  }
+
+  function postFilterRuleDetail(rule) {
+    const relation = rule.keywords ? (rule.keywordMode === 'all' ? '关键词全部命中' : '关键词任一命中') : '用户昵称任一完全匹配';
+    const action = { hide: '彻底隐藏', fold: '折叠展示', highlight: '高亮' }[rule.action];
+    return `${relation} · ${action}`;
+  }
+
+  function filterPostFilterRuleList(panel) {
+    const query = panel._nsitPostFilterState?.query || '';
+    const list = panel.querySelector('.nsit-filter-rule-list');
+    if (!list) return;
+    const rules = Array.from(list.querySelectorAll('[data-nsit-filter-search-text]'));
+    let matches = 0;
+    rules.forEach((item) => {
+      const matched = !query || item.dataset.nsitFilterSearchText.includes(query);
+      item.hidden = !matched;
+      if (matched) matches += 1;
+    });
+    let empty = list.querySelector('[data-nsit-filter-search-empty]');
+    if (!matches && rules.length) {
+      if (!empty) {
+        empty = document.createElement('li');
+        empty.className = 'nsit-filter-empty';
+        empty.dataset.nsitFilterSearchEmpty = '';
+        empty.textContent = '没有符合搜索条件的规则。';
+        list.append(empty);
+      }
+    } else {
+      empty?.remove();
+    }
+  }
+
+  function renderPostFilterPanel() {
+    const panel = document.querySelector('[data-nsit-post-filter-panel]');
+    if (!panel) return;
+    const state = panel._nsitPostFilterState || { tab: 'block', query: '', editingId: '' };
+    const rules = postFilterRules();
+    const visible = rules.filter((rule) => state.tab === 'highlight' ? rule.action === 'highlight' : rule.action !== 'highlight');
+    const editing = rules.find((rule) => rule.id === state.editingId);
+    const ruleForm = editing || { keywords: '', keywordMode: 'any', author: '', action: state.tab === 'highlight' ? 'highlight' : 'fold', color: '#fff9c4', enabled: true };
+    const form = state.editingId === 'new' || editing ? `<form data-nsit-post-filter-form class="nsit-filter-rule-form">
+      <div class="nsit-filter-keywords"><label>关键词<input name="keywords" value="${escapeHtml(ruleForm.keywords)}" placeholder="可选；用逗号分隔多个关键词"></label><span class="nsit-filter-keyword-mode"><span>关键词关系</span><span role="group" aria-label="关键词关系"><label><input type="radio" name="keywordMode" value="any"${ruleForm.keywordMode !== 'all' ? ' checked' : ''}>任一</label><label><input type="radio" name="keywordMode" value="all"${ruleForm.keywordMode === 'all' ? ' checked' : ''}>全部</label></span></span></div>
+      <label>用户昵称<input name="author" value="${escapeHtml(ruleForm.author)}" placeholder="可选；逗号分隔，任一昵称完全匹配"></label>
+      <label>处理方式<select name="action"><option value="fold"${ruleForm.action === 'fold' ? ' selected' : ''}>折叠展示</option><option value="hide"${ruleForm.action === 'hide' ? ' selected' : ''}>彻底隐藏</option><option value="highlight"${ruleForm.action === 'highlight' ? ' selected' : ''}>高亮</option></select></label>
+      <label class="nsit-filter-color-field${ruleForm.action === 'highlight' ? '' : ' is-hidden'}">高亮颜色<input name="color" type="color" value="${escapeHtml(ruleForm.color)}"></label>
+      <div class="nsit-filter-form-actions"><button type="button" data-nsit-filter-action="cancel-edit">取消</button><button type="submit">${editing ? '保存条件' : '添加条件'}</button></div>
+    </form>` : '';
+    const list = visible.length ? visible.map((rule) => `<li class="${rule.enabled ? '' : 'is-disabled'}" data-nsit-filter-search-text="${escapeHtml(`${rule.keywords} ${rule.author} ${postFilterRuleSummary(rule)}`.toLocaleLowerCase())}"><span class="nsit-filter-rule-color" style="background:${escapeHtml(rule.action === 'highlight' ? rule.color : rule.action === 'hide' ? '#d85b5b' : '#d89b32')}"></span><div class="nsit-filter-rule-copy"><strong>${escapeHtml(postFilterRuleTitle(rule))}</strong><small>${escapeHtml(postFilterRuleDetail(rule))}</small></div><span class="nsit-filter-rule-tools"><label class="nsit-filter-switch" title="${rule.enabled ? '禁用条件' : '启用条件'}"><input type="checkbox" data-nsit-filter-toggle="${escapeHtml(rule.id)}"${rule.enabled ? ' checked' : ''}><i></i></label><span class="nsit-filter-rule-actions"><button type="button" data-nsit-filter-action="edit" data-rule-id="${escapeHtml(rule.id)}">编辑</button><button type="button" data-nsit-filter-action="delete" data-rule-id="${escapeHtml(rule.id)}">删除</button></span></span></li>`).join('') : '<li class="nsit-filter-empty">还没有符合条件的规则。</li>';
+    panel.innerHTML = `<div class="nsit-filter-panel-head"><strong>内容与用户过滤</strong><button type="button" data-nsit-filter-action="close" aria-label="关闭">×</button></div><div class="nsit-filter-toolbar"><input type="search" data-nsit-filter-search value="${escapeHtml(state.query)}" placeholder="搜索过滤条件"><button type="button" data-nsit-filter-action="new">＋ 新增</button></div><div class="nsit-filter-tabs"><button type="button" data-nsit-filter-tab="block" class="${state.tab === 'block' ? 'is-active' : ''}">🚫 屏蔽</button><button type="button" data-nsit-filter-tab="highlight" class="${state.tab === 'highlight' ? 'is-active' : ''}">🎨 高亮</button><button type="button" class="nsit-filter-clear" data-nsit-filter-action="clear">清空当前组</button></div>${form}<ul class="nsit-filter-rule-list">${list}</ul>`;
+    panel._nsitPostFilterState = state;
+    filterPostFilterRuleList(panel);
+  }
+
+  function ensurePostFilterPanel() {
+    let panel = document.querySelector('[data-nsit-post-filter-panel]');
+    if (panel) return panel;
+    panel = document.createElement('section');
+    panel.className = 'nsit-post-filter-panel';
+    panel.dataset.nsitPostFilterPanel = '';
+    document.body.append(panel);
+    panel.addEventListener('input', (event) => {
+      if (event.target.matches('[name="keywords"], [name="author"]')) event.target.form?.querySelector('[name="keywords"]')?.setCustomValidity('');
+      if (event.target.matches('[data-nsit-filter-search]')) {
+        panel._nsitPostFilterState.query = event.target.value.toLocaleLowerCase();
+        filterPostFilterRuleList(panel);
+      }
+    });
+    panel.addEventListener('change', (event) => {
+      const id = event.target.dataset.nsitFilterToggle;
+      if (id) {
+        savePostFilterRules(postFilterRules().map((rule) => rule.id === id ? { ...rule, enabled: event.target.checked } : rule));
+        filterPostListItems({ reapply: true }); renderPostFilterPanel();
+        return;
+      }
+      if (!event.target.matches('[name="action"]')) return;
+      const color = event.target.form?.querySelector('.nsit-filter-color-field');
+      if (color) color.classList.toggle('is-hidden', event.target.value !== 'highlight');
+    });
+    panel.addEventListener('submit', (event) => {
+      if (!event.target.matches('[data-nsit-post-filter-form]')) return;
+      event.preventDefault();
+      const values = new FormData(event.target);
+      const state = panel._nsitPostFilterState;
+      const existing = postFilterRules().find((rule) => rule.id === state.editingId);
+      const next = { id: state.editingId === 'new' ? `${Date.now()}-${Math.random().toString(36).slice(2)}` : state.editingId, keywords: String(values.get('keywords') || '').trim(), keywordMode: values.get('keywordMode') === 'all' ? 'all' : 'any', author: String(values.get('author') || '').trim(), action: values.get('action'), color: String(values.get('color') || '#fff9c4'), enabled: existing?.enabled !== false, createdAt: Date.now() };
+      if (!postFilterKeywords(next).length && !next.author) {
+        event.target.querySelector('[name="keywords"]')?.setCustomValidity('请至少填写关键词或用户昵称');
+        event.target.querySelector('[name="keywords"]')?.reportValidity();
+        return;
+      }
+      const rules = postFilterRules();
+      const index = rules.findIndex((rule) => rule.id === next.id);
+      if (index >= 0) rules[index] = { ...rules[index], ...next }; else rules.unshift(next);
+      savePostFilterRules(rules); state.editingId = ''; filterPostListItems({ reapply: true }); renderPostFilterPanel();
+    });
+    panel.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-nsit-filter-action]')?.dataset.nsitFilterAction;
+      const id = event.target.closest('[data-rule-id]')?.dataset.ruleId;
+      const state = panel._nsitPostFilterState;
+      if (event.target.matches('[data-nsit-filter-tab]')) { state.tab = event.target.dataset.nsitFilterTab; state.editingId = ''; renderPostFilterPanel(); return; }
+      if (action === 'close') { panel.classList.remove('is-open'); return; }
+      if (action === 'new') { state.editingId = 'new'; renderPostFilterPanel(); return; }
+      if (action === 'cancel-edit') { state.editingId = ''; renderPostFilterPanel(); return; }
+      if (action === 'edit') { state.editingId = id; renderPostFilterPanel(); return; }
+      if (action === 'delete') { savePostFilterRules(postFilterRules().filter((rule) => rule.id !== id)); filterPostListItems({ reapply: true }); renderPostFilterPanel(); return; }
+      if (action === 'clear') {
+        const group = state.tab === 'highlight' ? '高亮' : '屏蔽';
+        if (!window.confirm(`确定清空“${group}”组的全部过滤条件吗？此操作无法撤销。`)) return;
+        savePostFilterRules(postFilterRules().filter((rule) => state.tab === 'highlight' ? rule.action !== 'highlight' : rule.action === 'highlight'));
+        filterPostListItems({ reapply: true }); renderPostFilterPanel();
+      }
+    });
+    return panel;
+  }
+
+  function openPostFilterPanel() {
+    const panel = ensurePostFilterPanel();
+    panel.classList.add('is-open');
+    renderPostFilterPanel();
+  }
+
+  function ensurePostFilterTrigger() {
+    const head = document.querySelector('#nsk-head');
+    if (!head || head.querySelector('[data-nsit-post-filter-trigger]')) return;
+    let group = head.querySelector('[data-nsit-post-filter-icon-group]');
+    if (!group) {
+      group = document.createElement('div');
+      group.className = 'right-button-group';
+      group.dataset.nsitPostFilterIconGroup = '';
+      const anchor = head.querySelector('.color-theme-switcher, .search-box');
+      if (anchor?.parentElement === head) head.insertBefore(group, anchor);
+      else head.append(group);
+    }
+    const trigger = document.createElement('button');
+    trigger.type = 'button'; trigger.className = 'nsit-post-filter-trigger'; trigger.dataset.nsitPostFilterTrigger = '';
+    trigger.title = '关键字过滤管理'; trigger.setAttribute('aria-label', trigger.title);
+    trigger.innerHTML = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 9L20.4 25.8178V38.4444L27.6 42V25.8178L42 9H6Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>';
+    trigger.addEventListener('click', openPostFilterPanel);
+    group.append(trigger);
+  }
+
+  function installPostFilters() {
+    if (window[POST_FILTER_RUNTIME_KEY]) return;
+    window[POST_FILTER_RUNTIME_KEY] = true;
+    GM_addStyle('#nsk-head [data-nsit-post-filter-icon-group]{display:flex;align-items:center;gap:0;border-left:1px solid var(--border-color,#e5e7eb);margin-left:6px;padding-left:6px;height:30px}.nsit-post-filter-trigger{display:inline-grid;place-items:center;width:30px;height:30px;margin:0;padding:0 6px;border:0;border-radius:6px;background:transparent;color:inherit;cursor:pointer}.nsit-post-filter-trigger:hover{background:rgba(127,142,164,.16)}.nsit-post-filter-trigger svg{width:17px;height:17px}.post-list-item.nsit-filter-hidden{display:none!important}.post-list-item.nsit-filter-highlighted{background:var(--nsit-filter-highlight)!important}.post-list-item.nsit-filter-folded>:not(.nsit-filter-fold-notice){display:none!important}.nsit-filter-fold-notice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;color:#7e5c1d;font-size:13px}.nsit-filter-fold-notice button{border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer}.nsit-post-filter-panel{position:fixed;z-index:2147483647;top:62px;right:18px;display:none;width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 80px);overflow:auto;border:1px solid #d8e0eb;border-radius:10px;background:#fff;color:#27334a;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 16px 42px rgba(31,44,67,.24)}.nsit-post-filter-panel.is-open{display:block}.nsit-filter-panel-head,.nsit-filter-toolbar,.nsit-filter-tabs,.nsit-filter-form-actions{display:flex;align-items:center;gap:8px}.nsit-filter-panel-head{box-sizing:border-box;height:48px;margin:0;padding:8px 14px;border:0;border-bottom:1px solid #e5eaf1;background:#fff}.nsit-filter-panel-head strong{font-size:16px;line-height:1.2}.nsit-filter-panel-head button{display:grid;place-items:center;flex:none;width:28px;height:28px;margin:0 0 0 auto;padding:0!important;border:0!important;border-radius:50%!important;background:transparent!important;color:#62708a!important;font:22px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;cursor:pointer}.nsit-filter-panel-head button:hover{background:#f0f3f8!important;color:#27334a!important}.nsit-filter-toolbar{padding:12px 14px 8px}.nsit-filter-toolbar input{min-width:0;flex:1}.nsit-post-filter-panel input,.nsit-post-filter-panel select{box-sizing:border-box;width:100%;border:1px solid #d8e0eb;border-radius:6px;padding:7px 8px;background:#fff;color:inherit;font:inherit}.nsit-post-filter-panel button{border:1px solid #d8e0eb;border-radius:6px;background:#fff;color:#40506a;padding:6px 9px;font:inherit;cursor:pointer}.nsit-filter-tabs{padding:0 14px 10px;border-bottom:1px solid #e5eaf1}.nsit-filter-clear{margin-left:auto!important;border-color:#e9c3c7!important;background:#fff8f8!important;color:#a04e59!important}.nsit-filter-tabs .is-active{border-color:#d9961c;background:#fff8ea;color:#875800}.nsit-filter-rule-form{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0;padding:14px;border:0;border-bottom:1px solid #e5eaf1;background:#fbfcfe}.nsit-filter-rule-form label{display:grid;gap:4px;color:#506078;font-size:12px}.nsit-filter-keywords{display:grid;grid-column:1/-1;grid-template-columns:minmax(0,1fr) auto;gap:9px}.nsit-filter-keywords>label,.nsit-filter-keyword-mode{display:grid;gap:4px;color:#506078;font-size:12px}.nsit-filter-keyword-mode>span:first-child{line-height:1.45}.nsit-filter-keyword-mode>[role="group"]{display:flex;align-items:center;gap:8px;min-height:34px}.nsit-filter-keyword-mode label{display:flex;align-items:center;gap:3px;color:#506078;cursor:pointer}.nsit-filter-keyword-mode input{width:15px;height:15px;margin:0;padding:0;accent-color:#3976bc}.nsit-filter-rule-form .nsit-filter-form-actions{grid-column:1/-1}.nsit-filter-rule-form input[type="color"]{height:34px;padding:3px}.nsit-filter-color-field.is-hidden{display:none}.nsit-filter-form-actions{justify-content:flex-end;margin:5px -14px -14px;padding:12px 14px;border-top:1px solid #e5eaf1;background:#fff}.nsit-filter-form-actions button:last-child{border-color:#3976bc;background:#3976bc;color:#fff}.nsit-filter-rule-list{display:grid;gap:0;margin:0;padding:0;list-style:none}.nsit-filter-rule-list li{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;column-gap:14px;margin:0;padding:8px 14px;border-bottom:1px solid #edf1f5}.nsit-filter-rule-list li[hidden]{display:none}.nsit-filter-rule-list li.is-disabled{opacity:.5}.nsit-filter-rule-copy{display:grid;gap:1px;min-width:0}.nsit-filter-rule-list strong,.nsit-filter-rule-list small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nsit-filter-rule-list strong{line-height:20px}.nsit-filter-rule-list small{color:#718096;font-size:12px;line-height:17px}.nsit-filter-rule-color{width:9px;height:30px;border-radius:99px}.nsit-filter-rule-tools{display:flex;align-items:center;gap:9px;height:28px;white-space:nowrap}.nsit-filter-switch{position:relative;display:block;flex:none;width:30px;height:18px;cursor:pointer}.nsit-filter-switch input{position:absolute;opacity:0}.nsit-filter-switch i{display:block;width:30px;height:18px;border-radius:99px;background:#aebacd}.nsit-filter-switch i::after{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;content:"";transition:transform .15s}.nsit-filter-switch input:checked+i{background:#41a76c}.nsit-filter-switch input:checked+i::after{transform:translateX(12px)}.nsit-filter-rule-actions{display:flex;align-items:center;gap:2px;height:28px;white-space:nowrap}.nsit-filter-rule-actions button{display:inline-flex;align-items:center;height:28px;margin:0;padding:0 4px;border:0;background:transparent;color:#3976bc;font-size:12px;line-height:1}.nsit-filter-rule-actions button:hover{background:transparent;color:#245892;text-decoration:underline}.nsit-filter-rule-actions button[data-nsit-filter-action="delete"]{color:#b4515d}.nsit-filter-rule-actions button[data-nsit-filter-action="delete"]:hover{color:#913945}.nsit-filter-empty{margin:0;padding:22px 14px;color:#718096;text-align:center}');
+    ensurePostFilterTrigger();
+    filterPostListItems();
   }
 
   function renderRepliedPostLabels() {
@@ -2273,8 +2543,8 @@
         titleField.dispatchEvent(new Event('change', { bubbles: true }));
       }
       const didFill = setEditorContent(app, content);
-      if (didFill) selectTradeCategory();
-      setStatus(app, didFill ? '已回填标题和 Markdown；请检查后手动发布。' : '未找到 NodeSeek 正文编辑器，请刷新页面后重试。');
+      if (didFill && app.dataset.nsitReplyMode !== 'true') selectTradeCategory();
+      setStatus(app, didFill ? (app.dataset.nsitReplyMode === 'true' ? '已回填回帖 Markdown；请检查后手动发布。' : '已回填标题和 Markdown；请检查后手动发布。') : '未找到 NodeSeek 正文编辑器，请刷新页面后重试。');
       if (didFill) closeModal(app);
       if (didFill && app.querySelector('[name="checkMachineConfig"]').checked) offerMissingMachineConfigs(app, machines);
     } catch (error) {

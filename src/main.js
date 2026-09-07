@@ -1,16 +1,25 @@
+  function replyEditor() {
+    const replyCodeMirror = Array.from(document.querySelectorAll('.CodeMirror')).find((element) => !element.closest(`#${APP_ID}`) && !element.closest('#editor-body'));
+    if (replyCodeMirror) return replyCodeMirror;
+    return Array.from(document.querySelectorAll('textarea')).find((element) => !element.closest(`#${APP_ID}`) && element.closest('[class*="reply"], [class*="comment"]')) || null;
+  }
+
   function initialize() {
     const existingApps = document.querySelectorAll(`#${APP_ID}`);
     const currentApp = Array.from(existingApps).find((element) => element.dataset.nsitVersion === VERSION);
     if (currentApp) return;
     existingApps.forEach((element) => element.remove());
     const title = document.querySelector('#mde-title');
-    const editor = document.querySelector('#editor-body, .CodeMirror');
-    if (!title || !editor) return;
-    const app = createApp();
+    const editor = document.querySelector('#editor-body') || replyEditor();
+    if (!editor) return;
+    const isReply = !title;
+    const app = createApp({ replyMode: isReply });
+    app._nsitEditor = editor;
     const closeButton = app.querySelector('.nsit-shell [data-action="close"]');
     if (closeButton) closeButton.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
     const hint = document.querySelector('#editor-body .window_header a[href*="runoob.com/markdown"]');
     if (hint?.parentElement) hint.parentElement.prepend(app);
+    else if (isReply) (editor.closest('form, [class*="reply-editor"], [class*="comment-editor"]') || editor).before(app);
     else title.before(app);
     restoreDraft(app);
     restoreCardToggle(app);
@@ -463,7 +472,7 @@
       if (/!\[[^\]]*\]\(https:\/\/cdn\.nodeimage\.com\/i\//.test(editorContent(app))) app.querySelector('[name="generateCard"]').checked = true;
       const catalogRequired = syncInlineMachineCatalogState(app);
       scheduleInlineMachineCatalogSearch(app, true);
-      (catalogRequired ? app.querySelector('[data-nsit-inline-catalog-search]') : app.querySelector('[name="postTitle"]'))?.focus();
+      (catalogRequired ? app.querySelector('[data-nsit-inline-catalog-search]') : app.querySelector('[name="postTitle"], [name="vendor"]'))?.focus();
       getNodeImageApiKey(true).catch(() => {});
     });
     app.querySelector('.nsit-buy-trigger').addEventListener('click', () => {
@@ -519,10 +528,13 @@
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
+    ensurePostFilterTrigger();
+    filterPostListItems();
   });
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
   initialize();
+  installPostFilters();
   renderRepliedPostMenu();
   renderRepliedPostLabels();
   syncRepliedComments();

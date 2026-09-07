@@ -1,5 +1,5 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.3.4';
+  const VERSION = '1.3.13';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -9,6 +9,8 @@
   const CARD_TOGGLE_KEY = 'nsit-generate-value-card';
   const PERSONALIZATION_KEY = 'nsit-personalization-v1';
   const REPLIED_POSTS_STORAGE_KEY = 'nsit-replied-posts-v1';
+  const POST_FILTER_RULES_STORAGE_KEY = 'nsit-post-filter-rules-v1';
+  const POST_FILTER_RUNTIME_KEY = '__nodeSeekIssueTemplatesPostFilters__';
   const COMMENT_LISTENER_KEY = '__nodeSeekIssueTemplatesCommentListener__';
   const VALUE_CARD_STYLES = [
     ['stardew-spring', '星露谷 · 春'],

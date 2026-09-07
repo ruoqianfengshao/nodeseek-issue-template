@@ -17,8 +17,10 @@
     app._nsitEditor = editor;
     const closeButton = app.querySelector('.nsit-shell [data-action="close"]');
     if (closeButton) closeButton.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
-    const hint = document.querySelector('#editor-body .window_header a[href*="runoob.com/markdown"]');
-    if (hint?.parentElement) hint.parentElement.prepend(app);
+    const editorRoot = editor.closest('#editor-body') || editor.parentElement;
+    const replyToolbar = editor.closest('#code-mirror-editor')?.closest('.cm-wrapper')?.previousElementSibling;
+    const toolbar = editorRoot?.querySelector('.window_header') || (replyToolbar?.matches('.mde-toolbar') ? replyToolbar : null);
+    if (toolbar) toolbar.append(app);
     else if (isReply) (editor.closest('form, [class*="reply-editor"], [class*="comment-editor"]') || editor).before(app);
     else title.before(app);
     restoreDraft(app);

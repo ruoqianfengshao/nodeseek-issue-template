@@ -12,6 +12,7 @@
   const POST_FILTER_RULES_STORAGE_KEY = 'nsit-post-filter-rules-v1';
   const POST_FILTER_RUNTIME_KEY = '__nodeSeekIssueTemplatesPostFilters__';
   const COMMENT_LISTENER_KEY = '__nodeSeekIssueTemplatesCommentListener__';
+  const TRADE_STATUS_RUNTIME_KEY = '__nodeSeekIssueTemplatesTradeStatus__';
   const VALUE_CARD_STYLES = [
     ['stardew-spring', '星露谷 · 春'],
     ['stardew-summer', '星露谷 · 夏'],

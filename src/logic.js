@@ -1367,9 +1367,12 @@
     const tgContact = (value) => /^https?:\/\/\S+$/i.test(String(value || '').trim()) ? `[${String(value).trim()}](${String(value).trim()})` : value;
     if (machines.length === 1) {
       const other = [shared.tgContact ? `## 联系方式\n- TG 联系：${tgContact(shared.tgContact)}` : '', String(shared.postRemarks || '').trim() ? `## 整贴备注\n${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
-      return [markdown(machines[0], cards[0] || '', rateForValues(app, machines[0])), ...other].join('\n\n');
+      return [markdown(machines[0], cards[0] || '', rateForValues(app, machines[0])), ...other].join('\n\n').replace(/^## /gm, '# ');
     }
-    const blocks = machines.map((machine, index) => `## #${index + 1} 鸡\n\n${markdown(machine, cards[index] || '', rateForValues(app, machine))}`);
+    const blocks = machines.map((machine, index) => {
+      const machineName = [machine.vendor, machine.model].filter(Boolean).join(' ');
+      return `# #${index + 1} ${machineName}\n\n${markdown(machine, cards[index] || '', rateForValues(app, machine))}`;
+    });
     const other = [shared.tgContact ? `## 联系方式\n- TG 联系：${tgContact(shared.tgContact)}` : '', String(shared.postRemarks || '').trim() ? `## 整贴备注\n${String(shared.postRemarks).trim()}` : ''].filter(Boolean);
     return [...blocks, ...other].filter(Boolean).join('\n\n---\n\n');
   }
@@ -1464,7 +1467,7 @@
   }
 
   function sectionContent(content, heading) {
-    const match = content.match(new RegExp(`^## ${heading}\\s*\\n([\\s\\S]*?)(?=^##\\s|$(?![\\s\\S]))`, 'm'));
+    const match = content.match(new RegExp(`^#{1,2} ${heading}\\s*\\n([\\s\\S]*?)(?=^#{1,2}\\s|$(?![\\s\\S]))`, 'm'));
     return match ? match[1].trim() : '';
   }
 
@@ -1562,7 +1565,7 @@
 
   function restoreFromEditor(app) {
     const content = editorContent(app);
-    const blocks = content.split(/^## #\d+ 鸡\s*$/m).slice(1)
+    const blocks = content.split(/^#{1,2} #\d+(?: [^\n]*)?\s*$/m).slice(1)
       .map((block) => block.split(/^---\s*$/m)[0].trim()).filter(Boolean);
     const machines = blocks.length ? blocks.map((block) => textMachineFromMarkdown(block, app)).filter(machineReady) : tableMachinesFromMarkdown(content, app);
     if (machines.length) {
@@ -1580,7 +1583,7 @@
       renderMachineTabs(app); refreshCard(app); refreshPricePreview(app); refreshRemainingTrafficValidity(app); saveDraft(app);
       return true;
     }
-    if (!/^## (基本信息|续费与价值|转让信息|测试报告|单机备注|整贴备注)$/m.test(content)) return false;
+    if (!/^#{1,2} (基本信息|续费与价值|转让信息|测试报告|单机备注|整贴备注)$/m.test(content)) return false;
     const basic = sectionContent(content, '基本信息');
     const renewal = sectionContent(content, '续费与价值');
     const reports = sectionContent(content, '测试报告');
@@ -1749,6 +1752,108 @@
     if (/^\d+$/.test(String(configuredId || ''))) return String(configuredId);
     const href = document.querySelector('.Username[href^="/space/"]')?.getAttribute('href') || '';
     return href.match(/^\/space\/(\d+)/)?.[1] || '';
+  }
+
+  function tradePostContext() {
+    const postId = currentPostId();
+    const titleElement = document.querySelector('.post-title');
+    const firstFloor = document.querySelector('.content-item[id="0"]')
+      || Array.from(document.querySelectorAll('.content-item')).find((item) => item.querySelector('.floor-link[href="#0"]'));
+    const title = titleElement?.textContent?.trim() || '';
+    const ownId = currentNodeSeekUserId();
+    const authorHref = firstFloor?.querySelector('a.author-name[href^="/space/"], a[href^="/space/"]')?.getAttribute('href') || '';
+    const categoryHref = firstFloor?.querySelector('.content-category a')?.getAttribute('href') || '';
+    const authorId = authorHref.match(/^\/space\/(\d+)/)?.[1] || '';
+    if (!postId || !title || !firstFloor || !ownId || authorId !== ownId || !/\/categories\/trade(?:[?#]|$)/.test(categoryHref)) return null;
+    const status = title.match(/[【\[]\s*(已出|不出了|不出|出|已收|不收了|不收|收)\s*[】\]]/)?.[1] || '';
+    const type = status.includes('收') || (!status && title.includes('收')) ? 'buy' : title.includes('出') ? 'sell' : '';
+    if (!type) return null;
+    return { firstFloor, titleElement, title, type };
+  }
+
+  function tradeTitleWithStatus(title, status) {
+    const base = String(title || '').trim().replace(/^[【\[]\s*(?:已出|不出了|不出|出|已收|不收了|不收|收)\s*[】\]]\s*/, '').trim();
+    return `【${status}】${base ? ` ${base}` : ''}`;
+  }
+
+  function waitForElement(getter, timeout = 2200) {
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      const timer = setInterval(() => {
+        const element = getter();
+        if (element || Date.now() - startedAt >= timeout) {
+          clearInterval(timer);
+          resolve(element || null);
+        }
+      }, 40);
+    });
+  }
+
+  async function updateTradePostTitle(button, status) {
+    if (button.disabled) return;
+    const context = tradePostContext();
+    if (!context) return;
+    const nextTitle = tradeTitleWithStatus(context.title, status);
+    if (nextTitle === context.title) return;
+    button.disabled = true;
+    try {
+      const editAction = Array.from(context.firstFloor.querySelectorAll('.comment-menu .menu-item')).find((item) => item.textContent.trim() === '编辑');
+      if (!editAction) throw new Error('未找到楼主编辑入口');
+      editAction.click();
+      const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
+      const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
+      if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (setter) setter.call(titleInput, nextTitle);
+      else titleInput.value = nextTitle;
+      titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+      titleInput.dispatchEvent(new Event('change', { bubbles: true }));
+      submit.click();
+    } catch (error) {
+      console.warn('[NSIT] 更新交易状态失败', error);
+      button.disabled = false;
+    }
+  }
+
+  function renderTradeStatusActions() {
+    const context = tradePostContext();
+    const existing = document.querySelector('[data-nsit-trade-status-actions]');
+    if (!context || document.querySelector('#mde-title') || (context.type === 'sell' ? /已出|不出/.test(context.title) : /已收|不收/.test(context.title))) {
+      existing?.remove();
+      return;
+    }
+    const menu = context.firstFloor.querySelector('.comment-menu');
+    if (!menu) return;
+    if (existing && existing.parentElement === menu) return;
+    existing?.remove();
+    const actions = document.createElement('span');
+    actions.dataset.nsitTradeStatusActions = '';
+    actions.className = 'nsit-trade-status-actions';
+    const specs = context.type === 'sell' ? [['已出', '已出'], ['不出了', '不出了']] : [['已收', '已收'], ['不收了', '不收了']];
+    specs.forEach(([label, status]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'nsit-trade-status-button';
+      button.dataset.nsitTradeStatus = status;
+      button.textContent = label;
+      button.title = `标记为${label}`;
+      actions.append(button);
+    });
+    menu.append(actions);
+  }
+
+  function installTradeStatusActions() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[TRADE_STATUS_RUNTIME_KEY]) return;
+    pageWindow[TRADE_STATUS_RUNTIME_KEY] = true;
+    GM_addStyle('.nsit-trade-status-actions{display:inline-flex;align-items:center;gap:5px;margin-left:8px;vertical-align:middle}.nsit-trade-status-button{margin:0;padding:0;border:0;background:transparent;color:#3976bc;font:inherit;line-height:1;cursor:pointer}.nsit-trade-status-button:hover{text-decoration:underline}.nsit-trade-status-button:disabled{cursor:wait;opacity:.55}');
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-nsit-trade-status]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      updateTradePostTitle(button, button.dataset.nsitTradeStatus);
+    });
   }
 
   function repliedPostsStorageKey() {

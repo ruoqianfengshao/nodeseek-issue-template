@@ -536,6 +536,7 @@
     renderRepliedPostLabels();
     ensurePostFilterTrigger();
     filterPostListItems();
+    renderTradeStatusActions();
   });
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -543,4 +544,6 @@
   installPostFilters();
   renderRepliedPostMenu();
   renderRepliedPostLabels();
+  installTradeStatusActions();
+  renderTradeStatusActions();
   syncRepliedComments();

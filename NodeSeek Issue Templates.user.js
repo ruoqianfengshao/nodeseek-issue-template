@@ -2200,6 +2200,11 @@ function formValues(app) {
     });
   }
 
+  function findEditDialogRoot() {
+    const dialogs = Array.from(document.querySelectorAll('.mde-modal, .window-modal, [role=dialog], .dialog, .ant-modal, [class*=modal]'));
+    return dialogs.find((dialog) => dialog.querySelector('#mde-title')) || null;
+  }
+
   async function updateTradePostTitle(button, status) {
     if (button.disabled) return;
     const context = tradePostContext();
@@ -2207,6 +2212,8 @@ function formValues(app) {
     const nextTitle = tradeTitleWithStatus(context.title, status);
     if (nextTitle === context.title) return;
     button.disabled = true;
+    const restoreStyles = [];
+    let dialogRoot = null;
     try {
       const editAction = Array.from(context.firstFloor.querySelectorAll('.comment-menu .menu-item')).find((item) => item.textContent.trim() === '编辑');
       if (!editAction) throw new Error('未找到楼主编辑入口');
@@ -2214,6 +2221,18 @@ function formValues(app) {
       const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
       const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
       if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
+      dialogRoot = findEditDialogRoot();
+      if (dialogRoot) {
+        const originalDisplay = dialogRoot.style.display;
+        const originalVisibility = dialogRoot.style.visibility;
+        const originalPointerEvents = dialogRoot.style.pointerEvents;
+        dialogRoot.style.display = 'none';
+        restoreStyles.push(() => {
+          dialogRoot.style.display = originalDisplay;
+          dialogRoot.style.visibility = originalVisibility;
+          dialogRoot.style.pointerEvents = originalPointerEvents;
+        });
+      }
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
       if (setter) setter.call(titleInput, nextTitle);
       else titleInput.value = nextTitle;
@@ -2223,6 +2242,7 @@ function formValues(app) {
     } catch (error) {
       console.warn('[NSIT] 更新交易状态失败', error);
       button.disabled = false;
+      restoreStyles.forEach((fn) => { try { fn(); } catch (_) {} });
     }
   }
 
@@ -2233,9 +2253,9 @@ function formValues(app) {
       existing?.remove();
       return;
     }
-    const menu = context.firstFloor.querySelector('.comment-menu');
-    if (!menu) return;
-    if (existing && existing.parentElement === menu) return;
+    const floorLink = context.firstFloor.querySelector('.floor-link[href="#0"]');
+    if (!floorLink) return;
+    if (existing?.nextElementSibling === floorLink) return;
     existing?.remove();
     const actions = document.createElement('span');
     actions.dataset.nsitTradeStatusActions = '';
@@ -2250,14 +2270,14 @@ function formValues(app) {
       button.title = `标记为${label}`;
       actions.append(button);
     });
-    menu.append(actions);
+    floorLink.before(actions);
   }
 
   function installTradeStatusActions() {
     const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
     if (pageWindow[TRADE_STATUS_RUNTIME_KEY]) return;
     pageWindow[TRADE_STATUS_RUNTIME_KEY] = true;
-    GM_addStyle('.nsit-trade-status-actions{display:inline-flex;align-items:center;gap:5px;margin-left:8px;vertical-align:middle}.nsit-trade-status-button{margin:0;padding:0;border:0;background:transparent;color:#3976bc;font:inherit;line-height:1;cursor:pointer}.nsit-trade-status-button:hover{text-decoration:underline}.nsit-trade-status-button:disabled{cursor:wait;opacity:.55}');
+    GM_addStyle('.nsit-trade-status-actions{display:inline-flex;align-items:center;gap:5px;margin-right:8px;vertical-align:middle}.nsit-trade-status-button{margin:0;padding:4px 7px;border:1px solid #d8e0eb;border-radius:5px;background:#fff;color:#40506a;font:inherit;font-size:12px;line-height:1;cursor:pointer}.nsit-trade-status-button:hover{border-color:#b8c5d5;background:#f6f8fb}.nsit-trade-status-button[data-nsit-trade-status="已出"]{border-color:#d9961c;background:#d9961c;color:#fff}.nsit-trade-status-button[data-nsit-trade-status="已出"]:hover{border-color:#b97c12;background:#b97c12}.nsit-trade-status-button[data-nsit-trade-status="已收"]{border-color:#3976bc;background:#3976bc;color:#fff}.nsit-trade-status-button[data-nsit-trade-status="已收"]:hover{border-color:#316ab7;background:#316ab7}.nsit-trade-status-button:disabled{cursor:wait;opacity:.55}');
     document.addEventListener('click', (event) => {
       const button = event.target.closest('[data-nsit-trade-status]');
       if (!button) return;

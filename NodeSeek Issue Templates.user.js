@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.3.17
+// @version      1.4.27
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.3.17';
+  const VERSION = '1.4.27';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -125,6 +125,17 @@ const APP_ID = 'nsit-app';
   const BUY_TAG_GROUPS = { 原邮: 'transfer', 改邮: 'transfer', 包中介: 'broker', 不包中介: 'broker', 先机后款: 'payment', 先款后机: 'payment', 站内私信: 'contact' };
   const BUY_TITLE_FIELD_OPTIONS = [['price', '收购方式'], ['vendor', '厂商'], ['model', '型号'], ['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽'], ['traffic', '流量'], ['renewal', '续费金额 / 周期'], ['tags', '交易标签']];
   const DEFAULT_BUY_TITLE_FIELDS = ['price', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
+  const LUCKY_ARMED_KEY = 'nsit-lucky-armed-v1';
+  const LUCKY_DONE_KEY = 'nsit-lucky-done-v1';
+  const LUCKY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLucky__';
+  const LUCKY_DEFAULT_HOURS = 24;
+  const LUCKY_DEFAULT_LINK_TEXT = '点此查看';
+  const LUCKY_DEFAULT_HEADING = '# 🎁 抽奖信息';
+  const LUCKY_POST_ID_PLACEHOLDER = '__POST_ID__';
+  const LUCKY_SUBMIT_WINDOW = 10 * 60 * 1000;
+  const LUCKY_REPLY_OPTIONS = [['any', '任意回复'], ['contains', '包含回复'], ['exact', '固定回复']];
+  const LUCKY_INTERACTION_OPTIONS = [['like', '点赞'], ['chicken', '鸡腿']];
+  const LUCKY_POSITION_OPTIONS = [['end', '正文末尾'], ['start', '正文开头']];
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>'"]/g, (character) => ({
@@ -407,6 +418,142 @@ function escapeHtml(value) {
     const personalizationIcon = app.querySelector('[data-action="open-personalization"] svg');
     if (personalizationIcon) personalizationIcon.innerHTML = '<path d="M512 42.666667c123.093333 0 241.962667 43.946667 330.24 123.434666C930.688 245.674667 981.333333 354.645333 981.333333 469.333333a256 256 0 0 1-256 256h-96a32.042667 32.042667 0 0 0-25.6 51.2l12.8 17.066667a117.418667 117.418667 0 0 1-32.213333 170.197333A117.333333 117.333333 0 0 1 522.666667 981.333333H512a469.333333 469.333333 0 1 1 0-938.666666z m0 85.333333a384 384 0 1 0 0 768h10.666667a32.042667 32.042667 0 0 0 25.6-51.2l-12.8-17.066667a117.418667 117.418667 0 0 1 32.213333-170.197333A117.333333 117.333333 0 0 1 629.333333 640H725.333333l8.448-0.213333A170.666667 170.666667 0 0 0 896 469.333333c0-89.002667-39.253333-175.36-110.848-239.829333C713.429333 164.906667 615.253333 128 512 128z m-234.666667 341.333333a64 64 0 1 1 0 128 64 64 0 0 1 0-128z m469.333334-85.333333a64 64 0 1 1 0 128 64 64 0 0 1 0-128z m-384-128a64 64 0 1 1 0 128 64 64 0 0 1 0-128z m213.333333-42.666667a64 64 0 1 1 0 128 64 64 0 0 1 0-128z" fill="currentColor"></path>';
     return app;
+  }
+
+  function luckyTriggerMarkup() {
+    return '<button type="button" class="nsit-lucky-trigger" data-nsit-lucky-trigger aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">🎁</span><b data-nsit-lucky-trigger-label>抽奖配置</b></button>';
+  }
+
+  function luckyDialogMarkup() {
+    const reply = LUCKY_REPLY_OPTIONS.map(([value, label], index) => `<label class="nsit-lucky-option"><input type="radio" name="luckyReply" value="${value}"${index === 0 ? ' checked' : ''}><span>${escapeHtml(label)}</span></label>`).join('');
+    const interactions = LUCKY_INTERACTION_OPTIONS.map(([value, label]) => `<label class="nsit-lucky-option"><input type="checkbox" name="luckyInteraction" value="${value}"><span>${escapeHtml(label)}</span></label>`).join('');
+    const positions = LUCKY_POSITION_OPTIONS.map(([value, label], index) => `<label class="nsit-lucky-option"><input type="radio" name="luckyPosition" value="${value}"${index === 0 ? ' checked' : ''}><span>${escapeHtml(label)}</span></label>`).join('');
+    return `<div class="nsit-lucky-modal" data-nsit-lucky-modal aria-hidden="true">
+      <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="抽奖设置">
+        <header class="nsit-lucky-head"><div><h3>抽奖配置</h3><small>只对当前页面这一次发布生效；保存即插入正文，发布后自动替换帖子 ID</small></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="close" aria-label="关闭抽奖配置"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-body">
+          <div class="nsit-lucky-form">
+          <section class="nsit-lucky-section">
+            <h4>抽奖信息</h4>
+            <div class="nsit-lucky-grid nsit-lucky-time-row">
+              <label class="nsit-lucky-field"><span>开奖时间</span><input type="datetime-local" name="luckyTime" step="60" data-nsit-lucky-time></label>
+              <label class="nsit-lucky-field"><span>奖品数量</span><input type="number" name="luckyCount" min="1" step="1" inputmode="numeric" value="1"></label>
+              <label class="nsit-lucky-field"><span>起始楼层</span><input type="number" name="luckyStart" min="0" step="1" inputmode="numeric" value="1"></label>
+            </div>
+            <label class="nsit-lucky-option nsit-lucky-dedupe"><input type="checkbox" name="luckyDedupe" checked><span>楼层去重（同一用户只算一次）</span></label>
+          </section>
+          <section class="nsit-lucky-section">
+            <h4>参与方式</h4>
+            <div class="nsit-lucky-group"><span class="nsit-lucky-group-label">回复内容</span><div class="nsit-lucky-options">${reply}</div><input class="nsit-lucky-extra" data-nsit-lucky-reply-text placeholder="回复需要包含的文字" hidden></div>
+            <div class="nsit-lucky-group"><span class="nsit-lucky-group-label">互动（与回复是且的关系）</span><div class="nsit-lucky-options">${interactions}</div></div>
+            <p class="nsit-lucky-hint">NodeSeek 的抽奖工具仅按楼层计算，点赞、鸡腿和回复内容只能写进说明，需要自行核对</p>
+            <label class="nsit-lucky-option nsit-lucky-fallback" hidden><input type="checkbox" data-nsit-lucky-fallback checked><span>不满足条件时顺延至下一位</span></label>
+          </section>
+          </div>
+          <aside class="nsit-lucky-preview-panel">
+            <section class="nsit-lucky-panel-block">
+              <h4>正文回写</h4>
+              <div class="nsit-lucky-grid nsit-lucky-writeback-row">
+                <div class="nsit-lucky-field"><span>写入位置</span><div class="nsit-lucky-options">${positions}</div></div>
+                <div class="nsit-lucky-field"><span>显示信息</span><div class="nsit-lucky-options"><label class="nsit-lucky-option"><input type="checkbox" data-nsit-lucky-show="participation" checked><span>参与方式</span></label><label class="nsit-lucky-option"><input type="checkbox" data-nsit-lucky-show="time" checked><span>开奖时间</span></label><label class="nsit-lucky-option"><input type="checkbox" data-nsit-lucky-show="count" checked><span>中奖人数</span></label></div></div>
+                <label class="nsit-lucky-field nsit-lucky-wide"><span>标题</span><input name="luckyHeading" value="${escapeHtml(LUCKY_DEFAULT_HEADING)}" placeholder="支持 Markdown，留空则不写标题"></label>
+              </div>
+            </section>
+            <section class="nsit-lucky-panel-block">
+              <h4>写进正文的内容</h4>
+              <pre class="nsit-lucky-preview" data-nsit-lucky-preview></pre>
+              <p class="nsit-lucky-hint">预览里的 __POST_ID__ 是占位：保存后整块会插入正文，帖子发布时自动换成真实帖子 ID。</p>
+            </section>
+          </aside>
+        </div>
+        <footer class="nsit-lucky-foot">
+          <span class="nsit-lucky-status" data-nsit-lucky-status role="status"></span>
+          <button type="button" data-nsit-lucky-action="close">取消</button>
+          <button type="button" class="nsit-lucky-primary" data-nsit-lucky-action="save">保存本次抽奖</button>
+        </footer>
+      </section>
+    </div>
+    <div class="nsit-lucky-confirm" data-nsit-lucky-confirm>
+      <section class="nsit-lucky-dialog nsit-lucky-confirm-dialog" role="dialog" aria-modal="true" aria-label="正文里已有抽奖模板">
+        <header class="nsit-lucky-head"><div><h3>抽奖配置冲突</h3></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="confirm-cancel" aria-label="关闭确认弹窗"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-confirm-body"><p>原有抽奖配置被手改动过，请确认生成策略</p></div>
+        <footer class="nsit-lucky-foot"><span class="nsit-lucky-status"></span><button type="button" data-nsit-lucky-action="confirm-cancel">取消</button><button type="button" data-nsit-lucky-action="confirm-keep">保留编辑器内容</button><button type="button" class="nsit-lucky-primary" data-nsit-lucky-action="confirm-overwrite">强制覆盖</button></footer>
+      </section>
+    </div>`;
+  }
+
+  function luckyStyles() {
+    return `
+      .nsit-lucky-trigger{display:inline-flex;align-items:center;gap:4px;margin:0 0 0 8px;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:600 13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;vertical-align:middle;cursor:pointer}
+      .nsit-lucky-trigger:hover{border-color:#b87500;background:#d9961c;color:#fff}
+      .nsit-lucky-trigger[data-nsit-lucky-armed]{border-color:#d9961c;background:#d9961c;color:#fff}
+      .nsit-lucky-trigger[data-nsit-lucky-armed]:hover{border-color:#b87500;background:#b87500}
+      .nsit-lucky-modal{position:fixed;z-index:100000;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.42)}
+      .nsit-lucky-modal.is-open{display:flex}
+      .nsit-lucky-dialog{display:flex;flex-direction:column;width:min(960px,100%);min-width:0;max-width:100%;max-height:min(660px,92vh);overflow:hidden;border-radius:12px;background:#fff;color:#27334a;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 20px 48px rgba(15,23,38,.28)}
+      .nsit-lucky-dialog,.nsit-lucky-dialog *{box-sizing:border-box}
+      .nsit-lucky-dialog input,.nsit-lucky-dialog pre{max-width:100%}
+      .nsit-lucky-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
+      .nsit-lucky-head h3{margin:0;font-size:16px}
+      .nsit-lucky-head small{display:block;margin-top:2px;color:#718096;font-size:12px}
+      .nsit-lucky-close{display:grid;place-items:center;width:28px;height:28px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;color:#62708a;cursor:pointer}
+      .nsit-lucky-close:hover{background:#f0f3f8;color:#27334a}
+      .nsit-lucky-body{display:grid;flex:1 1 auto;min-height:0;overflow:hidden;grid-template-columns:minmax(0,1fr) minmax(320px,1.05fr)}
+      .nsit-lucky-form{min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 18px 12px}
+      .nsit-lucky-preview-panel{min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 18px;border-left:1px solid #eef2f7;background:#fbfcfe}
+      .nsit-lucky-panel-block{padding:12px 0;border-bottom:1px solid #eef2f7}
+      .nsit-lucky-panel-block:first-child{padding-top:0}
+      .nsit-lucky-panel-block:last-child{padding-bottom:0;border-bottom:0}
+      .nsit-lucky-panel-block h4{margin:0 0 8px;font-size:14px}
+      .nsit-lucky-section{padding:12px 0;border-bottom:1px solid #eef2f7}
+      .nsit-lucky-section:last-of-type{border-bottom:0}
+      .nsit-lucky-section h4{margin:0 0 8px;font-size:14px}
+      .nsit-lucky-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+      .nsit-lucky-time-row{grid-template-columns:1.4fr minmax(0,1fr) minmax(0,1fr)}
+      .nsit-lucky-writeback-row{grid-template-columns:2fr 3fr}
+      .nsit-lucky-wide{grid-column:1/-1}
+      .nsit-lucky-field{display:grid;gap:5px;min-width:0}
+      .nsit-lucky-field>span,.nsit-lucky-group-label{color:#506078;font-size:14px}
+      .nsit-lucky-dialog input[type="datetime-local"],.nsit-lucky-dialog input[type="number"],.nsit-lucky-dialog input[type="text"],.nsit-lucky-dialog input[type="search"],.nsit-lucky-dialog input:not([type]){width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#27334a;font:inherit;outline:none}
+      .nsit-lucky-dialog input:focus{border-color:#d9961c;box-shadow:0 0 0 3px rgba(217,150,28,.14)}
+      .nsit-lucky-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}
+      .nsit-lucky-option{display:inline-flex;align-items:center;gap:6px;color:#40506a;cursor:pointer}
+      .nsit-lucky-dialog .nsit-lucky-option input{flex:none;width:15px;height:15px;margin:0;padding:0;border:1px solid #c9d2de;border-radius:4px;background:#fff;box-shadow:none;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer}
+      .nsit-lucky-dialog .nsit-lucky-option input[type="radio"]{border-radius:50%}
+      .nsit-lucky-dialog .nsit-lucky-option input:checked{border-color:#d9961c;outline:none;box-shadow:none}
+      .nsit-lucky-dialog .nsit-lucky-option input[type="radio"]:checked{border:5px solid #d9961c;background:#fff}
+      .nsit-lucky-dialog .nsit-lucky-option input[type="checkbox"]:checked{background:#d9961c center/11px 11px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6L9 17l-5-5' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+      .nsit-lucky-dialog .nsit-lucky-option input:focus,.nsit-lucky-dialog .nsit-lucky-option input:focus-visible,.nsit-lucky-dialog .nsit-lucky-option input:active{outline:none;box-shadow:none}
+      .nsit-lucky-option[hidden],.nsit-lucky-extra[hidden]{display:none}
+      .nsit-lucky-group{margin-top:10px}
+      .nsit-lucky-extra{margin-top:7px}
+      .nsit-lucky-dedupe{margin-top:10px}
+      .nsit-lucky-fallback{margin-top:10px}
+      .nsit-lucky-hint{margin:8px 0 0;color:#718096;font-size:12px;line-height:1.6}
+      .nsit-lucky-preview{margin:0;padding:10px 12px;border:1px solid #e3e9f2;border-radius:8px;background:#fff;color:#39485f;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+      .nsit-lucky-preview-panel .nsit-lucky-hint{margin-top:8px}
+      @media (max-width:760px){.nsit-lucky-dialog{width:min(560px,100%)}.nsit-lucky-body{grid-template-columns:1fr;overflow-y:auto}.nsit-lucky-form,.nsit-lucky-preview-panel{overflow:visible;padding:4px 18px}.nsit-lucky-preview-panel{border-top:1px solid #eef2f7;border-left:0;background:transparent}}
+      .nsit-lucky-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #e5eaf1;background:#fff}
+      .nsit-lucky-foot button{margin:0;padding:8px 11px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#40506a;font:inherit;cursor:pointer}
+      .nsit-lucky-foot button:hover{border-color:#d9961c;color:#8b5c00}
+      .nsit-lucky-foot button.nsit-lucky-primary{border-color:#d9961c;background:#d9961c;color:#fff}
+      .nsit-lucky-foot button.nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12}
+      .nsit-lucky-foot .nsit-lucky-status{flex:1 1 auto;color:#b34b4b;font-size:12px}
+      .nsit-lucky-notice{position:fixed;z-index:100001;right:18px;bottom:18px;display:none;max-width:min(420px,92vw);padding:12px 14px;border:1px solid #d8e0eb;border-radius:10px;background:#fff;color:#27334a;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 12px 30px rgba(15,23,38,.2)}
+      .nsit-lucky-notice.is-open{display:block}
+      .nsit-lucky-notice[data-nsit-lucky-tone="success"]{border-color:#a9d8b8;background:#f4fbf6}
+      .nsit-lucky-notice[data-nsit-lucky-tone="error"]{border-color:#eec2c2;background:#fff6f6}
+      .nsit-lucky-notice p{margin:0}
+      .nsit-lucky-notice code{display:block;margin-top:6px;padding:6px 8px;border-radius:6px;background:#f4f6fa;color:#39485f;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+      .nsit-lucky-notice-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+      .nsit-lucky-notice-actions button{margin:0;padding:5px 9px;border:1px solid #d8e0eb;border-radius:6px;background:#fff;color:#40506a;font:inherit;font-size:12px;cursor:pointer}
+      .nsit-lucky-notice-actions button:hover{border-color:#d9961c;color:#8b5c00}
+      .nsit-lucky-confirm{position:fixed;z-index:100001;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.28)}
+      .nsit-lucky-confirm.is-open{display:flex}
+      .nsit-lucky-confirm .nsit-lucky-dialog{width:min(460px,100%);max-height:min(440px,84vh)}
+      .nsit-lucky-confirm-body{padding:16px 18px 20px;color:#506078;font-size:14px;line-height:1.8}
+      .nsit-lucky-confirm-body p{margin:0}
+    `;
   }
 
 function formValues(app) {
@@ -3128,6 +3275,716 @@ function formValues(app) {
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /* 抽奖 ---------------------------------------------------------------------
+   * 发帖页一次性配置，发布后自动把抽奖信息写进正文；只对本标签页的下一次发布生效。
+   * ------------------------------------------------------------------------- */
+
+  let luckyArmedCache;
+  let luckyWritebackRunning = false;
+  let luckyStylesReady = false;
+
+  function luckyEditorPage() {
+    return Boolean(document.querySelector('#mde-title')) && !currentPostId();
+  }
+
+  function luckyReadStorage(key) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function luckyWriteStorage(key, value) {
+    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  function luckyRemoveStorage(key) {
+    try { sessionStorage.removeItem(key); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  function luckyArmedConfig() {
+    if (luckyArmedCache === undefined) luckyArmedCache = luckyReadStorage(LUCKY_ARMED_KEY);
+    return luckyArmedCache;
+  }
+
+  function saveLuckyArmedConfig(config) {
+    luckyArmedCache = config;
+    luckyWriteStorage(LUCKY_ARMED_KEY, config);
+  }
+
+  function clearLuckyArmedConfig() {
+    luckyArmedCache = null;
+    luckyRemoveStorage(LUCKY_ARMED_KEY);
+  }
+
+  function luckyPad(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function luckyTimeText(timestamp) {
+    const date = new Date(timestamp);
+    return `${date.getFullYear()}-${luckyPad(date.getMonth() + 1)}-${luckyPad(date.getDate())} ${luckyPad(date.getHours())}:${luckyPad(date.getMinutes())}`;
+  }
+
+  function luckyTimeInputValue(timestamp) {
+    const date = new Date(timestamp);
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  }
+
+  function luckyTimestampFromInput(value) {
+    const timestamp = new Date(String(value || '').trim().replace(' ', 'T')).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }
+
+  function luckyDefaultTimestamp() {
+    const date = new Date(Date.now() + LUCKY_DEFAULT_HOURS * 60 * 60 * 1000);
+    date.setSeconds(0, 0);
+    return date.getTime();
+  }
+
+  function luckyInteger(value, fallback, minimum) {
+    const text = String(value ?? '').trim();
+    const number = Number(text);
+    return text && Number.isFinite(number) ? Math.max(minimum, Math.floor(number)) : fallback;
+  }
+
+  function luckyNormalized(source) {
+    const config = source && typeof source === 'object' ? source : {};
+    const show = config.show && typeof config.show === 'object' ? config.show : {};
+    const keyword = String(config.keyword || '').trim();
+    const exact = String(config.exact || '').trim();
+    const reply = LUCKY_REPLY_OPTIONS.some(([value]) => value === config.reply) ? config.reply : 'any';
+    return {
+      time: luckyInteger(config.time, luckyDefaultTimestamp(), 1),
+      count: luckyInteger(config.count, 1, 1),
+      start: luckyInteger(config.start, 1, 0),
+      dedupe: config.dedupe !== false,
+      reply: (reply === 'contains' && !keyword) || (reply === 'exact' && !exact) ? 'any' : reply,
+      keyword,
+      exact,
+      interactions: Array.isArray(config.interactions) ? config.interactions.filter((value) => LUCKY_INTERACTION_OPTIONS.some(([key]) => key === value)) : [],
+      fallback: config.fallback !== false,
+      position: config.position === 'start' ? 'start' : 'end',
+      heading: typeof config.heading === 'string' ? config.heading.trim() : LUCKY_DEFAULT_HEADING,
+      show: { participation: show.participation !== false, time: show.time !== false, count: show.count !== false },
+      title: String(config.title || '').trim(),
+      insertedText: String(config.insertedText || ''),
+      submitAt: Number(config.submitAt) || 0,
+      createdAt: Number(config.createdAt) || Date.now(),
+    };
+  }
+
+  function luckyLink(config, postId) {
+    const query = [['post', postId], ['time', config.time], ['count', config.count], ['start', config.start], ['duplicate', config.dedupe ? 'false' : 'true'], ['mode', 'view']]
+      .map(([key, value]) => `${key}=${value}`).join('&');
+    return `https://www.nodeseek.com/lucky?${query}`;
+  }
+
+  function luckyReplyText(config) {
+    if (config.reply === 'any') return '回复本帖';
+    if (config.reply === 'contains') return '回复内容需包含';
+    if (config.reply === 'exact') return '回复内容需为';
+    return '';
+  }
+
+  function luckyInteractionText(config) {
+    const parts = [];
+    if (config.interactions.includes('like')) parts.push('点赞本帖');
+    if (config.interactions.includes('chicken')) parts.push('给本帖加鸡腿');
+    return parts.join('、');
+  }
+
+  function luckyParticipationText(config) {
+    // 互动放在回复内容前面
+    return [luckyInteractionText(config), luckyReplyText(config)].filter(Boolean).join('，且');
+  }
+
+  function luckyQuotedReply(config) {
+    if (config.reply === 'contains') return config.keyword;
+    if (config.reply === 'exact') return config.exact;
+    return '';
+  }
+
+  function luckyHasCondition(config) {
+    return config.reply !== 'any' || config.interactions.length > 0;
+  }
+
+  function luckyBlockMarkdown(config, postId) {
+    const lines = [];
+    if (config.show.participation) {
+      const participation = luckyParticipationText(config);
+      if (participation) {
+        lines.push(`参与方式：${participation}`);
+        const quoted = luckyQuotedReply(config);
+        if (quoted) {
+          lines.push(`> ${quoted}`);
+          // 引用行后面要空一行，否则后面的内容会被当成引用的懒延续
+          lines.push('');
+        }
+      }
+      if (config.fallback && luckyHasCondition(config)) lines.push('不满足条件时顺延至下一位');
+    }
+    if (config.show.time) lines.push(`开奖时间：${luckyTimeText(config.time)}`);
+    if (config.show.count) lines.push(`中奖人数：${config.count}`);
+    lines.push(`开奖链接：[${LUCKY_DEFAULT_LINK_TEXT}](${luckyLink(config, postId)})`);
+    return (config.heading ? [config.heading, ...lines] : lines).join('\n');
+  }
+
+  function luckyInsertContent(content, block, position) {
+    const base = String(content || '').trimEnd();
+    if (!base) return block;
+    return position === 'start' ? `${block}\n\n${base}` : `${base}\n\n${block}`;
+  }
+
+  function luckyTriggerButton() {
+    return document.querySelector('[data-nsit-lucky-trigger]');
+  }
+
+  function luckyDialogElement() {
+    return document.querySelector('[data-nsit-lucky-modal]');
+  }
+
+  function luckySubmitButton() {
+    const title = document.querySelector('#mde-title');
+    if (!title) return null;
+    const scopes = [title.closest('form'), document.querySelector('#editor-body')?.closest('form'), document].filter(Boolean);
+    const seen = new Set();
+    const buttons = scopes
+      .flatMap((scope) => Array.from(scope.querySelectorAll('button.submit.btn, button.submit, .submit.btn, button[type="submit"], button')))
+      .filter((button) => {
+        if (seen.has(button)) return false;
+        seen.add(button);
+        return !button.closest(`#${APP_ID}`) && !button.hasAttribute('data-nsit-lucky-trigger') && !button.disabled;
+      });
+    return buttons.find((button) => /^\s*发布/.test(button.textContent.trim()) && !/草稿/.test(button.textContent))
+      || buttons.find((button) => button.matches('button.submit.btn, button.submit, .submit.btn'))
+      || buttons.find((button) => button.matches('button[type="submit"]'))
+      || null;
+  }
+
+  function injectLuckyStyles() {
+    if (luckyStylesReady) return;
+    luckyStylesReady = true;
+    injectStyles(luckyStyles());
+  }
+
+  function ensureLuckyDialog() {
+    let dialog = luckyDialogElement();
+    if (!dialog) {
+      const holder = document.createElement('div');
+      holder.innerHTML = luckyDialogMarkup();
+      dialog = holder.firstElementChild;
+      document.body.append(...holder.children);
+    }
+    return dialog;
+  }
+
+  function renderLuckyTrigger() {
+    const submit = luckyEditorPage() ? luckySubmitButton() : null;
+    const trigger = luckyTriggerButton();
+    if (!submit) {
+      trigger?.remove();
+      return;
+    }
+    injectLuckyStyles();
+    ensureLuckyDialog();
+    let button = trigger;
+    if (!button) {
+      const holder = document.createElement('div');
+      holder.innerHTML = luckyTriggerMarkup();
+      button = holder.firstElementChild;
+    }
+    if (button.nextElementSibling !== submit) submit.before(button);
+    if (!button._nsitLuckyPlaced) {
+      button._nsitLuckyPlaced = true;
+      const rect = button.getBoundingClientRect();
+      const submitRect = submit.getBoundingClientRect();
+      // 发布按钮通常靠 margin-left:auto 贴右边，这段空档会落在两个按钮之间；
+      // 把 auto 外边距让给抽奖配置按钮，发布按钮位置不变，抽奖配置紧贴它左边
+      if (rect.width && submitRect.width && submitRect.left - rect.right > 48) {
+        submit.style.marginLeft = '0';
+        button.style.marginLeft = 'auto';
+        button.style.marginRight = '8px';
+      }
+    }
+    const label = button.querySelector('[data-nsit-lucky-trigger-label]');
+    const stored = luckyArmedConfig();
+    const config = stored ? luckyNormalized(stored) : null;
+    if (config) {
+      const title = document.querySelector('#mde-title')?.value.trim() || '';
+      if (title !== config.title) saveLuckyArmedConfig({ ...config, title });
+    }
+    const armed = Boolean(config);
+    const nextTitle = armed ? `${luckyTimeText(config.time)} 开奖 · ${config.count} 份，点击修改本次抽奖` : '设置本次发布的抽奖';
+    const nextLabel = armed ? `抽奖配置 ${luckyTimeText(config.time).slice(5)} · ${config.count} 份` : '抽奖配置';
+    if (button.getAttribute('data-nsit-lucky-armed') !== (armed ? '' : null)) {
+      if (armed) button.setAttribute('data-nsit-lucky-armed', '');
+      else button.removeAttribute('data-nsit-lucky-armed');
+    }
+    if (button.title !== nextTitle) button.title = nextTitle;
+    if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
+  }
+
+  function luckyDialogStatus(message) {
+    const node = luckyDialogElement()?.querySelector('[data-nsit-lucky-status]');
+    if (node) node.textContent = message || '';
+  }
+
+  function luckyFieldValues() {
+    const dialog = luckyDialogElement();
+    const field = (selector) => dialog?.querySelector(selector) || null;
+    const reply = field('[name="luckyReply"]:checked')?.value || 'any';
+    const replyText = field('[data-nsit-lucky-reply-text]')?.value || '';
+    return {
+      time: luckyTimestampFromInput(field('[data-nsit-lucky-time]')?.value),
+      count: field('[name="luckyCount"]')?.value,
+      start: field('[name="luckyStart"]')?.value,
+      dedupe: Boolean(field('[name="luckyDedupe"]')?.checked),
+      reply,
+      keyword: reply === 'contains' ? replyText : '',
+      exact: reply === 'exact' ? replyText : '',
+      interactions: Array.from(dialog?.querySelectorAll('[name="luckyInteraction"]:checked') || []).map((input) => input.value),
+      fallback: Boolean(field('[data-nsit-lucky-fallback]')?.checked),
+      position: field('[name="luckyPosition"]:checked')?.value || 'end',
+      heading: field('[name="luckyHeading"]')?.value ?? LUCKY_DEFAULT_HEADING,
+      show: {
+        participation: Boolean(field('[data-nsit-lucky-show="participation"]')?.checked),
+        time: Boolean(field('[data-nsit-lucky-show="time"]')?.checked),
+        count: Boolean(field('[data-nsit-lucky-show="count"]')?.checked),
+      },
+    };
+  }
+
+  function syncLuckyDialog() {
+    const dialog = luckyDialogElement();
+    if (!dialog) return;
+    const reply = dialog.querySelector('[name="luckyReply"]:checked')?.value || 'any';
+    const replyText = dialog.querySelector('[data-nsit-lucky-reply-text]');
+    if (replyText) {
+      replyText.hidden = reply === 'any';
+      replyText.placeholder = reply === 'exact' ? '回复需要填写的内容（完全一致）' : '回复需要包含的文字';
+    }
+    const interactions = Array.from(dialog.querySelectorAll('[name="luckyInteraction"]:checked')).map((input) => input.value);
+    const fallback = dialog.querySelector('[data-nsit-lucky-fallback]');
+    if (fallback) fallback.closest('label').hidden = !luckyHasCondition({ reply, interactions });
+    const preview = dialog.querySelector('[data-nsit-lucky-preview]');
+    if (preview) preview.textContent = luckyBlockMarkdown(luckyNormalized(luckyFieldValues()), LUCKY_POST_ID_PLACEHOLDER);
+  }
+
+  function openLuckyDialog() {
+    const dialog = ensureLuckyDialog();
+    const config = luckyNormalized(luckyArmedConfig());
+    const setValue = (selector, value) => {
+      const node = dialog.querySelector(selector);
+      if (node) node.value = value;
+    };
+    const setChecked = (selector, checked) => {
+      const node = dialog.querySelector(selector);
+      if (node) node.checked = checked;
+    };
+    injectLuckyStyles();
+    setValue('[data-nsit-lucky-time]', luckyTimeInputValue(config.time));
+    setValue('[name="luckyCount"]', String(config.count));
+    setValue('[name="luckyStart"]', String(config.start));
+    setValue('[data-nsit-lucky-reply-text]', config.keyword || config.exact);
+    setValue('[name="luckyHeading"]', config.heading);
+    setChecked('[name="luckyDedupe"]', config.dedupe);
+    dialog.querySelectorAll('[name="luckyReply"]').forEach((input) => { input.checked = input.value === config.reply; });
+    dialog.querySelectorAll('[name="luckyInteraction"]').forEach((input) => { input.checked = config.interactions.includes(input.value); });
+    dialog.querySelectorAll('[name="luckyPosition"]').forEach((input) => { input.checked = input.value === config.position; });
+    setChecked('[data-nsit-lucky-fallback]', config.fallback);
+    dialog.querySelectorAll('[data-nsit-lucky-show]').forEach((input) => { input.checked = config.show[input.dataset.nsitLuckyShow] !== false; });
+    dialog.classList.add('is-open');
+    dialog.setAttribute('aria-hidden', 'false');
+    luckyTriggerButton()?.setAttribute('aria-expanded', 'true');
+    luckyDialogStatus('');
+    syncLuckyDialog();
+  }
+
+  function closeLuckyDialog() {
+    const dialog = luckyDialogElement();
+    if (!dialog) return;
+    closeLuckyConfirm();
+    dialog.classList.remove('is-open');
+    dialog.setAttribute('aria-hidden', 'true');
+    luckyTriggerButton()?.setAttribute('aria-expanded', 'false');
+    luckyDialogStatus('');
+  }
+
+  let pendingLuckySave = null;
+
+  function luckyConfirmElement() {
+    return document.querySelector('[data-nsit-lucky-confirm]');
+  }
+
+  function closeLuckyConfirm() {
+    pendingLuckySave = null;
+    luckyConfirmElement()?.classList.remove('is-open');
+  }
+
+  function saveLuckyFromDialog(mode = 'auto') {
+    const values = luckyFieldValues();
+    const config = luckyNormalized(values);
+    if (!values.time) { luckyDialogStatus('请选择开奖时间。'); return; }
+    if (config.time <= Date.now()) { luckyDialogStatus('开奖时间需要晚于当前时间。'); return; }
+    if (values.reply === 'contains' && !config.keyword) { luckyDialogStatus('请填写回复需要包含的文字。'); return; }
+    if (values.reply === 'exact' && !config.exact) { luckyDialogStatus('请填写回复需要填写的内容。'); return; }
+    const previousConfig = luckyArmedConfig();
+    const saved = {
+      ...config,
+      insertedText: String(previousConfig?.insertedText || ''),
+      title: document.querySelector('#mde-title')?.value.trim() || '',
+      createdAt: Date.now(),
+      submitAt: 0,
+    };
+    if (mode === 'auto' && luckyTemplateNeedsConfirm(saved)) {
+      pendingLuckySave = saved;
+      luckyConfirmElement()?.classList.add('is-open');
+      return;
+    }
+    if (mode === 'keep') saved.insertedText = '';
+    else if (applyLuckyTemplate(saved, mode)) saved.insertedText = luckyTemplateBlock(saved);
+    else {
+      saveLuckyArmedConfig(saved);
+      renderLuckyTrigger();
+      luckyDialogStatus('未找到正文编辑器：配置已保存，发布后会写进正文。');
+      return;
+    }
+    closeLuckyConfirm();
+    saveLuckyArmedConfig(saved);
+    renderLuckyTrigger();
+    closeLuckyDialog();
+  }
+
+  function luckyNoticeElement() {
+    let notice = document.querySelector('[data-nsit-lucky-notice]');
+    if (notice) return notice;
+    injectLuckyStyles();
+    notice = document.createElement('div');
+    notice.className = 'nsit-lucky-notice';
+    notice.dataset.nsitLuckyNotice = '';
+    notice.innerHTML = '<p data-nsit-lucky-notice-text></p><code data-nsit-lucky-notice-link hidden></code><div class="nsit-lucky-notice-actions"><button type="button" data-nsit-lucky-action="copy-link">复制链接</button><button type="button" data-nsit-lucky-action="close-notice">关闭</button></div>';
+    document.body.append(notice);
+    return notice;
+  }
+
+  function showLuckyNotice(message, { link = '', sticky = false, tone = 'info' } = {}) {
+    const notice = luckyNoticeElement();
+    notice.dataset.nsitLuckyTone = tone;
+    notice.querySelector('[data-nsit-lucky-notice-text]').textContent = message;
+    const linkNode = notice.querySelector('[data-nsit-lucky-notice-link]');
+    linkNode.textContent = link;
+    linkNode.hidden = !link;
+    notice.querySelector('[data-nsit-lucky-action="copy-link"]').hidden = !link;
+    notice.classList.add('is-open');
+    clearTimeout(notice._nsitLuckyTimer);
+    if (!sticky) notice._nsitLuckyTimer = setTimeout(() => notice.classList.remove('is-open'), 6000);
+  }
+
+  function hideLuckyNotice() {
+    luckyNoticeElement().classList.remove('is-open');
+  }
+
+  function luckyCopyText(text) {
+    if (!text) return;
+    const fallback = () => {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.append(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+      } catch (_) { /* 复制不可用时用户可手动选中链接 */ }
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(fallback);
+      return;
+    }
+    fallback();
+  }
+
+  function luckyPostTitle() {
+    const element = document.querySelector('.post-title');
+    if (element?.textContent?.trim()) return element.textContent.trim();
+    return document.title.replace(/\s*[-–]\s*NodeSeek\s*$/i, '').trim();
+  }
+
+  function luckyTitleKey(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function luckyFirstFloor() {
+    return document.querySelector('.content-item[id="0"]')
+      || Array.from(document.querySelectorAll('.content-item')).find((item) => item.querySelector('.floor-link[href="#0"]'))
+      || null;
+  }
+
+  // 只有正文里确实写着占位符（模板块真的在帖子里）才需要回写，否则照常发布
+  function luckyPostHasPlaceholder() {
+    const firstFloor = luckyFirstFloor();
+    if (!firstFloor) return false;
+    return firstFloor.innerHTML.includes(LUCKY_POST_ID_PLACEHOLDER) || firstFloor.textContent.includes(LUCKY_POST_ID_PLACEHOLDER);
+  }
+
+  function luckyEditAction() {
+    const firstFloor = luckyFirstFloor();
+    return Array.from(firstFloor?.querySelectorAll('.comment-menu .menu-item') || []).find((item) => item.textContent.trim() === '编辑') || null;
+  }
+
+  function luckyEditorWithin(scopeRoot) {
+    const scope = scopeRoot || (document.querySelector('#editor-body') ? document : null);
+    if (!scope) return null;
+    const container = scope.querySelector('#editor-body') || scope.querySelector('.md-editor') || scope.querySelector('.CodeMirror')?.closest('.md-editor') || scope;
+    const codeMirror = container.matches?.('.CodeMirror') ? container : container.querySelector?.('.CodeMirror');
+    if (codeMirror?.CodeMirror) return codeMirror;
+    if (container.matches?.('textarea')) return container;
+    return container.querySelector?.('textarea') || null;
+  }
+
+  function luckyTemplateBlock(config) {
+    return luckyBlockMarkdown(config, LUCKY_POST_ID_PLACEHOLDER);
+  }
+
+  function luckyTemplateLinkLine(config) {
+    return `开奖链接：[${LUCKY_DEFAULT_LINK_TEXT}](${luckyLink(config, LUCKY_POST_ID_PLACEHOLDER)})`;
+  }
+
+  // 从正文里去掉旧的那块抽奖模板（用于「强制覆盖」）：从带占位符的那行往上吃掉连续的模板行
+  function stripLuckyTemplate(content) {
+    const lines = String(content || '').split('\n');
+    const index = lines.findIndex((line) => line.includes(LUCKY_POST_ID_PLACEHOLDER));
+    if (index < 0) return content;
+    const templateLine = /^(#{1,6}\s|>\s?|参与方式：|互动：|不满足条件时顺延至下一位|开奖时间：|中奖人数：|开奖链接：)/;
+    let start = index;
+    while (start > 0) {
+      const previous = lines[start - 1];
+      if (templateLine.test(previous)) { start -= 1; continue; }
+      if (previous.trim() === '' && start - 2 >= 0 && templateLine.test(lines[start - 2])) { start -= 1; continue; }
+      break;
+    }
+    lines.splice(start, index - start + 1);
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  // 保存抽奖配置时，把整块模板写进正文；再次保存时替换上一次插入的内容，不重复堆叠
+  function applyLuckyTemplate(config, mode = 'auto') {
+    const editor = luckyEditorWithin(null);
+    if (!editor) return false;
+    const current = luckyEditorValue(editor);
+    const block = luckyTemplateBlock(config);
+    const previous = String(config.insertedText || '');
+    let next;
+    if (mode === 'overwrite') next = luckyInsertContent(stripLuckyTemplate(current), block, config.position);
+    else if (previous && current.includes(previous)) next = current.replace(previous, block);
+    else if (current.includes(LUCKY_POST_ID_PLACEHOLDER)) {
+      const linkLine = luckyTemplateLinkLine(config);
+      next = current.split('\n').map((line) => (line.includes(LUCKY_POST_ID_PLACEHOLDER) ? linkLine : line)).join('\n');
+    } else next = luckyInsertContent(current, block, config.position);
+    if (next !== current) luckySetEditorValue(editor, next);
+    return true;
+  }
+
+  // 判断这次保存会不会和正文里已有的模板打架：能整块匹配就直接替换，匹配不上才需要用户确认
+  function luckyTemplateNeedsConfirm(config) {
+    const editor = luckyEditorWithin(null);
+    if (!editor) return false;
+    const current = luckyEditorValue(editor);
+    const previous = String(config.insertedText || '');
+    if (previous && current.includes(previous)) return false;
+    return Boolean(previous) || current.includes(LUCKY_POST_ID_PLACEHOLDER);
+  }
+
+  // 按结构找弹窗层：从标题输入框往外找最近的「类名像弹窗」或「定位为浮层」的祖先，
+  // 不依赖 NodeSeek 的具体类名，避免找不到节点导致编辑弹窗留在页面上
+  function luckyEditDialogLayer(element) {
+    const keywords = /modal|dialog|layer|popup|overlay|mask|backdrop/i;
+    let keywordMatch = null;
+    let positionedMatch = null;
+    let node = element;
+    while (node && node !== document.body) {
+      const className = String(node.className || '');
+      const style = typeof getComputedStyle === 'function' ? getComputedStyle(node) : null;
+      const positioned = Boolean(style && (style.position === 'fixed' || style.position === 'absolute'));
+      if (!keywordMatch && keywords.test(className)) keywordMatch = node;
+      if (!positionedMatch && positioned) positionedMatch = node;
+      node = node.parentElement;
+    }
+    return keywordMatch || positionedMatch || null;
+  }
+
+  function luckyEditorValue(editor) {
+    if (editor?.CodeMirror?.getValue) return editor.CodeMirror.getValue();
+    return editor?.value || '';
+  }
+
+  function luckySetEditorValue(editor, content) {
+    if (editor?.CodeMirror?.setValue) {
+      editor.CodeMirror.setValue(content);
+      return true;
+    }
+    if (editor?.value === undefined) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    if (setter) setter.call(editor, content);
+    else editor.value = content;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  function hideLuckyDialogRoot(dialogRoot) {
+    const original = { display: dialogRoot.style.display, visibility: dialogRoot.style.visibility, pointerEvents: dialogRoot.style.pointerEvents };
+    dialogRoot.style.display = 'none';
+    return () => {
+      dialogRoot.style.display = original.display;
+      dialogRoot.style.visibility = original.visibility;
+      dialogRoot.style.pointerEvents = original.pointerEvents;
+    };
+  }
+
+  function luckyWritebackTarget(config) {
+    if (document.querySelector('#mde-title')) return false;
+    const recent = Boolean(config.submitAt) && Date.now() - config.submitAt <= LUCKY_SUBMIT_WINDOW;
+    const stored = luckyTitleKey(config.title);
+    if (!stored) return recent;
+    return recent || stored === luckyTitleKey(luckyPostTitle());
+  }
+
+  async function performLuckyWriteback(config, postId) {
+    luckyWritebackRunning = true;
+    clearLuckyArmedConfig();
+    const link = luckyLink(config, postId);
+    showLuckyNotice('正在把抽奖信息写进正文…', { sticky: true });
+    let restore = null;
+    const hideDialogOnSight = () => {
+      const layer = luckyEditDialogLayer(document.querySelector('#mde-title'));
+      if (layer && layer.style.display !== 'none' && !restore) restore = hideLuckyDialogRoot(layer);
+    };
+    // 弹窗一出现就藏掉（早于浏览器绘制），避免编辑器的开关动作被看到
+    const watcher = new MutationObserver(hideDialogOnSight);
+    watcher.observe(document.documentElement, { childList: true, subtree: true });
+    try {
+      const editAction = await waitForElement(luckyEditAction, 4000);
+      if (!editAction) throw new Error('未找到楼主编辑入口');
+      editAction.click();
+      const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
+      hideDialogOnSight();
+      const dialogRoot = luckyEditDialogLayer(titleInput) || findEditDialogRoot();
+      const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
+      if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
+      const editor = luckyEditorWithin(dialogRoot);
+      if (!editor) throw new Error('未找到正文编辑器');
+      const current = luckyEditorValue(editor);
+      let next = current;
+      if (next.includes(LUCKY_POST_ID_PLACEHOLDER)) {
+        // 模板已经在正文里，发布后只需要把占位符换成真实帖子 ID
+        next = next.split(LUCKY_POST_ID_PLACEHOLDER).join(postId);
+      } else if (!next.includes(`lucky?post=${postId}`)) {
+        next = luckyInsertContent(current, luckyBlockMarkdown(config, postId), config.position);
+      }
+      if (next !== current) luckySetEditorValue(editor, next);
+      luckyWriteStorage(LUCKY_DONE_KEY, { postId, link, at: Date.now() });
+      submit.click();
+      showLuckyNotice('抽奖信息已写进正文。', { link, tone: 'success' });
+    } catch (error) {
+      console.warn('[NSIT] 抽奖回写失败', error);
+      restore?.();
+      luckyRemoveStorage(LUCKY_DONE_KEY);
+      showLuckyNotice(`抽奖回写失败，请把正文里的 ${LUCKY_POST_ID_PLACEHOLDER} 换成 ${postId}，或用这个链接：`, { link, sticky: true, tone: 'error' });
+    } finally {
+      watcher.disconnect();
+      luckyWritebackRunning = false;
+    }
+  }
+
+  function runLuckyWriteback() {
+    if (luckyWritebackRunning) return;
+    const postId = currentPostId();
+    if (!postId) return;
+    const stored = luckyArmedConfig();
+    if (!stored) return;
+    const config = luckyNormalized(stored);
+    if (!luckyWritebackTarget(config)) return;
+    if (!luckyPostHasPlaceholder()) return;
+    performLuckyWriteback(config, postId);
+  }
+
+  function showLuckyWritebackResult() {
+    if (luckyWritebackRunning) return;
+    const record = luckyReadStorage(LUCKY_DONE_KEY);
+    if (!record || String(record.postId) !== currentPostId()) return;
+    luckyRemoveStorage(LUCKY_DONE_KEY);
+    if (Date.now() - Number(record.at || 0) > 60000) return;
+    showLuckyNotice('抽奖信息已写进正文。', { link: String(record.link || ''), tone: 'success' });
+  }
+
+  function markLuckySubmitAttempt() {
+    const config = luckyArmedConfig();
+    if (!config) return;
+    saveLuckyArmedConfig({ ...config, submitAt: Date.now() });
+  }
+
+  function installLuckyRuntime() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[LUCKY_RUNTIME_KEY]) return;
+    pageWindow[LUCKY_RUNTIME_KEY] = true;
+    if (luckyEditorPage()) {
+      // 抽奖配置只对当前这次发帖有效：重新打开或刷新发帖页都从头开始，除非刚刚点过发布（可能被校验拦下重载）
+      const stored = luckyReadStorage(LUCKY_ARMED_KEY);
+      if (stored && (!Number(stored.submitAt) || Date.now() - Number(stored.submitAt) > LUCKY_SUBMIT_WINDOW)) luckyRemoveStorage(LUCKY_ARMED_KEY);
+    }
+    document.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-nsit-lucky-action]')?.dataset.nsitLuckyAction || '';
+      if (event.target.closest('[data-nsit-lucky-trigger]')) {
+        if (luckyDialogElement()?.classList.contains('is-open')) closeLuckyDialog();
+        else openLuckyDialog();
+        return;
+      }
+      if (action === 'close') { closeLuckyDialog(); return; }
+      if (action === 'save') { saveLuckyFromDialog(); return; }
+      if (action === 'confirm-keep') { if (pendingLuckySave) saveLuckyFromDialog('keep'); return; }
+      if (action === 'confirm-overwrite') { if (pendingLuckySave) saveLuckyFromDialog('overwrite'); return; }
+      if (action === 'confirm-cancel') { closeLuckyConfirm(); return; }
+      if (action === 'close-notice') { hideLuckyNotice(); return; }
+      if (action === 'copy-link') {
+        luckyCopyText(luckyNoticeElement().querySelector('[data-nsit-lucky-notice-link]')?.textContent || '');
+        return;
+      }
+      if (event.target.matches('[data-nsit-lucky-time]') && typeof event.target.showPicker === 'function') {
+        try { event.target.showPicker(); } catch (_) { /* 已由浏览器打开或当前环境不允许 */ }
+      }
+      if (event.target.matches('[data-nsit-lucky-modal]')) closeLuckyDialog();
+      if (event.target.matches('[data-nsit-lucky-confirm]')) closeLuckyConfirm();
+    });
+    document.addEventListener('input', (event) => {
+      if (event.target.closest('[data-nsit-lucky-modal]')) syncLuckyDialog();
+    });
+    document.addEventListener('change', (event) => {
+      if (event.target.closest('[data-nsit-lucky-modal]')) syncLuckyDialog();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && luckyConfirmElement()?.classList.contains('is-open')) { closeLuckyConfirm(); return; }
+      if (event.key === 'Escape' && luckyDialogElement()?.classList.contains('is-open')) closeLuckyDialog();
+    });
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('button, input[type="submit"], a');
+      if (!button || button.closest(`#${APP_ID}`) || button.hasAttribute('data-nsit-lucky-trigger')) return;
+      if (!document.querySelector('#mde-title')) return;
+      if (!/^\s*(发布|发帖|提交)/.test(button.textContent.trim())) return;
+      markLuckySubmitAttempt();
+    }, true);
+    document.addEventListener('submit', (event) => {
+      if (!document.querySelector('#mde-title') || !luckyArmedConfig()) return;
+      if (event.target.closest?.(`#${APP_ID}`)) return;
+      markLuckySubmitAttempt();
+    }, true);
+  }
+
 function replyEditor() {
     const replyCodeMirror = Array.from(document.querySelectorAll('.CodeMirror')).find((element) => !element.closest(`#${APP_ID}`) && !element.closest('#editor-body'));
     if (replyCodeMirror) return replyCodeMirror;
@@ -3661,6 +4518,9 @@ function replyEditor() {
   window[RUNTIME_KEY]?.disconnect?.();
   installCommentListResponseListener();
   const observer = new MutationObserver(() => {
+    renderLuckyTrigger();
+    runLuckyWriteback();
+    showLuckyWritebackResult();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -3670,6 +4530,10 @@ function replyEditor() {
   });
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
+  installLuckyRuntime();
+  renderLuckyTrigger();
+  runLuckyWriteback();
+  showLuckyWritebackResult();
   initialize();
   installPostFilters();
   renderRepliedPostMenu();

@@ -280,3 +280,139 @@
     if (personalizationIcon) personalizationIcon.innerHTML = '<path d="M512 42.666667c123.093333 0 241.962667 43.946667 330.24 123.434666C930.688 245.674667 981.333333 354.645333 981.333333 469.333333a256 256 0 0 1-256 256h-96a32.042667 32.042667 0 0 0-25.6 51.2l12.8 17.066667a117.418667 117.418667 0 0 1-32.213333 170.197333A117.333333 117.333333 0 0 1 522.666667 981.333333H512a469.333333 469.333333 0 1 1 0-938.666666z m0 85.333333a384 384 0 1 0 0 768h10.666667a32.042667 32.042667 0 0 0 25.6-51.2l-12.8-17.066667a117.418667 117.418667 0 0 1 32.213333-170.197333A117.333333 117.333333 0 0 1 629.333333 640H725.333333l8.448-0.213333A170.666667 170.666667 0 0 0 896 469.333333c0-89.002667-39.253333-175.36-110.848-239.829333C713.429333 164.906667 615.253333 128 512 128z m-234.666667 341.333333a64 64 0 1 1 0 128 64 64 0 0 1 0-128z m469.333334-85.333333a64 64 0 1 1 0 128 64 64 0 0 1 0-128z m-384-128a64 64 0 1 1 0 128 64 64 0 0 1 0-128z m213.333333-42.666667a64 64 0 1 1 0 128 64 64 0 0 1 0-128z" fill="currentColor"></path>';
     return app;
   }
+
+  function luckyTriggerMarkup() {
+    return '<button type="button" class="nsit-lucky-trigger" data-nsit-lucky-trigger aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">🎁</span><b data-nsit-lucky-trigger-label>抽奖配置</b></button>';
+  }
+
+  function luckyDialogMarkup() {
+    const reply = LUCKY_REPLY_OPTIONS.map(([value, label], index) => `<label class="nsit-lucky-option"><input type="radio" name="luckyReply" value="${value}"${index === 0 ? ' checked' : ''}><span>${escapeHtml(label)}</span></label>`).join('');
+    const interactions = LUCKY_INTERACTION_OPTIONS.map(([value, label]) => `<label class="nsit-lucky-option"><input type="checkbox" name="luckyInteraction" value="${value}"><span>${escapeHtml(label)}</span></label>`).join('');
+    const positions = LUCKY_POSITION_OPTIONS.map(([value, label], index) => `<label class="nsit-lucky-option"><input type="radio" name="luckyPosition" value="${value}"${index === 0 ? ' checked' : ''}><span>${escapeHtml(label)}</span></label>`).join('');
+    return `<div class="nsit-lucky-modal" data-nsit-lucky-modal aria-hidden="true">
+      <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="抽奖设置">
+        <header class="nsit-lucky-head"><div><h3>抽奖配置</h3><small>只对当前页面这一次发布生效；保存即插入正文，发布后自动替换帖子 ID</small></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="close" aria-label="关闭抽奖配置"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-body">
+          <div class="nsit-lucky-form">
+          <section class="nsit-lucky-section">
+            <h4>抽奖信息</h4>
+            <div class="nsit-lucky-grid nsit-lucky-time-row">
+              <label class="nsit-lucky-field"><span>开奖时间</span><input type="datetime-local" name="luckyTime" step="60" data-nsit-lucky-time></label>
+              <label class="nsit-lucky-field"><span>奖品数量</span><input type="number" name="luckyCount" min="1" step="1" inputmode="numeric" value="1"></label>
+              <label class="nsit-lucky-field"><span>起始楼层</span><input type="number" name="luckyStart" min="0" step="1" inputmode="numeric" value="1"></label>
+            </div>
+            <label class="nsit-lucky-option nsit-lucky-dedupe"><input type="checkbox" name="luckyDedupe" checked><span>楼层去重（同一用户只算一次）</span></label>
+          </section>
+          <section class="nsit-lucky-section">
+            <h4>参与方式</h4>
+            <div class="nsit-lucky-group"><span class="nsit-lucky-group-label">回复内容</span><div class="nsit-lucky-options">${reply}</div><input class="nsit-lucky-extra" data-nsit-lucky-reply-text placeholder="回复需要包含的文字" hidden></div>
+            <div class="nsit-lucky-group"><span class="nsit-lucky-group-label">互动（与回复是且的关系）</span><div class="nsit-lucky-options">${interactions}</div></div>
+            <p class="nsit-lucky-hint">NodeSeek 的抽奖工具仅按楼层计算，点赞、鸡腿和回复内容只能写进说明，需要自行核对</p>
+            <label class="nsit-lucky-option nsit-lucky-fallback" hidden><input type="checkbox" data-nsit-lucky-fallback checked><span>不满足条件时顺延至下一位</span></label>
+          </section>
+          </div>
+          <aside class="nsit-lucky-preview-panel">
+            <section class="nsit-lucky-panel-block">
+              <h4>正文回写</h4>
+              <div class="nsit-lucky-grid nsit-lucky-writeback-row">
+                <div class="nsit-lucky-field"><span>写入位置</span><div class="nsit-lucky-options">${positions}</div></div>
+                <div class="nsit-lucky-field"><span>显示信息</span><div class="nsit-lucky-options"><label class="nsit-lucky-option"><input type="checkbox" data-nsit-lucky-show="participation" checked><span>参与方式</span></label><label class="nsit-lucky-option"><input type="checkbox" data-nsit-lucky-show="time" checked><span>开奖时间</span></label><label class="nsit-lucky-option"><input type="checkbox" data-nsit-lucky-show="count" checked><span>中奖人数</span></label></div></div>
+                <label class="nsit-lucky-field nsit-lucky-wide"><span>标题</span><input name="luckyHeading" value="${escapeHtml(LUCKY_DEFAULT_HEADING)}" placeholder="支持 Markdown，留空则不写标题"></label>
+              </div>
+            </section>
+            <section class="nsit-lucky-panel-block">
+              <h4>写进正文的内容</h4>
+              <pre class="nsit-lucky-preview" data-nsit-lucky-preview></pre>
+              <p class="nsit-lucky-hint">预览里的 __POST_ID__ 是占位：保存后整块会插入正文，帖子发布时自动换成真实帖子 ID。</p>
+            </section>
+          </aside>
+        </div>
+        <footer class="nsit-lucky-foot">
+          <span class="nsit-lucky-status" data-nsit-lucky-status role="status"></span>
+          <button type="button" data-nsit-lucky-action="close">取消</button>
+          <button type="button" class="nsit-lucky-primary" data-nsit-lucky-action="save">保存本次抽奖</button>
+        </footer>
+      </section>
+    </div>
+    <div class="nsit-lucky-confirm" data-nsit-lucky-confirm>
+      <section class="nsit-lucky-dialog nsit-lucky-confirm-dialog" role="dialog" aria-modal="true" aria-label="正文里已有抽奖模板">
+        <header class="nsit-lucky-head"><div><h3>抽奖配置冲突</h3></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="confirm-cancel" aria-label="关闭确认弹窗"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-confirm-body"><p>原有抽奖配置被手改动过，请确认生成策略</p></div>
+        <footer class="nsit-lucky-foot"><span class="nsit-lucky-status"></span><button type="button" data-nsit-lucky-action="confirm-cancel">取消</button><button type="button" data-nsit-lucky-action="confirm-keep">保留编辑器内容</button><button type="button" class="nsit-lucky-primary" data-nsit-lucky-action="confirm-overwrite">强制覆盖</button></footer>
+      </section>
+    </div>`;
+  }
+
+  function luckyStyles() {
+    return `
+      .nsit-lucky-trigger{display:inline-flex;align-items:center;gap:4px;margin:0 0 0 8px;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:600 13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;vertical-align:middle;cursor:pointer}
+      .nsit-lucky-trigger:hover{border-color:#b87500;background:#d9961c;color:#fff}
+      .nsit-lucky-trigger[data-nsit-lucky-armed]{border-color:#d9961c;background:#d9961c;color:#fff}
+      .nsit-lucky-trigger[data-nsit-lucky-armed]:hover{border-color:#b87500;background:#b87500}
+      .nsit-lucky-modal{position:fixed;z-index:100000;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.42)}
+      .nsit-lucky-modal.is-open{display:flex}
+      .nsit-lucky-dialog{display:flex;flex-direction:column;width:min(960px,100%);min-width:0;max-width:100%;max-height:min(660px,92vh);overflow:hidden;border-radius:12px;background:#fff;color:#27334a;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 20px 48px rgba(15,23,38,.28)}
+      .nsit-lucky-dialog,.nsit-lucky-dialog *{box-sizing:border-box}
+      .nsit-lucky-dialog input,.nsit-lucky-dialog pre{max-width:100%}
+      .nsit-lucky-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
+      .nsit-lucky-head h3{margin:0;font-size:16px}
+      .nsit-lucky-head small{display:block;margin-top:2px;color:#718096;font-size:12px}
+      .nsit-lucky-close{display:grid;place-items:center;width:28px;height:28px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;color:#62708a;cursor:pointer}
+      .nsit-lucky-close:hover{background:#f0f3f8;color:#27334a}
+      .nsit-lucky-body{display:grid;flex:1 1 auto;min-height:0;overflow:hidden;grid-template-columns:minmax(0,1fr) minmax(320px,1.05fr)}
+      .nsit-lucky-form{min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 18px 12px}
+      .nsit-lucky-preview-panel{min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 18px;border-left:1px solid #eef2f7;background:#fbfcfe}
+      .nsit-lucky-panel-block{padding:12px 0;border-bottom:1px solid #eef2f7}
+      .nsit-lucky-panel-block:first-child{padding-top:0}
+      .nsit-lucky-panel-block:last-child{padding-bottom:0;border-bottom:0}
+      .nsit-lucky-panel-block h4{margin:0 0 8px;font-size:14px}
+      .nsit-lucky-section{padding:12px 0;border-bottom:1px solid #eef2f7}
+      .nsit-lucky-section:last-of-type{border-bottom:0}
+      .nsit-lucky-section h4{margin:0 0 8px;font-size:14px}
+      .nsit-lucky-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+      .nsit-lucky-time-row{grid-template-columns:1.4fr minmax(0,1fr) minmax(0,1fr)}
+      .nsit-lucky-writeback-row{grid-template-columns:2fr 3fr}
+      .nsit-lucky-wide{grid-column:1/-1}
+      .nsit-lucky-field{display:grid;gap:5px;min-width:0}
+      .nsit-lucky-field>span,.nsit-lucky-group-label{color:#506078;font-size:14px}
+      .nsit-lucky-dialog input[type="datetime-local"],.nsit-lucky-dialog input[type="number"],.nsit-lucky-dialog input[type="text"],.nsit-lucky-dialog input[type="search"],.nsit-lucky-dialog input:not([type]){width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#27334a;font:inherit;outline:none}
+      .nsit-lucky-dialog input:focus{border-color:#d9961c;box-shadow:0 0 0 3px rgba(217,150,28,.14)}
+      .nsit-lucky-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}
+      .nsit-lucky-option{display:inline-flex;align-items:center;gap:6px;color:#40506a;cursor:pointer}
+      .nsit-lucky-dialog .nsit-lucky-option input{flex:none;width:15px;height:15px;margin:0;padding:0;border:1px solid #c9d2de;border-radius:4px;background:#fff;box-shadow:none;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer}
+      .nsit-lucky-dialog .nsit-lucky-option input[type="radio"]{border-radius:50%}
+      .nsit-lucky-dialog .nsit-lucky-option input:checked{border-color:#d9961c;outline:none;box-shadow:none}
+      .nsit-lucky-dialog .nsit-lucky-option input[type="radio"]:checked{border:5px solid #d9961c;background:#fff}
+      .nsit-lucky-dialog .nsit-lucky-option input[type="checkbox"]:checked{background:#d9961c center/11px 11px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6L9 17l-5-5' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+      .nsit-lucky-dialog .nsit-lucky-option input:focus,.nsit-lucky-dialog .nsit-lucky-option input:focus-visible,.nsit-lucky-dialog .nsit-lucky-option input:active{outline:none;box-shadow:none}
+      .nsit-lucky-option[hidden],.nsit-lucky-extra[hidden]{display:none}
+      .nsit-lucky-group{margin-top:10px}
+      .nsit-lucky-extra{margin-top:7px}
+      .nsit-lucky-dedupe{margin-top:10px}
+      .nsit-lucky-fallback{margin-top:10px}
+      .nsit-lucky-hint{margin:8px 0 0;color:#718096;font-size:12px;line-height:1.6}
+      .nsit-lucky-preview{margin:0;padding:10px 12px;border:1px solid #e3e9f2;border-radius:8px;background:#fff;color:#39485f;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+      .nsit-lucky-preview-panel .nsit-lucky-hint{margin-top:8px}
+      @media (max-width:760px){.nsit-lucky-dialog{width:min(560px,100%)}.nsit-lucky-body{grid-template-columns:1fr;overflow-y:auto}.nsit-lucky-form,.nsit-lucky-preview-panel{overflow:visible;padding:4px 18px}.nsit-lucky-preview-panel{border-top:1px solid #eef2f7;border-left:0;background:transparent}}
+      .nsit-lucky-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #e5eaf1;background:#fff}
+      .nsit-lucky-foot button{margin:0;padding:8px 11px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#40506a;font:inherit;cursor:pointer}
+      .nsit-lucky-foot button:hover{border-color:#d9961c;color:#8b5c00}
+      .nsit-lucky-foot button.nsit-lucky-primary{border-color:#d9961c;background:#d9961c;color:#fff}
+      .nsit-lucky-foot button.nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12}
+      .nsit-lucky-foot .nsit-lucky-status{flex:1 1 auto;color:#b34b4b;font-size:12px}
+      .nsit-lucky-notice{position:fixed;z-index:100001;right:18px;bottom:18px;display:none;max-width:min(420px,92vw);padding:12px 14px;border:1px solid #d8e0eb;border-radius:10px;background:#fff;color:#27334a;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 12px 30px rgba(15,23,38,.2)}
+      .nsit-lucky-notice.is-open{display:block}
+      .nsit-lucky-notice[data-nsit-lucky-tone="success"]{border-color:#a9d8b8;background:#f4fbf6}
+      .nsit-lucky-notice[data-nsit-lucky-tone="error"]{border-color:#eec2c2;background:#fff6f6}
+      .nsit-lucky-notice p{margin:0}
+      .nsit-lucky-notice code{display:block;margin-top:6px;padding:6px 8px;border-radius:6px;background:#f4f6fa;color:#39485f;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+      .nsit-lucky-notice-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+      .nsit-lucky-notice-actions button{margin:0;padding:5px 9px;border:1px solid #d8e0eb;border-radius:6px;background:#fff;color:#40506a;font:inherit;font-size:12px;cursor:pointer}
+      .nsit-lucky-notice-actions button:hover{border-color:#d9961c;color:#8b5c00}
+      .nsit-lucky-confirm{position:fixed;z-index:100001;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.28)}
+      .nsit-lucky-confirm.is-open{display:flex}
+      .nsit-lucky-confirm .nsit-lucky-dialog{width:min(460px,100%);max-height:min(440px,84vh)}
+      .nsit-lucky-confirm-body{padding:16px 18px 20px;color:#506078;font-size:14px;line-height:1.8}
+      .nsit-lucky-confirm-body p{margin:0}
+    `;
+  }

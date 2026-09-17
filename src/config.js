@@ -1,5 +1,5 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.3.17';
+  const VERSION = '1.4.27';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -103,3 +103,14 @@
   const BUY_TAG_GROUPS = { 原邮: 'transfer', 改邮: 'transfer', 包中介: 'broker', 不包中介: 'broker', 先机后款: 'payment', 先款后机: 'payment', 站内私信: 'contact' };
   const BUY_TITLE_FIELD_OPTIONS = [['price', '收购方式'], ['vendor', '厂商'], ['model', '型号'], ['cpu', 'CPU'], ['memory', '内存'], ['disk', '硬盘'], ['bandwidth', '带宽'], ['traffic', '流量'], ['renewal', '续费金额 / 周期'], ['tags', '交易标签']];
   const DEFAULT_BUY_TITLE_FIELDS = ['price', 'vendor', 'model', 'cpu', 'memory', 'disk', 'bandwidth', 'traffic'];
+  const LUCKY_ARMED_KEY = 'nsit-lucky-armed-v1';
+  const LUCKY_DONE_KEY = 'nsit-lucky-done-v1';
+  const LUCKY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLucky__';
+  const LUCKY_DEFAULT_HOURS = 24;
+  const LUCKY_DEFAULT_LINK_TEXT = '点此查看';
+  const LUCKY_DEFAULT_HEADING = '# 🎁 抽奖信息';
+  const LUCKY_POST_ID_PLACEHOLDER = '__POST_ID__';
+  const LUCKY_SUBMIT_WINDOW = 10 * 60 * 1000;
+  const LUCKY_REPLY_OPTIONS = [['any', '任意回复'], ['contains', '包含回复'], ['exact', '固定回复']];
+  const LUCKY_INTERACTION_OPTIONS = [['like', '点赞'], ['chicken', '鸡腿']];
+  const LUCKY_POSITION_OPTIONS = [['end', '正文末尾'], ['start', '正文开头']];

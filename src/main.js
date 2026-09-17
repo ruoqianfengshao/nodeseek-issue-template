@@ -531,6 +531,9 @@
   window[RUNTIME_KEY]?.disconnect?.();
   installCommentListResponseListener();
   const observer = new MutationObserver(() => {
+    renderLuckyTrigger();
+    runLuckyWriteback();
+    showLuckyWritebackResult();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -540,6 +543,10 @@
   });
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
+  installLuckyRuntime();
+  renderLuckyTrigger();
+  runLuckyWriteback();
+  showLuckyWritebackResult();
   initialize();
   installPostFilters();
   renderRepliedPostMenu();

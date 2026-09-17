@@ -291,7 +291,7 @@
     const positions = LUCKY_POSITION_OPTIONS.map(([value, label], index) => `<label class="nsit-lucky-option"><input type="radio" name="luckyPosition" value="${value}"${index === 0 ? ' checked' : ''}><span>${escapeHtml(label)}</span></label>`).join('');
     return `<div class="nsit-lucky-modal" data-nsit-lucky-modal aria-hidden="true">
       <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="抽奖设置">
-        <header class="nsit-lucky-head"><div><h3>抽奖配置</h3><small>只对当前页面这一次发布生效；保存即插入正文，发布后自动替换帖子 ID</small></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="close" aria-label="关闭抽奖配置"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>抽奖配置</h3><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="close" aria-label="关闭抽奖配置"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
         <div class="nsit-lucky-body">
           <div class="nsit-lucky-form">
           <section class="nsit-lucky-section">
@@ -328,6 +328,7 @@
           </aside>
         </div>
         <footer class="nsit-lucky-foot">
+          <span class="nsit-lucky-foot-hint">只对当前页面这一次发布生效；保存即插入正文，发布后自动替换帖子 ID</span>
           <span class="nsit-lucky-status" data-nsit-lucky-status role="status"></span>
           <button type="button" data-nsit-lucky-action="close">取消</button>
           <button type="button" class="nsit-lucky-primary" data-nsit-lucky-action="save">保存本次抽奖</button>
@@ -356,7 +357,12 @@
       .nsit-lucky-dialog input,.nsit-lucky-dialog pre{max-width:100%}
       .nsit-lucky-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
       .nsit-lucky-head h3{margin:0;font-size:16px}
-      .nsit-lucky-head small{display:block;margin-top:2px;color:#718096;font-size:12px}
+      .nsit-lucky-head-copy{display:grid;gap:2px;min-width:0}
+      .nsit-lucky-head-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+      .nsit-lucky-head .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:#718096;font-size:12px;white-space:nowrap}
+      .nsit-lucky-head .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}
+      .nsit-lucky-head .nsit-star-note a:hover{text-decoration:underline}
+      .nsit-lucky-head .nsit-github-icon{width:14px;height:14px;fill:currentColor}
       .nsit-lucky-close{display:grid;place-items:center;width:28px;height:28px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;color:#62708a;cursor:pointer}
       .nsit-lucky-close:hover{background:#f0f3f8;color:#27334a}
       .nsit-lucky-body{display:grid;flex:1 1 auto;min-height:0;overflow:hidden;grid-template-columns:minmax(0,1fr) minmax(320px,1.05fr)}
@@ -399,7 +405,8 @@
       .nsit-lucky-foot button:hover{border-color:#d9961c;color:#8b5c00}
       .nsit-lucky-foot button.nsit-lucky-primary{border-color:#d9961c;background:#d9961c;color:#fff}
       .nsit-lucky-foot button.nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12}
-      .nsit-lucky-foot .nsit-lucky-status{flex:1 1 auto;color:#b34b4b;font-size:12px}
+      .nsit-lucky-foot .nsit-lucky-status{flex:0 0 auto;color:#b34b4b;font-size:12px}
+      .nsit-lucky-foot-hint{flex:1 1 auto;min-width:0;color:#718096;font-size:12px;line-height:1.5}
       .nsit-lucky-notice{position:fixed;z-index:100001;right:18px;bottom:18px;display:none;max-width:min(420px,92vw);padding:12px 14px;border:1px solid #d8e0eb;border-radius:10px;background:#fff;color:#27334a;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 12px 30px rgba(15,23,38,.2)}
       .nsit-lucky-notice.is-open{display:block}
       .nsit-lucky-notice[data-nsit-lucky-tone="success"]{border-color:#a9d8b8;background:#f4fbf6}

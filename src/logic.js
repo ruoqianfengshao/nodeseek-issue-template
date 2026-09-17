@@ -1802,26 +1802,22 @@
     if (nextTitle === context.title) return;
     button.disabled = true;
     const restoreStyles = [];
-    let dialogRoot = null;
+    const hideDialogOnSight = () => {
+      const restores = hideEditOverlays(document.querySelector('#mde-title'));
+      if (!restores.length) return;
+      restoreStyles.push(...restores);
+    };
+    // 编辑弹窗一出现就藏掉（早于浏览器绘制），改标题的开关动作不该被看到
+    const watcher = new MutationObserver(hideDialogOnSight);
+    watcher.observe(document.documentElement, { childList: true, subtree: true });
     try {
       const editAction = Array.from(context.firstFloor.querySelectorAll('.comment-menu .menu-item')).find((item) => item.textContent.trim() === '编辑');
       if (!editAction) throw new Error('未找到楼主编辑入口');
       editAction.click();
       const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
+      hideDialogOnSight();
       const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
       if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
-      dialogRoot = findEditDialogRoot();
-      if (dialogRoot) {
-        const originalDisplay = dialogRoot.style.display;
-        const originalVisibility = dialogRoot.style.visibility;
-        const originalPointerEvents = dialogRoot.style.pointerEvents;
-        dialogRoot.style.display = 'none';
-        restoreStyles.push(() => {
-          dialogRoot.style.display = originalDisplay;
-          dialogRoot.style.visibility = originalVisibility;
-          dialogRoot.style.pointerEvents = originalPointerEvents;
-        });
-      }
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
       if (setter) setter.call(titleInput, nextTitle);
       else titleInput.value = nextTitle;
@@ -1832,6 +1828,9 @@
       console.warn('[NSIT] 更新交易状态失败', error);
       button.disabled = false;
       restoreStyles.forEach((fn) => { try { fn(); } catch (_) {} });
+    } finally {
+      // 提交后框架可能再渲染一次，多盯一会儿
+      setTimeout(() => watcher.disconnect(), 1500);
     }
   }
 
@@ -3242,22 +3241,53 @@
     return Boolean(previous) || current.includes(LUCKY_POST_ID_PLACEHOLDER);
   }
 
-  // 按结构找弹窗层：从标题输入框往外找最近的「类名像弹窗」或「定位为浮层」的祖先，
-  // 不依赖 NodeSeek 的具体类名，避免找不到节点导致编辑弹窗留在页面上
-  function luckyEditDialogLayer(element) {
-    const keywords = /modal|dialog|layer|popup|overlay|mask|backdrop/i;
-    let keywordMatch = null;
-    let positionedMatch = null;
+  // 按结构找弹窗层：从标题输入框往外找「类名像弹窗」或「定位为浮层」的祖先。
+  // 优先取 body 的直接子节点（layui 这类弹窗的外层容器就是它），否则退回最内层匹配
+  const EDIT_OVERLAY_KEYWORDS = /modal|dialog|layer|popup|overlay|mask|backdrop|shade/i;
+
+  function isPositionedElement(element) {
+    const style = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
+    return Boolean(style && (style.position === 'fixed' || style.position === 'absolute'));
+  }
+
+  function isBackdropElement(element) {
+    if (/shade|mask|backdrop|overlay/i.test(String(element.className || ''))) return true;
+    const style = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
+    if (!style || style.position !== 'fixed') return false;
+    const rect = element.getBoundingClientRect?.();
+    if (!rect || !window.innerWidth || !window.innerHeight) return false;
+    if (rect.width < window.innerWidth * 0.9 || rect.height < window.innerHeight * 0.9) return false;
+    return /rgba\(/.test(style.backgroundColor) || style.opacity !== '1';
+  }
+
+  function editDialogLayer(element) {
+    if (!element) return null;
+    let innermost = null;
+    let bodyChild = null;
     let node = element;
     while (node && node !== document.body) {
-      const className = String(node.className || '');
-      const style = typeof getComputedStyle === 'function' ? getComputedStyle(node) : null;
-      const positioned = Boolean(style && (style.position === 'fixed' || style.position === 'absolute'));
-      if (!keywordMatch && keywords.test(className)) keywordMatch = node;
-      if (!positionedMatch && positioned) positionedMatch = node;
+      if (EDIT_OVERLAY_KEYWORDS.test(String(node.className || '')) || isPositionedElement(node)) {
+        if (!innermost) innermost = node;
+        if (node.parentElement === document.body) bodyChild = node;
+      }
       node = node.parentElement;
     }
-    return keywordMatch || positionedMatch || null;
+    return bodyChild || innermost;
+  }
+
+  // 弹窗层 + 它旁边的遮罩层（layui 的 shade 是兄弟节点，只藏弹窗会留下黑遮罩）
+  function editDialogOverlays(element) {
+    const layer = editDialogLayer(element);
+    if (!layer) return [];
+    const nodes = [layer];
+    const parent = layer.parentElement;
+    if (parent) {
+      Array.from(parent.children).forEach((sibling) => {
+        if (sibling === layer || sibling.id === APP_ID || nodes.includes(sibling)) return;
+        if (isBackdropElement(sibling)) nodes.push(sibling);
+      });
+    }
+    return nodes;
   }
 
   function luckyEditorValue(editor) {
@@ -3279,14 +3309,26 @@
     return true;
   }
 
-  function hideLuckyDialogRoot(dialogRoot) {
-    const original = { display: dialogRoot.style.display, visibility: dialogRoot.style.visibility, pointerEvents: dialogRoot.style.pointerEvents };
-    dialogRoot.style.display = 'none';
+  function hideLayerWithRestore(layer) {
+    injectLuckyStyles();
+    const original = { display: layer.style.display, visibility: layer.style.visibility, pointerEvents: layer.style.pointerEvents };
+    layer.classList.add('nsit-lucky-hidden');
+    layer.style.display = 'none';
     return () => {
-      dialogRoot.style.display = original.display;
-      dialogRoot.style.visibility = original.visibility;
-      dialogRoot.style.pointerEvents = original.pointerEvents;
+      layer.classList.remove('nsit-lucky-hidden');
+      layer.style.display = original.display;
+      layer.style.visibility = original.visibility;
+      layer.style.pointerEvents = original.pointerEvents;
     };
+  }
+
+  function hideEditOverlays(titleInput) {
+    const restores = [];
+    editDialogOverlays(titleInput).forEach((node) => {
+      if (node.style.display === 'none' || node.classList.contains('nsit-lucky-hidden')) return;
+      restores.push(hideLayerWithRestore(node));
+    });
+    return restores;
   }
 
   function luckyWritebackTarget(config) {
@@ -3304,8 +3346,9 @@
     showLuckyNotice('正在把抽奖信息写进正文…', { sticky: true });
     let restore = null;
     const hideDialogOnSight = () => {
-      const layer = luckyEditDialogLayer(document.querySelector('#mde-title'));
-      if (layer && layer.style.display !== 'none' && !restore) restore = hideLuckyDialogRoot(layer);
+      const restores = hideEditOverlays(document.querySelector('#mde-title'));
+      if (!restores.length || restore) return;
+      restore = () => restores.forEach((fn) => fn());
     };
     // 弹窗一出现就藏掉（早于浏览器绘制），避免编辑器的开关动作被看到
     const watcher = new MutationObserver(hideDialogOnSight);
@@ -3316,7 +3359,7 @@
       editAction.click();
       const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
       hideDialogOnSight();
-      const dialogRoot = luckyEditDialogLayer(titleInput) || findEditDialogRoot();
+      const dialogRoot = editDialogLayer(titleInput) || findEditDialogRoot();
       const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
       if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
       const editor = luckyEditorWithin(dialogRoot);
@@ -3339,7 +3382,7 @@
       luckyRemoveStorage(LUCKY_DONE_KEY);
       showLuckyNotice(`抽奖回写失败，请把正文里的 ${LUCKY_POST_ID_PLACEHOLDER} 换成 ${postId}，或用这个链接：`, { link, sticky: true, tone: 'error' });
     } finally {
-      watcher.disconnect();
+      setTimeout(() => watcher.disconnect(), 1500);
       luckyWritebackRunning = false;
     }
   }

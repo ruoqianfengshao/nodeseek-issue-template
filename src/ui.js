@@ -392,6 +392,7 @@
       .nsit-lucky-dialog .nsit-lucky-option input[type="checkbox"]:checked{background:#d9961c center/11px 11px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6L9 17l-5-5' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
       .nsit-lucky-dialog .nsit-lucky-option input:focus,.nsit-lucky-dialog .nsit-lucky-option input:focus-visible,.nsit-lucky-dialog .nsit-lucky-option input:active{outline:none;box-shadow:none}
       .nsit-lucky-option[hidden],.nsit-lucky-extra[hidden]{display:none}
+      .nsit-lucky-hidden{display:none!important}
       .nsit-lucky-group{margin-top:10px}
       .nsit-lucky-extra{margin-top:7px}
       .nsit-lucky-dedupe{margin-top:10px}

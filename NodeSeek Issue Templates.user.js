@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.35
+// @version      1.4.36
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.35';
+  const VERSION = '1.4.36';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -4212,17 +4212,70 @@ function formValues(app) {
   // 非第一页时本页没有 0 楼，补拉第 1 页解析开奖参数，并缓存结果。
   // 不这样做的话，在 2 页以后回复别人就记不到参与。
   let luckyDrawCache = { postId: '', draw: null, resolved: false };
+
+  // 判断当前帖是不是「我发起的抽奖」：我是楼主 + 帖子里有有效开奖链接。
+  // 不看是否走过抽奖配置 —— 手动发起、后来补开奖链接的同样要跟踪。
+  function luckyIsOwnDraw() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (!postData) return false;
+    const ownId = String(currentNodeSeekUserId() || '');
+    if (!ownId) return false;
+    const opUid = String(postData.op?.uid || '');
+    if (!opUid) return false;
+    return opUid === ownId;
+  }
+
   async function resolveCurrentDraw() {
     const postId = currentPostId();
     if (!postId) return null;
     if (luckyDrawCache.postId !== postId) luckyDrawCache = { postId, draw: null, resolved: false };
-    const direct = luckyCurrentDraw();
-    if (direct) return direct;
-    if (luckyDrawCache.resolved) return luckyDrawCache.draw;
-    luckyDrawCache.resolved = true;
-    const fetched = await luckyFetchDrawFromPostPage(postId);
-    luckyDrawCache.draw = fetched || null;
-    return luckyDrawCache.draw;
+    let draw = luckyCurrentDraw();
+    if (!draw && !luckyDrawCache.resolved) {
+      luckyDrawCache.resolved = true;
+      draw = await luckyFetchDrawFromPostPage(postId);
+      luckyDrawCache.draw = draw || null;
+    }
+    draw = draw || (luckyDrawCache.postId === postId ? luckyDrawCache.draw : null);
+    // 我发起的抽奖：补一条跟踪记录（开奖检查、公布按钮都依赖它）
+    if (draw && luckyIsOwnDraw()) trackOwnDrawFromPage(draw);
+    return draw;
+  }
+
+  // 从帖子页面直接补记「我发起的抽奖」。
+  // 和抽奖配置那条路写入的字段保持一致，只是来源不同。
+  function trackOwnDrawFromPage(draw) {
+    if (!draw || !/^\d+$/.test(String(draw.postId))) return;
+    const records = { ...luckyNotifyRecords() };
+    const previous = records[draw.postId];
+    if (previous) {
+      // 已有记录：只补齐缺失的开奖参数，不动已有名单/已读状态
+      const sameParams = previous.time === draw.time && previous.count === draw.count
+        && previous.start === draw.start && previous.dedupe === draw.dedupe;
+      if (sameParams) return;
+      records[draw.postId] = {
+        ...previous,
+        time: draw.time,
+        count: draw.count,
+        start: draw.start,
+        dedupe: draw.dedupe,
+        winners: null,
+        checkedAt: 0,
+        announced: 0,
+      };
+    } else {
+      records[draw.postId] = {
+        ...draw,
+        participated: false,
+        winners: null,
+        checkedAt: 0,
+        wonAt: 0,
+        wonSeen: 0,
+        announced: 0,
+      };
+    }
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
   }
 
   // 点击回复时用：本页解析得到就直接用，否则用已解析好的缓存

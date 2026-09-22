@@ -1718,7 +1718,6 @@
     } catch (_) { /* 损坏或不可用的本地存储直接从空记录开始 */ }
 
     let changed = false;
-    const newReplyPostIds = new Set();
     payload.comments.forEach((comment) => {
       const postId = Number(comment?.post_id);
       const floorId = Number(comment?.floor_id);
@@ -1729,16 +1728,19 @@
         floors.push(floorId);
         posts[key] = floors.sort((left, right) => left - right);
         changed = true;
-        if (floorId > 0) newReplyPostIds.add(key);
       }
     });
     if (changed) {
       try { localStorage.setItem(storageKey, JSON.stringify(posts)); } catch (_) { /* 存储不可用时忽略 */ }
       renderRepliedPostMenu();
       renderRepliedPostLabels();
-      // 新增回复且当前页面就是那个帖子：尝试把参与的抽奖记进通知表
-      if (newReplyPostIds.has(currentPostId())) recordParticipatedLuckyDraw();
     }
+    // 当前页是「我回复过的帖子」就尝试记录参与的抽奖。
+    // 不能只认「本次同步发现的新回复」：回帖成功后 NS 会 location.reload()，
+    // 重载时服务端可能还没索引到这条回复，那一次机会错过就永远不会记录了。
+    // recordParticipatedLuckyDraw 自身幂等（开奖时间已过直接返回、参数相同直接返回）。
+    const here = currentPostId();
+    if (here && Array.isArray(posts[here]) && posts[here].length) recordParticipatedLuckyDraw();
   }
 
   function currentPostId() {

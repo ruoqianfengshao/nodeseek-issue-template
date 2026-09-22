@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.31
+// @version      1.4.32
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.31';
+  const VERSION = '1.4.32';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -136,6 +136,10 @@ const APP_ID = 'nsit-app';
   const LUCKY_REPLY_OPTIONS = [['any', '任意回复'], ['contains', '包含回复'], ['exact', '固定回复']];
   const LUCKY_INTERACTION_OPTIONS = [['like', '点赞'], ['chicken', '鸡腿']];
   const LUCKY_POSITION_OPTIONS = [['end', '正文末尾'], ['start', '正文开头']];
+  const LUCKY_RECORDS_KEY = 'nsit-lucky-records-v1';
+  const LUCKY_NOTIFY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyNotify__';
+  const LUCKY_NOTIFY_REVEAL_SLACK = 2000;
+  const LUCKY_NOTIFY_RECHECK_MS = 10 * 60 * 1000;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>'"]/g, (character) => ({
@@ -300,7 +304,7 @@ function escapeHtml(value) {
       <button type="button" class="nsit-trigger nsit-buy-trigger" aria-haspopup="dialog">收🐔模板</button>
       <div class="nsit-buy-modal" aria-hidden="true">
         <section class="nsit-buy-shell" role="dialog" aria-modal="true" aria-label="收鸡帖模板">
-          <header class="nsit-head"><div class="nsit-head-copy"><h2>收鸡</h2><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div><div><button type="button" class="nsit-personalization-trigger" data-action="open-buy-personalization">${personalizationIconMarkup()}<span>个性化设置</span></button><i class="nsit-head-divider" aria-hidden="true"></i><button type="button" class="nsit-close" data-action="close-buy" aria-label="关闭收鸡表单" title="关闭">×</button></div></header>
+          <header class="nsit-head"><div class="nsit-head-copy"><h2>收鸡</h2>${starNoteMarkup()}</div><div><button type="button" class="nsit-personalization-trigger" data-action="open-buy-personalization">${personalizationIconMarkup()}<span>个性化设置</span></button><i class="nsit-head-divider" aria-hidden="true"></i><button type="button" class="nsit-close" data-action="close-buy" aria-label="关闭收鸡表单" title="关闭">×</button></div></header>
           <div class="nsit-buy-body">${buyMachineCatalogMarkup()}<form id="nsit-buy-form" class="nsit-buy-form" novalidate><main class="nsit-buy-main">
             ${buyBasicConfigMarkup()}
             ${buyRenewalFieldsMarkup()}<section class="nsit-section"><div class="nsit-field nsit-buy-price"><span>收购方式</span><div class="nsit-buy-price-options" role="radiogroup" aria-label="收购方式">${priceMode}</div></div></section>
@@ -329,8 +333,14 @@ function escapeHtml(value) {
     const styles = `
         #${APP_ID}{--nsit-accent:#d9961c;--nsit-ink:#27334a;--nsit-muted:#718096;--nsit-line:#e5eaf1;display:contents;box-sizing:border-box;margin:0;color:var(--nsit-ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
         #${APP_ID} *{box-sizing:border-box}#${APP_ID} .nsit-shell{background:#fff;border:1px solid var(--nsit-line);border-radius:12px;box-shadow:0 8px 24px rgba(29,40,65,.06);overflow:hidden}#${APP_ID} .nsit-generation-loading{position:absolute;z-index:100;inset:0;display:none;place-items:center;background:rgba(255,255,255,.82);backdrop-filter:blur(2px)}#${APP_ID}.nsit-generating .nsit-generation-loading{display:grid}#${APP_ID} .nsit-generation-loading-content{display:grid;justify-items:center;gap:10px;padding:18px 24px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 10px 28px rgba(31,44,67,.16);color:#394962;font-weight:600}#${APP_ID} .nsit-generation-spinner{width:28px;height:28px;border:3px solid #e8eef6;border-top-color:var(--nsit-accent);border-radius:50%;animation:nsit-generation-spin .75s linear infinite}@keyframes nsit-generation-spin{to{transform:rotate(360deg)}}
-        #${APP_ID} .nsit-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid var(--nsit-line);background:linear-gradient(110deg,#f9fbff,#fff8ea);flex:none}#${APP_ID} .nsit-head-copy{display:flex;align-items:baseline;gap:9px;min-width:0}#${APP_ID} .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:var(--nsit-muted);font-size:12px;white-space:nowrap}#${APP_ID} .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}#${APP_ID} .nsit-star-note a:hover{text-decoration:underline}#${APP_ID} .nsit-github-icon{width:14px;height:14px;fill:currentColor}
-        #${APP_ID} h2,#${APP_ID} h3{margin:0}#${APP_ID} h2{font-size:16px}#${APP_ID} h3{font-size:14px}#${APP_ID} .nsit-head small,#${APP_ID} p{color:var(--nsit-muted)}#${APP_ID} .nsit-head small{font-size:14px}
+        #${APP_ID} .nsit-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid var(--nsit-line);background:linear-gradient(110deg,#f9fbff,#fff8ea);flex:none}#${APP_ID} .nsit-head-copy{display:flex;align-items:baseline;gap:9px;min-width:0}/* star 提示行：出鸡/收鸡、抽奖配置、抽奖与中奖弹窗共用这一份定义。
+   不带 #nsit-app 前缀：抽奖/中奖弹窗挂在 body 下、不在 #nsit-app 里，带前缀就命中不到。
+   nsit- 前缀是本脚本独占的，裸类名不会和站点样式冲突。 */
+        .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:#718096;font-size:14px;white-space:nowrap}
+        .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}
+        .nsit-star-note a:hover{text-decoration:underline}
+        .nsit-github-icon{width:14px;height:14px;fill:currentColor}
+        #${APP_ID} h2,#${APP_ID} h3{margin:0}#${APP_ID} h2{font-size:16px}#${APP_ID} h3{font-size:14px}#${APP_ID} p{color:var(--nsit-muted)}
         #${APP_ID} .nsit-body{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,.85fr);flex:1;min-height:0;overflow:hidden}#${APP_ID} .nsit-form,#${APP_ID} .nsit-side{min-height:0;overflow-y:auto;overscroll-behavior:contain;box-shadow:inset 0 7px 9px -12px rgba(29,40,65,.38)}#${APP_ID} .nsit-form{padding:4px 18px 18px}#${APP_ID} .nsit-side{padding:4px 18px 18px;border-left:1px solid var(--nsit-line);background:#fbfcfe}#${APP_ID} .nsit-machine-tabs{position:absolute;right:100%;top:52px;bottom:0;display:flex;flex-direction:column;align-items:flex-end;gap:7px;width:210px;padding:14px 0;overflow:visible}#${APP_ID} .nsit-machine-tab{display:flex;align-items:center;gap:7px;width:110px;min-height:34px;margin:0;padding:7px 9px;border:1px solid #d8e0eb;border-right:0;border-radius:7px 0 0 7px;background:#fff;color:#506078;font:inherit;text-align:left;transition:width .18s ease,background .15s,border-color .15s;cursor:pointer;white-space:nowrap;overflow:hidden}#${APP_ID} .nsit-machine-tab:hover,#${APP_ID} .nsit-machine-tab.is-active{width:210px;border-color:#d9961c;background:#fff8ea;color:#875800}#${APP_ID} .nsit-machine-tab.is-active{font-weight:650}#${APP_ID} .nsit-machine-logo{position:relative;display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:5px;background:#edf2f8;color:#52627c;font-size:11px;font-weight:700;overflow:hidden}#${APP_ID} .nsit-machine-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}#${APP_ID} .nsit-machine-tab.is-active .nsit-machine-logo{background:#f4c96c;color:#6d4900}#${APP_ID} .nsit-machine-index{flex:none;color:#8794aa;font-size:11px}#${APP_ID} .nsit-machine-name{overflow:hidden;text-overflow:ellipsis}#${APP_ID} .nsit-machine-meta{display:none;margin-left:auto;font-size:12px;color:#718096}#${APP_ID} .nsit-machine-tab:hover .nsit-machine-meta,#${APP_ID} .nsit-machine-tab.is-active .nsit-machine-meta{display:inline}#${APP_ID} .nsit-machine-add{border-style:dashed;background:#fff;color:#718096}#${APP_ID} .nsit-machine-add:disabled{cursor:not-allowed;opacity:.45}#${APP_ID} .nsit-machine-add:not(:disabled):hover{border-color:#d9961c;background:#fff8ea;color:#875800}
 #${APP_ID} .nsit-section{padding:14px 0;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-section:last-child,#${APP_ID} .nsit-tg-contact{border-bottom:0}#${APP_ID} .nsit-section p{margin:3px 0 10px;font-size:14px}#${APP_ID} .nsit-basic .nsit-grid{grid-template-columns:repeat(10,minmax(0,1fr))}#${APP_ID} .nsit-basic .nsit-field--vendor,#${APP_ID} .nsit-basic .nsit-field--model{grid-column:span 5}#${APP_ID} .nsit-basic .nsit-field--cpu,#${APP_ID} .nsit-basic .nsit-field--memory,#${APP_ID} .nsit-basic .nsit-field--disk,#${APP_ID} .nsit-basic .nsit-field--bandwidth,#${APP_ID} .nsit-basic .nsit-field--traffic{grid-column:span 2}#${APP_ID} .nsit-title-divider{height:1px;margin:16px 0 0;background:var(--nsit-line)}#${APP_ID} .nsit-post-title{margin-top:0}#${APP_ID} .nsit-title-hint{margin-left:6px;color:var(--nsit-muted);font-size:12px;font-weight:400}
         #${APP_ID} .nsit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}#${APP_ID} .nsit-field{display:grid;gap:5px;min-width:0}#${APP_ID} .nsit-field span{font-size:14px;color:#506078}.nsit-field-wide{grid-column:1/-1}
@@ -338,7 +348,7 @@ function escapeHtml(value) {
         #${APP_ID} .nsit-value-card{margin:14px 0;border:1px solid #f0cf8a;border-radius:12px;background:linear-gradient(145deg,#fff,#fff8e9);padding:14px}#${APP_ID} .nsit-value-inputs{display:grid;gap:8px;margin-bottom:8px}#${APP_ID} .nsit-value-row-one,#${APP_ID} .nsit-value-row-two{grid-template-columns:repeat(3,minmax(0,1fr))}#${APP_ID} .nsit-value-row-two{padding-bottom:8px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-value-inputs .nsit-field{gap:3px}#${APP_ID} .nsit-value-inputs .nsit-field span{font-size:14px;color:#506078}#${APP_ID} .nsit-value-inputs .nsit-field--askingPrice > span{color:#27834a}#${APP_ID} .nsit-value-inputs .nsit-field--askingPremium > span{color:#c04444}#${APP_ID} .nsit-value-inputs input,#${APP_ID} .nsit-value-inputs select{padding:6px 7px;font-size:14px}#${APP_ID} .nsit-amount-input{display:flex;min-width:0}#${APP_ID} .nsit-amount-input .nsit-currency-picker{width:112px;flex:none}#${APP_ID} .nsit-amount-input .nsit-currency-picker input{margin:0;border-radius:7px 0 0 7px;cursor:pointer}#${APP_ID} .nsit-currency-picker .nsit-picker-menu{width:max-content;min-width:100%}#${APP_ID} .nsit-currency-picker .nsit-picker-menu [data-nsit-picker-option]{white-space:nowrap}#${APP_ID} .nsit-amount-input > input{margin-left:-1px;border-radius:0 7px 7px 0}#${APP_ID} .nsit-value-inputs .nsit-picker input{padding-right:30px}#${APP_ID} .nsit-value-inputs .nsit-picker-toggle{right:5px;width:18px;height:18px}#${APP_ID} .nsit-value-inputs .nsit-picker-toggle i{width:15px;height:15px;background-size:15px 15px}#${APP_ID} .nsit-rate-value{display:flex;align-items:center;min-width:0;gap:4px;white-space:nowrap}#${APP_ID} .nsit-value-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;color:#8b6a2b;font-weight:600}#${APP_ID} .nsit-value-heading>.nsit-rate-value{margin-right:auto;color:#2c8a4e;font-weight:400}#${APP_ID} .nsit-value-heading>.nsit-rate-value strong{min-width:0;overflow:hidden;color:inherit;font-size:14px;font-weight:650;text-overflow:ellipsis}#${APP_ID} .nsit-value-heading>.nsit-rate-value button{width:auto;height:auto;margin:0;padding:0;border:0;background:transparent;color:inherit;font-size:16px;line-height:1;cursor:pointer}#${APP_ID} .nsit-value-stats{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;white-space:nowrap}#${APP_ID} .nsit-value-heading strong{color:#8b641e;font-size:14px}#${APP_ID} .nsit-title-progress{display:block;width:62px;height:6px;overflow:hidden;border-radius:999px;background:#def0e3}.nsit-title-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#6fbc82,#239652);transition:width .15s ease}#${APP_ID} .nsit-value-result{display:flex;align-items:flex-start;gap:12px;min-height:54px;margin-top:12px}#${APP_ID} .nsit-value{flex:none;margin:0;color:var(--nsit-accent);font-size:34px;font-weight:750;letter-spacing:-1px;line-height:1;word-break:break-all}#${APP_ID} .nsit-value small{margin-right:4px;font-size:15px;font-weight:inherit}#${APP_ID} .nsit-value-result .nsit-price-preview{display:flex;flex:1;align-items:flex-end;justify-content:flex-end;gap:8px;align-self:flex-start;min-width:0;padding:0;border:0;background:transparent;color:#718096;font-size:18px;font-weight:650;line-height:1.3;text-align:right;white-space:normal}#${APP_ID} .nsit-price-preview span{min-width:0}#${APP_ID} .nsit-price-preview b{display:inline-block;flex:none;font-size:34px;letter-spacing:-1px;line-height:1;white-space:nowrap}#${APP_ID} .nsit-price-preview[data-price-state="fair"]{color:#27834a}#${APP_ID} .nsit-price-preview[data-price-state="premium"]{color:#c04444}
         #${APP_ID} .nsit-formula{margin:0;font-size:14px;color:var(--nsit-muted)}#${APP_ID} .nsit-action-dock{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:12px 18px;border-top:1px solid var(--nsit-line);background:#fff;box-shadow:0 -8px 18px rgba(29,40,65,.05)}#${APP_ID} .nsit-toggle-group,#${APP_ID} .nsit-actions{display:flex;flex-wrap:wrap;gap:8px}#${APP_ID} .nsit-actions{justify-content:flex-end}#${APP_ID} .nsit-card-toggle{display:flex;align-items:center;gap:6px;color:#506078;cursor:pointer;white-space:nowrap}#${APP_ID} .nsit-card-toggle input{width:15px;height:15px;margin:0;accent-color:var(--nsit-accent)}#${APP_ID} .nsit-config-check-toggle{position:relative;gap:4px}#${APP_ID} .nsit-config-check-help{display:grid;place-items:center;width:15px;height:15px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-weight:700;line-height:1}#${APP_ID} .nsit-config-check-tooltip{position:absolute;z-index:10;bottom:calc(100% + 8px);left:0;width:310px;padding:9px 11px;border-radius:7px;background:#27334a;color:#fff;font-size:12px;font-weight:400;line-height:1.55;white-space:normal;box-shadow:0 8px 18px rgba(31,44,67,.2);opacity:0;pointer-events:none;transform:translateY(3px);transition:opacity .15s,transform .15s}#${APP_ID} .nsit-config-check-tooltip::after{position:absolute;top:100%;left:22px;border:5px solid transparent;border-top-color:#27334a;content:""}#${APP_ID} .nsit-config-check-toggle:hover .nsit-config-check-tooltip{opacity:1;transform:translateY(0)}#${APP_ID} button{border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#40506a;padding:8px 11px;font:inherit;cursor:pointer}#${APP_ID} button:hover{border-color:var(--nsit-accent);color:#8b5c00}#${APP_ID} button.nsit-primary{background:#d9961c;border-color:#d9961c;color:#fff}#${APP_ID} .nsit-status{position:absolute;right:18px;bottom:100%;max-width:calc(100% - 36px);margin:0 0 7px;padding:4px 7px;border-radius:5px;background:rgba(39,51,74,.88);color:#fff;font-size:14px;opacity:0;pointer-events:none;transition:opacity .15s}.nsit-status:not(:empty){opacity:1}
         #${APP_ID} .nsit-trigger{display:inline;margin:0 7px 0 0;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:600 13px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;vertical-align:baseline}#${APP_ID} .nsit-trigger:hover{border-color:#b87500;background:#d9961c;color:#fff}#${APP_ID} .nsit-buy-trigger{border-color:#6d9bd2;background:#f2f7ff;color:#316ab7}#${APP_ID} .nsit-buy-trigger:hover{border-color:#316ab7;background:#3976bc}#${APP_ID} .nsit-modal,#${APP_ID} .nsit-buy-modal{display:none;position:fixed;z-index:2147483647;inset:0;overflow:auto;padding:28px 16px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-open .nsit-modal,#${APP_ID}.nsit-buy-open .nsit-buy-modal{display:grid;place-items:center}#${APP_ID} .nsit-dialog-wrap{position:relative;width:min(980px,100%);max-height:calc(100vh - 56px);margin:auto}#${APP_ID} .nsit-modal .nsit-shell,#${APP_ID} .nsit-buy-shell{position:relative;display:flex;flex-direction:column;width:min(680px,100%);max-height:calc(100vh - 56px);margin:0;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24);overflow:hidden}#${APP_ID} .nsit-modal .nsit-shell{width:100%}#${APP_ID} .nsit-close{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:transparent;font-size:25px;line-height:1;color:#62708a}#${APP_ID} .nsit-close:hover{background:#f0f3f8;color:#27334a}#${APP_ID} .nsit-head>div{min-width:0}#${APP_ID} .nsit-head>div:last-child{display:flex;align-items:center;gap:8px;white-space:nowrap}#${APP_ID} .nsit-personalization-trigger{display:inline-flex;align-items:center;height:28px;gap:5px;margin:0;padding:0 4px;border:0;background:transparent;color:var(--nsit-accent);font:inherit;font-weight:600;line-height:1}#${APP_ID} .nsit-personalization-trigger:hover{border-color:transparent;background:#fff3da;color:#a56b00}#${APP_ID} .nsit-personalization-trigger svg{width:18px;height:18px;fill:currentColor}#${APP_ID} .nsit-head-divider{width:1px;height:18px;background:#d8e0eb}#${APP_ID} .nsit-buy-shell{width:min(940px,100%);height:min(640px,calc(100vh - 56px))}#${APP_ID} .nsit-buy-body{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:0;flex:1}#${APP_ID} .nsit-buy-catalog{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--nsit-line);background:#fbfcfe}#${APP_ID} .nsit-buy-catalog>header{padding:10px 14px 6px}#${APP_ID} .nsit-buy-catalog h3{font-size:15px}#${APP_ID} .nsit-buy-catalog>label{padding:0 14px 8px}#${APP_ID} .nsit-buy-catalog>label input{padding:7px 8px}#${APP_ID} [data-nsit-buy-catalog-results]{display:grid;align-content:start;gap:7px;min-height:0;overflow:auto;padding:0 10px 12px}#${APP_ID} .nsit-buy-catalog-result{display:grid;gap:3px;width:100%;padding:9px 10px;text-align:left}#${APP_ID} .nsit-buy-catalog-result strong{color:#27334a}#${APP_ID} .nsit-buy-catalog-result span,#${APP_ID} .nsit-buy-catalog-result small{color:#66758d;font-size:12px;line-height:1.4}#${APP_ID} .nsit-buy-catalog-result:hover{border-color:#6d9bd2;background:#f2f7ff}#${APP_ID} .nsit-buy-form{overflow:auto;padding:0 18px 12px}#${APP_ID} .nsit-buy-form .nsit-section{padding:10px 0}#${APP_ID} .nsit-buy-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}#${APP_ID} .nsit-buy-spec-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px 10px;margin-top:8px}#${APP_ID} .nsit-buy-price{display:grid;gap:6px}#${APP_ID} .nsit-buy-price-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px}#${APP_ID} .nsit-buy-price-option{display:grid;grid-template-columns:auto auto minmax(64px,78px) auto;align-items:center;gap:5px;padding:4px 2px;color:#506078;cursor:pointer}#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked){color:#316ab7}#${APP_ID} .nsit-buy-price-option input[type="radio"]{width:15px;height:15px;margin:0;accent-color:#3976bc}#${APP_ID} .nsit-buy-price-option input[type="number"]{width:100%;min-width:0;padding:4px 5px;font-size:13px}#${APP_ID} .nsit-buy-price-option:has(input[type="radio"]:checked) input[type="number"]{border-color:#3976bc;color:#316ab7;box-shadow:0 0 0 2px rgba(57,118,188,.12)}#${APP_ID} .nsit-buy-price-option em{font-style:normal;white-space:nowrap}#${APP_ID} .nsit-buy-tags{padding-top:1px}#${APP_ID} .nsit-buy-shell .nsit-action-dock{justify-content:space-between;gap:12px;padding:10px 18px}#${APP_ID} [data-nsit-buy-status]{margin-left:auto;text-align:right}@media(max-width:760px){#${APP_ID} .nsit-buy-shell{height:auto;max-height:calc(100vh - 16px)}#${APP_ID} .nsit-buy-body{grid-template-columns:1fr;overflow:auto}#${APP_ID} .nsit-buy-catalog{max-height:245px;border-right:0;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-buy-form{overflow:visible}#${APP_ID} .nsit-buy-spec-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#${APP_ID} .nsit-buy-price-options{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){#${APP_ID} .nsit-buy-grid,#${APP_ID} .nsit-buy-price-options,#${APP_ID} .nsit-buy-spec-grid{grid-template-columns:1fr}#${APP_ID} .nsit-buy-modal{padding:8px}}
-        #${APP_ID} .nsit-catalog-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-catalog-open .nsit-catalog-modal{display:grid;place-items:center}#${APP_ID} .nsit-catalog-dialog{width:min(720px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-catalog-head h3{font-size:16px}#${APP_ID} .nsit-catalog-head-copy{display:flex;align-items:baseline;gap:8px;min-width:0}#${APP_ID} .nsit-catalog-head-copy small{color:var(--nsit-muted);font-size:12px}#${APP_ID} .nsit-catalog-search{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-catalog-search button{white-space:nowrap}#${APP_ID} .nsit-catalog-results{display:grid;gap:8px;min-height:88px;padding:14px 16px}#${APP_ID} .nsit-catalog-empty{margin:auto;color:var(--nsit-muted);font-size:14px}#${APP_ID} .nsit-catalog-result{display:grid;width:100%;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 12px;text-align:left}#${APP_ID} .nsit-catalog-result strong{color:#27334a}#${APP_ID} .nsit-catalog-result span{color:#506078;font-size:13px;line-height:1.55}#${APP_ID} .nsit-catalog-result small{align-self:end;color:#8794aa;font-size:12px;white-space:nowrap}#${APP_ID} .nsit-report-remarks{grid-template-columns:1fr}@media(max-width:820px){#${APP_ID} .nsit-body{display:block}#${APP_ID} .nsit-side{border-left:0;border-top:1px solid var(--nsit-line)}#${APP_ID} .nsit-value-card{position:static}}@media(max-width:520px){#${APP_ID} .nsit-grid,#${APP_ID} .nsit-basic .nsit-grid,#${APP_ID} .nsit-report-remarks,#${APP_ID} .nsit-asking-price,#${APP_ID} .nsit-catalog-search{grid-template-columns:1fr}#${APP_ID} .nsit-value-row-one,#${APP_ID} .nsit-value-row-two{grid-template-columns:repeat(3,minmax(0,1fr))}#${APP_ID} .nsit-basic .nsit-field--vendor,#${APP_ID} .nsit-basic .nsit-field--model,#${APP_ID} .nsit-basic .nsit-field--cpu,#${APP_ID} .nsit-basic .nsit-field--memory,#${APP_ID} .nsit-basic .nsit-field--disk,#${APP_ID} .nsit-basic .nsit-field--bandwidth,#${APP_ID} .nsit-basic .nsit-field--traffic,#${APP_ID} .nsit-basic .nsit-field--remainingTraffic{grid-column:auto}#${APP_ID} .nsit-modal{padding:8px}#${APP_ID} .nsit-head small{display:none}#${APP_ID} .nsit-catalog-head-copy{align-items:flex-start;flex-direction:column;gap:2px}}
+        #${APP_ID} .nsit-catalog-modal{display:none;position:fixed;z-index:2147483647;inset:0;padding:20px;background:rgba(20,29,45,.46)}#${APP_ID}.nsit-catalog-open .nsit-catalog-modal{display:grid;place-items:center}#${APP_ID} .nsit-catalog-dialog{width:min(720px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--nsit-line);border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.24)}#${APP_ID} .nsit-catalog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-catalog-head h3{font-size:16px}#${APP_ID} .nsit-catalog-head-copy{display:flex;align-items:baseline;gap:8px;min-width:0}#${APP_ID} .nsit-catalog-head-copy small{color:var(--nsit-muted);font-size:12px}#${APP_ID} .nsit-catalog-search{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:14px 16px;border-bottom:1px solid var(--nsit-line)}#${APP_ID} .nsit-catalog-search button{white-space:nowrap}#${APP_ID} .nsit-catalog-results{display:grid;gap:8px;min-height:88px;padding:14px 16px}#${APP_ID} .nsit-catalog-empty{margin:auto;color:var(--nsit-muted);font-size:14px}#${APP_ID} .nsit-catalog-result{display:grid;width:100%;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 12px;text-align:left}#${APP_ID} .nsit-catalog-result strong{color:#27334a}#${APP_ID} .nsit-catalog-result span{color:#506078;font-size:13px;line-height:1.55}#${APP_ID} .nsit-catalog-result small{align-self:end;color:#8794aa;font-size:12px;white-space:nowrap}#${APP_ID} .nsit-report-remarks{grid-template-columns:1fr}@media(max-width:820px){#${APP_ID} .nsit-body{display:block}#${APP_ID} .nsit-side{border-left:0;border-top:1px solid var(--nsit-line)}#${APP_ID} .nsit-value-card{position:static}}@media(max-width:520px){#${APP_ID} .nsit-grid,#${APP_ID} .nsit-basic .nsit-grid,#${APP_ID} .nsit-report-remarks,#${APP_ID} .nsit-asking-price,#${APP_ID} .nsit-catalog-search{grid-template-columns:1fr}#${APP_ID} .nsit-value-row-one,#${APP_ID} .nsit-value-row-two{grid-template-columns:repeat(3,minmax(0,1fr))}#${APP_ID} .nsit-basic .nsit-field--vendor,#${APP_ID} .nsit-basic .nsit-field--model,#${APP_ID} .nsit-basic .nsit-field--cpu,#${APP_ID} .nsit-basic .nsit-field--memory,#${APP_ID} .nsit-basic .nsit-field--disk,#${APP_ID} .nsit-basic .nsit-field--bandwidth,#${APP_ID} .nsit-basic .nsit-field--traffic,#${APP_ID} .nsit-basic .nsit-field--remainingTraffic{grid-column:auto}#${APP_ID} .nsit-modal{padding:8px}.nsit-star-note{display:none}#${APP_ID} .nsit-catalog-head-copy{align-items:flex-start;flex-direction:column;gap:2px}}
         #${APP_ID} .nsit-value-inputs .nsit-field--renewalAmount > span:first-child{display:flex;align-items:center;justify-content:space-between;gap:4px}#${APP_ID} .nsit-value-inputs .nsit-field--renewalAmount [data-nsit-amount-cny]{color:#2c8a4e;font-size:12px;font-weight:650;white-space:nowrap}#${APP_ID} .nsit-field-icon{display:inline-flex;vertical-align:-3px;margin-right:4px;color:inherit}#${APP_ID} .nsit-field-icon svg,#${APP_ID} .nsit-value-heading-icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}#${APP_ID} .nsit-field--askingPrice .nsit-field-icon,#${APP_ID} .nsit-field--askingPrice .nsit-field-icon svg{color:#27834a}#${APP_ID} .nsit-field--askingPremium .nsit-field-icon,#${APP_ID} .nsit-field--askingPremium .nsit-field-icon svg{color:#c04444}#${APP_ID} .nsit-value-heading-icon{display:inline-block;margin-right:4px;vertical-align:-3px}#${APP_ID} .nsit-contact-post-remarks{display:grid;gap:10px}#${APP_ID} .nsit-value-result{align-items:flex-end}#${APP_ID} .nsit-value-result .nsit-price-preview{align-self:flex-end}#${APP_ID} .nsit-price-typing{display:flex;align-items:flex-end;justify-content:flex-end;gap:8px;animation:nsit-type-in .24s steps(12,end)}@keyframes nsit-type-in{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}@keyframes nsit-progress-slide{from{width:0;opacity:0;transform:translateX(-8px)}to{width:62px;opacity:1;transform:translateX(0)}}#${APP_ID} .nsit-title-progress.is-visible{animation:nsit-progress-slide .32s ease-out}#${APP_ID} .nsit-vendor-picker input{padding-left:34px}#${APP_ID} .nsit-vendor-input-icon{position:absolute;z-index:2;top:50%;left:9px;transform:translateY(-50%)}#${APP_ID} .nsit-vendor-icon{position:relative;display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:4px;background:#edf2f8;color:#52627c;font-size:11px;font-style:normal;overflow:hidden}#${APP_ID} .nsit-vendor-icon img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}#${APP_ID} .nsit-vendor-icon b{font:700 11px/1 sans-serif}#${APP_ID} .nsit-picker-menu [data-nsit-picker-option]{display:flex;align-items:center;gap:7px}
       `;
     const modelSuggestionStyles = `
@@ -383,7 +393,7 @@ function escapeHtml(value) {
       <div class="nsit-dialog-wrap">
         ${machineTabsMarkup()}
       <div class="nsit-shell" role="dialog" aria-modal="true" aria-label="${replyMode ? '回帖出鸡模板' : '单机转让帖模板'}">
-        <header class="nsit-head"><div class="nsit-head-copy"><h2>${replyMode ? '回帖出鸡' : '出鸡'}</h2><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div><div><button type="button" class="nsit-personalization-trigger" data-action="open-personalization"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M204.060444 555.463111c-14.506667 1.763556-26.225778 15.473778-27.761777 32.540445-2.104889 23.324444 14.620444 43.064889 34.702222 40.618666 14.449778-1.763556 26.168889-15.530667 27.761778-32.654222 2.048-23.324444-14.791111-42.951111-34.702223-40.504889zM265.102222 495.388444c21.845333-2.275556 39.480889-22.926222 41.472-48.583111 2.503111-33.507556-21.219556-61.44-49.777778-58.368-21.788444 2.275556-39.424 22.869333-41.415111 48.583111-2.616889 33.336889 21.219556 61.269333 49.720889 58.368zM415.687111 252.586667c-28.501333 2.104889-51.655111 29.240889-53.475555 62.691555-2.161778 40.448 26.453333 74.069333 60.984888 71.452445 28.558222-2.104889 51.655111-29.240889 53.475556-62.691556 2.104889-40.618667-26.453333-74.069333-60.984889-71.452444z m206.336-15.36c-35.100444 2.56-63.431111 35.84-65.649778 76.970666-2.730667 49.777778 32.426667 91.079111 74.865778 87.779556 35.157333-2.56 63.488-35.896889 65.706667-76.970667 2.787556-49.777778-32.369778-91.022222-74.922667-87.779555zM967.111111 263.793778a35.441778 0 0 0-9.841778-23.04l-0.682666-0.682667a26.510222 26.510222 0 0 0-18.773334-8.192 26.908444 26.908444 0 0 0-21.617777 11.605333l-342.072889 461.653334-43.52 100.352 1.137777 1.024-4.949333 13.312 11.093333-6.940445 1.536 1.536 78.051556-63.715555 342.698667-462.506667a37.603556 37.603556 0 0 0 6.940444-24.462222z m-68.835555 234.609778c-13.767111-1.649778-26.737778 8.704-30.378667 24.291555-6.940444 28.899556-19.342222 75.719111-35.157333 114.801778-22.812444 56.604444-64.967111 135.395556-135.736889 189.212444-72.248889 55.068444-142.904889 66.56-189.44 66.56-37.034667 0-72.248889-7.168-101.831111-20.764444-26.908444-12.344889-46.421333-28.899556-54.954667-46.648889-3.413333-7.111111-7.224889-15.075556-11.207111-23.665778-17.237333-36.522667-36.636444-78.051556-49.777778-90.851555-15.928889-15.473778-39.139556-17.635556-59.847111-17.635556-8.135111 0-40.846222 1.536-48.583111 1.536-33.109333 0-49.493333-7.623111-56.149334-26.282667-17.806222-49.607111-7.281778-134.144 26.851556-215.267555C204.8 328.362667 299.747556 236.657778 412.444444 202.24c40.049778-12.401778 81.294222-22.186667 121.457778-22.186667 85.674667 0 188.017778 38.570667 252.757334 90.680889 11.377778 9.102222 26.965333 6.826667 35.783111-5.802666 10.410667-14.791111 7.111111-36.807111-6.826667-46.648889-23.324444-16.497778-58.026667-39.936-86.414222-55.296A392.931556 392.931556 0 0 0 539.875556 113.777778c-68.152889 0-148.935111 19.228444-217.429334 55.409778-78.222222 41.073778-135.395556 99.783111-179.598222 173.112888-36.408889 60.302222-67.868444 130.389333-80.213333 197.973334-7.509333 41.244444-6.826667 67.413333-2.389334 103.082666 4.209778 34.304 13.425778 61.667556 26.908445 79.246223 22.414222 29.468444 51.598222 43.918222 89.144889 43.918222 13.880889 0 56.32-5.859556 63.146666-5.859556 7.395556 0 12.231111 1.365333 14.392889 4.437334 6.428444 8.704 14.449778 26.282667 23.779556 46.819555 7.509333 16.554667 15.928889 35.328 25.429333 53.191111 12.060444 22.869333 36.920889 47.445333 66.56 65.592889 27.022222 16.554667 71.964444 36.408889 132.323556 36.408889 72.135111 0 148.48-27.704889 226.986666-82.261333 74.979556-52.110222 123.164444-139.605333 150.357334-203.776 19.057778-44.942222 34.759111-102.4 43.861333-139.832889 4.835556-20.309333-6.997333-40.732444-24.803556-42.837333z"/></svg><span>个性化设置</span></button><i class="nsit-head-divider" aria-hidden="true"></i><button type="button" class="nsit-close" data-action="close" aria-label="关闭表单" title="关闭">×</button></div></header>
+        <header class="nsit-head"><div class="nsit-head-copy"><h2>${replyMode ? '回帖出鸡' : '出鸡'}</h2>${starNoteMarkup()}</div><div><button type="button" class="nsit-personalization-trigger" data-action="open-personalization"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M204.060444 555.463111c-14.506667 1.763556-26.225778 15.473778-27.761777 32.540445-2.104889 23.324444 14.620444 43.064889 34.702222 40.618666 14.449778-1.763556 26.168889-15.530667 27.761778-32.654222 2.048-23.324444-14.791111-42.951111-34.702223-40.504889zM265.102222 495.388444c21.845333-2.275556 39.480889-22.926222 41.472-48.583111 2.503111-33.507556-21.219556-61.44-49.777778-58.368-21.788444 2.275556-39.424 22.869333-41.415111 48.583111-2.616889 33.336889 21.219556 61.269333 49.720889 58.368zM415.687111 252.586667c-28.501333 2.104889-51.655111 29.240889-53.475555 62.691555-2.161778 40.448 26.453333 74.069333 60.984888 71.452445 28.558222-2.104889 51.655111-29.240889 53.475556-62.691556 2.104889-40.618667-26.453333-74.069333-60.984889-71.452444z m206.336-15.36c-35.100444 2.56-63.431111 35.84-65.649778 76.970666-2.730667 49.777778 32.426667 91.079111 74.865778 87.779556 35.157333-2.56 63.488-35.896889 65.706667-76.970667 2.787556-49.777778-32.369778-91.022222-74.922667-87.779555zM967.111111 263.793778a35.441778 0 0 0-9.841778-23.04l-0.682666-0.682667a26.510222 26.510222 0 0 0-18.773334-8.192 26.908444 26.908444 0 0 0-21.617777 11.605333l-342.072889 461.653334-43.52 100.352 1.137777 1.024-4.949333 13.312 11.093333-6.940445 1.536 1.536 78.051556-63.715555 342.698667-462.506667a37.603556 37.603556 0 0 0 6.940444-24.462222z m-68.835555 234.609778c-13.767111-1.649778-26.737778 8.704-30.378667 24.291555-6.940444 28.899556-19.342222 75.719111-35.157333 114.801778-22.812444 56.604444-64.967111 135.395556-135.736889 189.212444-72.248889 55.068444-142.904889 66.56-189.44 66.56-37.034667 0-72.248889-7.168-101.831111-20.764444-26.908444-12.344889-46.421333-28.899556-54.954667-46.648889-3.413333-7.111111-7.224889-15.075556-11.207111-23.665778-17.237333-36.522667-36.636444-78.051556-49.777778-90.851555-15.928889-15.473778-39.139556-17.635556-59.847111-17.635556-8.135111 0-40.846222 1.536-48.583111 1.536-33.109333 0-49.493333-7.623111-56.149334-26.282667-17.806222-49.607111-7.281778-134.144 26.851556-215.267555C204.8 328.362667 299.747556 236.657778 412.444444 202.24c40.049778-12.401778 81.294222-22.186667 121.457778-22.186667 85.674667 0 188.017778 38.570667 252.757334 90.680889 11.377778 9.102222 26.965333 6.826667 35.783111-5.802666 10.410667-14.791111 7.111111-36.807111-6.826667-46.648889-23.324444-16.497778-58.026667-39.936-86.414222-55.296A392.931556 392.931556 0 0 0 539.875556 113.777778c-68.152889 0-148.935111 19.228444-217.429334 55.409778-78.222222 41.073778-135.395556 99.783111-179.598222 173.112888-36.408889 60.302222-67.868444 130.389333-80.213333 197.973334-7.509333 41.244444-6.826667 67.413333-2.389334 103.082666 4.209778 34.304 13.425778 61.667556 26.908445 79.246223 22.414222 29.468444 51.598222 43.918222 89.144889 43.918222 13.880889 0 56.32-5.859556 63.146666-5.859556 7.395556 0 12.231111 1.365333 14.392889 4.437334 6.428444 8.704 14.449778 26.282667 23.779556 46.819555 7.509333 16.554667 15.928889 35.328 25.429333 53.191111 12.060444 22.869333 36.920889 47.445333 66.56 65.592889 27.022222 16.554667 71.964444 36.408889 132.323556 36.408889 72.135111 0 148.48-27.704889 226.986666-82.261333 74.979556-52.110222 123.164444-139.605333 150.357334-203.776 19.057778-44.942222 34.759111-102.4 43.861333-139.832889 4.835556-20.309333-6.997333-40.732444-24.803556-42.837333z"/></svg><span>个性化设置</span></button><i class="nsit-head-divider" aria-hidden="true"></i><button type="button" class="nsit-close" data-action="close" aria-label="关闭表单" title="关闭">×</button></div></header>
         <div class="nsit-body">
           ${inlineMachineCatalogMarkup()}
           <form id="nsit-form" class="nsit-form" novalidate>
@@ -420,6 +430,11 @@ function escapeHtml(value) {
     return app;
   }
 
+  // 「点个 star」提示行：出鸡/收鸡、抽奖配置、抽奖与中奖弹窗共用同一份文案和图标
+  function starNoteMarkup() {
+    return '<small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small>';
+  }
+
   function luckyTriggerMarkup() {
     return '<button type="button" class="nsit-lucky-trigger" data-nsit-lucky-trigger aria-haspopup="dialog" aria-expanded="false"><span aria-hidden="true">🎁</span><b data-nsit-lucky-trigger-label>抽奖配置</b></button>';
   }
@@ -430,7 +445,7 @@ function escapeHtml(value) {
     const positions = LUCKY_POSITION_OPTIONS.map(([value, label], index) => `<label class="nsit-lucky-option"><input type="radio" name="luckyPosition" value="${value}"${index === 0 ? ' checked' : ''}><span>${escapeHtml(label)}</span></label>`).join('');
     return `<div class="nsit-lucky-modal" data-nsit-lucky-modal aria-hidden="true">
       <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="抽奖设置">
-        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>抽奖配置</h3><small class="nsit-star-note">如果你觉得有帮助，请给我一个<a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库"><svg class="nsit-github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.167 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.455-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.004.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.985 1.029-2.684-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.8c.85.004 1.706.115 2.505.337 1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.684 0 3.843-2.338 4.688-4.566 4.937.359.309.678.92.678 1.854 0 1.338-.012 2.418-.012 2.747 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10Z"/></svg></a><a href="https://github.com/ruoqianfengshao/nodeseek-issue-template" target="_blank" rel="noopener noreferrer">小星星</a>，感谢</small></div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="close" aria-label="关闭抽奖配置"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>抽奖配置</h3>${starNoteMarkup()}</div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-action="close" aria-label="关闭抽奖配置"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
         <div class="nsit-lucky-body">
           <div class="nsit-lucky-form">
           <section class="nsit-lucky-section">
@@ -494,14 +509,10 @@ function escapeHtml(value) {
       .nsit-lucky-dialog{display:flex;flex-direction:column;width:min(960px,100%);min-width:0;max-width:100%;max-height:min(660px,92vh);overflow:hidden;border-radius:12px;background:#fff;color:#27334a;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 20px 48px rgba(15,23,38,.28)}
       .nsit-lucky-dialog,.nsit-lucky-dialog *{box-sizing:border-box}
       .nsit-lucky-dialog input,.nsit-lucky-dialog pre{max-width:100%}
-      .nsit-lucky-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
+      .nsit-lucky-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
       .nsit-lucky-head h3{margin:0;font-size:16px}
-      .nsit-lucky-head-copy{display:grid;gap:2px;min-width:0}
-      .nsit-lucky-head-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-      .nsit-lucky-head .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:#718096;font-size:12px;white-space:nowrap}
-      .nsit-lucky-head .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}
-      .nsit-lucky-head .nsit-star-note a:hover{text-decoration:underline}
-      .nsit-lucky-head .nsit-github-icon{width:14px;height:14px;fill:currentColor}
+      .nsit-lucky-head-copy{display:flex;align-items:baseline;gap:9px;min-width:0}
+      .nsit-lucky-head-title{display:flex;align-items:baseline;gap:9px;min-width:0}
       .nsit-lucky-close{display:grid;place-items:center;width:28px;height:28px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;color:#62708a;cursor:pointer}
       .nsit-lucky-close:hover{background:#f0f3f8;color:#27334a}
       .nsit-lucky-body{display:grid;flex:1 1 auto;min-height:0;overflow:hidden;grid-template-columns:minmax(0,1fr) minmax(320px,1.05fr)}
@@ -531,7 +542,6 @@ function escapeHtml(value) {
       .nsit-lucky-dialog .nsit-lucky-option input[type="checkbox"]:checked{background:#d9961c center/11px 11px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 6L9 17l-5-5' fill='none' stroke='%23fff' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
       .nsit-lucky-dialog .nsit-lucky-option input:focus,.nsit-lucky-dialog .nsit-lucky-option input:focus-visible,.nsit-lucky-dialog .nsit-lucky-option input:active{outline:none;box-shadow:none}
       .nsit-lucky-option[hidden],.nsit-lucky-extra[hidden]{display:none}
-      .nsit-lucky-hidden{display:none!important}
       .nsit-lucky-group{margin-top:10px}
       .nsit-lucky-extra{margin-top:7px}
       .nsit-lucky-dedupe{margin-top:10px}
@@ -2284,6 +2294,7 @@ function formValues(app) {
     } catch (_) { /* 损坏或不可用的本地存储直接从空记录开始 */ }
 
     let changed = false;
+    const newReplyPostIds = new Set();
     payload.comments.forEach((comment) => {
       const postId = Number(comment?.post_id);
       const floorId = Number(comment?.floor_id);
@@ -2294,12 +2305,15 @@ function formValues(app) {
         floors.push(floorId);
         posts[key] = floors.sort((left, right) => left - right);
         changed = true;
+        if (floorId > 0) newReplyPostIds.add(key);
       }
     });
     if (changed) {
       try { localStorage.setItem(storageKey, JSON.stringify(posts)); } catch (_) { /* 存储不可用时忽略 */ }
       renderRepliedPostMenu();
       renderRepliedPostLabels();
+      // 新增回复且当前页面就是那个帖子：尝试把参与的抽奖记进通知表
+      if (newReplyPostIds.has(currentPostId())) recordParticipatedLuckyDraw();
     }
   }
 
@@ -2355,11 +2369,6 @@ function formValues(app) {
     });
   }
 
-  function findEditDialogRoot() {
-    const dialogs = Array.from(document.querySelectorAll('.mde-modal, .window-modal, [role=dialog], .dialog, .ant-modal, [class*=modal]'));
-    return dialogs.find((dialog) => dialog.querySelector('#mde-title')) || null;
-  }
-
   async function updateTradePostTitle(button, status) {
     if (button.disabled) return;
     const context = tradePostContext();
@@ -2367,36 +2376,18 @@ function formValues(app) {
     const nextTitle = tradeTitleWithStatus(context.title, status);
     if (nextTitle === context.title) return;
     button.disabled = true;
-    const restoreStyles = [];
-    const hideDialogOnSight = () => {
-      const restores = hideEditOverlays(document.querySelector('#mde-title'));
-      if (!restores.length) return;
-      restoreStyles.push(...restores);
-    };
-    // 编辑弹窗一出现就藏掉（早于浏览器绘制），改标题的开关动作不该被看到
-    const watcher = new MutationObserver(hideDialogOnSight);
-    watcher.observe(document.documentElement, { childList: true, subtree: true });
     try {
-      const editAction = Array.from(context.firstFloor.querySelectorAll('.comment-menu .menu-item')).find((item) => item.textContent.trim() === '编辑');
-      if (!editAction) throw new Error('未找到楼主编辑入口');
-      editAction.click();
-      const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
-      hideDialogOnSight();
-      const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
-      if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      if (setter) setter.call(titleInput, nextTitle);
-      else titleInput.value = nextTitle;
-      titleInput.dispatchEvent(new Event('input', { bubbles: true }));
-      titleInput.dispatchEvent(new Event('change', { bubbles: true }));
-      submit.click();
+      // 走编辑接口改标题，不打开编辑器；正文原样回传，避免被清空
+      const postId = currentPostId();
+      const content = luckyPostMarkdownFromConfig(postId)
+        || context.firstFloor.querySelector('.post-content')?.textContent
+        || '';
+      if (!content) throw new Error('没有取到正文内容');
+      await luckyEditPostViaApi({ postId, title: nextTitle, content });
+      luckyRefreshPostView();
     } catch (error) {
       console.warn('[NSIT] 更新交易状态失败', error);
       button.disabled = false;
-      restoreStyles.forEach((fn) => { try { fn(); } catch (_) {} });
-    } finally {
-      // 提交后框架可能再渲染一次，多盯一会儿
-      setTimeout(() => watcher.disconnect(), 1500);
     }
   }
 
@@ -3294,9 +3285,12 @@ function formValues(app) {
     return Boolean(document.querySelector('#mde-title')) && !currentPostId();
   }
 
+  // 用 localStorage 而不是 sessionStorage：发布后 NodeSeek 可能开新页签展示新帖，
+  // sessionStorage 只在同一个浏览上下文里可见，跨页签会丢 armed 配置。
+  // LUCKY_ARMED_KEY 自带 submitAt + 10 分钟窗口，语义仍是“单次有效”。
   function luckyReadStorage(key) {
     try {
-      const raw = sessionStorage.getItem(key);
+      const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
     } catch (_) {
       return null;
@@ -3304,11 +3298,11 @@ function formValues(app) {
   }
 
   function luckyWriteStorage(key, value) {
-    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* 存储不可用时忽略 */ }
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* 存储不可用时忽略 */ }
   }
 
   function luckyRemoveStorage(key) {
-    try { sessionStorage.removeItem(key); } catch (_) { /* 存储不可用时忽略 */ }
+    try { localStorage.removeItem(key); } catch (_) { /* 存储不可用时忽略 */ }
   }
 
   function luckyArmedConfig() {
@@ -3381,6 +3375,8 @@ function formValues(app) {
       insertedText: String(config.insertedText || ''),
       submitAt: Number(config.submitAt) || 0,
       createdAt: Number(config.createdAt) || Date.now(),
+      // 回写重试次数：持久化在配置里，刷新页面后继续累计
+      writebackAttempts: Number(config.writebackAttempts) || 0,
     };
   }
 
@@ -3744,6 +3740,91 @@ function formValues(app) {
     return Array.from(firstFloor?.querySelectorAll('.comment-menu .menu-item') || []).find((item) => item.textContent.trim() === '编辑') || null;
   }
 
+  // NS 的编辑接口是 POST /api/content/edit-discussion，请求头 csrf-token 由前端自行生成
+  // （随机 16 位串，不依赖服务端下发），所以可以直接调接口，不必走
+  // 「点编辑按钮 → 等弹窗 → 填表单 → 点提交」那套脆弱的 UI 自动化。
+  function luckyRandomToken(length = 16) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let index = 0; index < length; index += 1) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
+  }
+
+  function luckyPostRankFromConfig(postId) {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (!postData) return 0;
+    if (postId && String(postData.postId || '') !== String(postId)) return 0;
+    const rank = Number(postData.rank);
+    return Number.isFinite(rank) ? rank : 0;
+  }
+
+  // NS 提交编辑时总会带上 title，这里保持一致：不传空会让接口报错或把标题清掉
+  function luckyPostTitleFromConfig(postId) {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (postData && (!postId || String(postData.postId || '') === String(postId))) {
+      const fromConfig = String(postData.title || '').trim();
+      if (fromConfig) return fromConfig;
+    }
+    return luckyAnnounceTargetTitle();
+  }
+
+  // NS 编辑成功后自己会 location.reload()；走接口改完数据也要刷新，
+  // 否则页面还显示旧的标题/正文，用户以为没生效
+  function luckyRefreshPostView() {
+    try {
+      location.reload();
+    } catch (_) {
+      /* 测试环境不支持导航时忽略 */
+    }
+  }
+
+  // 直接调编辑接口改标题和正文；成功返回 true
+  async function luckyEditPostViaApi({ postId, title = '', content = '' } = {}) {
+    const id = Number(postId);
+    if (!Number.isInteger(id) || id <= 0) throw new Error('帖子 ID 无效');
+    if (!content) throw new Error('正文内容为空');
+    const body = {
+      content,
+      mode: 'edit-discussion',
+      postId: id,
+      // title 必传：沿用当前标题，避免被清空
+      title: title || luckyPostTitleFromConfig(postId),
+      rank: luckyPostRankFromConfig(postId),
+    };
+    const response = await fetch('/api/content/edit-discussion', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'csrf-token': luckyRandomToken(16),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`编辑接口返回 ${response.status}`);
+    const payload = await response.json().catch(() => null);
+    if (!payload?.success) throw new Error(payload?.message || '编辑接口未返回成功');
+    return true;
+  }
+
+  // NS 把整个帖子的数据挂在页面全局变量上：__config__.postData.comments[0].markdown
+  // 就是 #0 楼正文的 Markdown 源码。直接读它比读编辑弹窗里的编辑器可靠得多：
+  // 编辑器是异步灌内容的，读早了会拿到空串。
+  function luckyPostMarkdownFromConfig(postId) {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (!postData) return '';
+    // 页面 data 可能还是上一篇帖子的（跳转场景），用 postId 校验一下
+    if (postId && String(postData.postId || '') !== String(postId)) return '';
+    const comments = postData.comments;
+    if (!Array.isArray(comments)) return '';
+    const first = comments.find((comment) => Number(comment?.floorIndex) === 0) || comments[0];
+    return typeof first?.markdown === 'string' ? first.markdown : '';
+  }
+
   function luckyEditorWithin(scopeRoot) {
     const scope = scopeRoot || (document.querySelector('#editor-body') ? document : null);
     if (!scope) return null;
@@ -3807,55 +3888,7 @@ function formValues(app) {
     return Boolean(previous) || current.includes(LUCKY_POST_ID_PLACEHOLDER);
   }
 
-  // 按结构找弹窗层：从标题输入框往外找「类名像弹窗」或「定位为浮层」的祖先。
-  // 优先取 body 的直接子节点（layui 这类弹窗的外层容器就是它），否则退回最内层匹配
-  const EDIT_OVERLAY_KEYWORDS = /modal|dialog|layer|popup|overlay|mask|backdrop|shade/i;
-
-  function isPositionedElement(element) {
-    const style = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
-    return Boolean(style && (style.position === 'fixed' || style.position === 'absolute'));
-  }
-
-  function isBackdropElement(element) {
-    if (/shade|mask|backdrop|overlay/i.test(String(element.className || ''))) return true;
-    const style = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
-    if (!style || style.position !== 'fixed') return false;
-    const rect = element.getBoundingClientRect?.();
-    if (!rect || !window.innerWidth || !window.innerHeight) return false;
-    if (rect.width < window.innerWidth * 0.9 || rect.height < window.innerHeight * 0.9) return false;
-    return /rgba\(/.test(style.backgroundColor) || style.opacity !== '1';
-  }
-
-  function editDialogLayer(element) {
-    if (!element) return null;
-    let innermost = null;
-    let bodyChild = null;
-    let node = element;
-    while (node && node !== document.body) {
-      if (EDIT_OVERLAY_KEYWORDS.test(String(node.className || '')) || isPositionedElement(node)) {
-        if (!innermost) innermost = node;
-        if (node.parentElement === document.body) bodyChild = node;
-      }
-      node = node.parentElement;
-    }
-    return bodyChild || innermost;
-  }
-
-  // 弹窗层 + 它旁边的遮罩层（layui 的 shade 是兄弟节点，只藏弹窗会留下黑遮罩）
-  function editDialogOverlays(element) {
-    const layer = editDialogLayer(element);
-    if (!layer) return [];
-    const nodes = [layer];
-    const parent = layer.parentElement;
-    if (parent) {
-      Array.from(parent.children).forEach((sibling) => {
-        if (sibling === layer || sibling.id === APP_ID || nodes.includes(sibling)) return;
-        if (isBackdropElement(sibling)) nodes.push(sibling);
-      });
-    }
-    return nodes;
-  }
-
+  // 发帖页把模板写进正文时用：那里是草稿编辑器，没有接口可调，只能直接写编辑器
   function luckyEditorValue(editor) {
     if (editor?.CodeMirror?.getValue) return editor.CodeMirror.getValue();
     return editor?.value || '';
@@ -3875,80 +3908,57 @@ function formValues(app) {
     return true;
   }
 
-  function hideLayerWithRestore(layer) {
-    injectLuckyStyles();
-    const original = { display: layer.style.display, visibility: layer.style.visibility, pointerEvents: layer.style.pointerEvents };
-    layer.classList.add('nsit-lucky-hidden');
-    layer.style.display = 'none';
-    return () => {
-      layer.classList.remove('nsit-lucky-hidden');
-      layer.style.display = original.display;
-      layer.style.visibility = original.visibility;
-      layer.style.pointerEvents = original.pointerEvents;
-    };
-  }
-
-  function hideEditOverlays(titleInput) {
-    const restores = [];
-    editDialogOverlays(titleInput).forEach((node) => {
-      if (node.style.display === 'none' || node.classList.contains('nsit-lucky-hidden')) return;
-      restores.push(hideLayerWithRestore(node));
-    });
-    return restores;
-  }
-
   function luckyWritebackTarget(config) {
     if (document.querySelector('#mde-title')) return false;
-    const recent = Boolean(config.submitAt) && Date.now() - config.submitAt <= LUCKY_SUBMIT_WINDOW;
+    const now = Date.now();
+    const armedAt = Number(config.createdAt) || 0;
+    const recent = Boolean(config.submitAt) && now - config.submitAt <= LUCKY_SUBMIT_WINDOW;
+    const stillFresh = armedAt && now - armedAt <= LUCKY_SUBMIT_WINDOW;
     const stored = luckyTitleKey(config.title);
-    if (!stored) return recent;
-    return recent || stored === luckyTitleKey(luckyPostTitle());
+    if (!stored) return recent || stillFresh;
+    return recent || stillFresh || stored === luckyTitleKey(luckyPostTitle());
   }
+
+  // 把模板里的 __POST_ID__ 换成真实 ID，或者把模板块追加/插入正文
+  function luckyWritebackContent(config, postId, current) {
+    if (current.includes(LUCKY_POST_ID_PLACEHOLDER)) {
+      return current.split(LUCKY_POST_ID_PLACEHOLDER).join(postId);
+    }
+    if (current.includes(`lucky?post=${postId}`)) return current;
+    return luckyInsertContent(current, luckyBlockMarkdown(config, postId), config.position);
+  }
+
+  // 成功后清配置；失败时保留，刷新页面还能重试（但同一帖最多重试 N 次，避免死循环）
+  const LUCKY_WRITEBACK_MAX_ATTEMPTS = 3;
 
   async function performLuckyWriteback(config, postId) {
     luckyWritebackRunning = true;
-    clearLuckyArmedConfig();
     const link = luckyLink(config, postId);
-    showLuckyNotice('正在把抽奖信息写进正文…', { sticky: true });
-    let restore = null;
-    const hideDialogOnSight = () => {
-      const restores = hideEditOverlays(document.querySelector('#mde-title'));
-      if (!restores.length || restore) return;
-      restore = () => restores.forEach((fn) => fn());
-    };
-    // 弹窗一出现就藏掉（早于浏览器绘制），避免编辑器的开关动作被看到
-    const watcher = new MutationObserver(hideDialogOnSight);
-    watcher.observe(document.documentElement, { childList: true, subtree: true });
     try {
-      const editAction = await waitForElement(luckyEditAction, 4000);
-      if (!editAction) throw new Error('未找到楼主编辑入口');
-      editAction.click();
-      const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
-      hideDialogOnSight();
-      const dialogRoot = editDialogLayer(titleInput) || findEditDialogRoot();
-      const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
-      if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
-      const editor = luckyEditorWithin(dialogRoot);
-      if (!editor) throw new Error('未找到正文编辑器');
-      const current = luckyEditorValue(editor);
-      let next = current;
-      if (next.includes(LUCKY_POST_ID_PLACEHOLDER)) {
-        // 模板已经在正文里，发布后只需要把占位符换成真实帖子 ID
-        next = next.split(LUCKY_POST_ID_PLACEHOLDER).join(postId);
-      } else if (!next.includes(`lucky?post=${postId}`)) {
-        next = luckyInsertContent(current, luckyBlockMarkdown(config, postId), config.position);
-      }
-      if (next !== current) luckySetEditorValue(editor, next);
-      luckyWriteStorage(LUCKY_DONE_KEY, { postId, link, at: Date.now() });
-      submit.click();
-      showLuckyNotice('抽奖信息已写进正文。', { link, tone: 'success' });
+      // 正文优先取页面全局变量，拿不到再退回 DOM 文本
+      const fromConfig = luckyPostMarkdownFromConfig(postId);
+      const current = fromConfig || luckyFirstFloor()?.querySelector('.post-content')?.textContent || '';
+      if (!current) throw new Error('没有取到正文内容');
+      const next = luckyWritebackContent(config, postId, current);
+      await luckyEditPostViaApi({ postId, content: next });
+      // 只有真的提交成功才清掉一次性配置
+      clearLuckyArmedConfig();
+      // 记一条自己发起的抽奖，供右侧「抽奖 / 中奖」通知使用
+      recordOwnLuckyDraw(config, postId);
+      // 数据已落库，刷新页面让正文显示出来
+      luckyRefreshPostView();
     } catch (error) {
       console.warn('[NSIT] 抽奖回写失败', error);
-      restore?.();
-      luckyRemoveStorage(LUCKY_DONE_KEY);
-      showLuckyNotice(`抽奖回写失败，请把正文里的 ${LUCKY_POST_ID_PLACEHOLDER} 换成 ${postId}，或用这个链接：`, { link, sticky: true, tone: 'error' });
+      const attempts = Number(config.writebackAttempts || 0) + 1;
+      if (attempts >= LUCKY_WRITEBACK_MAX_ATTEMPTS) {
+        // 重试太多次就放弃并清配置，避免每次开页面都弹提示
+        clearLuckyArmedConfig();
+        showLuckyNotice('抽奖信息没有自动写进帖子，请打开帖子手动补充开奖链接：', { link, sticky: true, tone: 'error' });
+      } else {
+        // 保留配置并在下次进入帖子时再试一次
+        saveLuckyArmedConfig({ ...config, writebackAttempts: attempts });
+      }
     } finally {
-      setTimeout(() => watcher.disconnect(), 1500);
       luckyWritebackRunning = false;
     }
   }
@@ -3970,8 +3980,6 @@ function formValues(app) {
     const record = luckyReadStorage(LUCKY_DONE_KEY);
     if (!record || String(record.postId) !== currentPostId()) return;
     luckyRemoveStorage(LUCKY_DONE_KEY);
-    if (Date.now() - Number(record.at || 0) > 60000) return;
-    showLuckyNotice('抽奖信息已写进正文。', { link: String(record.link || ''), tone: 'success' });
   }
 
   function markLuckySubmitAttempt() {
@@ -3985,9 +3993,12 @@ function formValues(app) {
     if (pageWindow[LUCKY_RUNTIME_KEY]) return;
     pageWindow[LUCKY_RUNTIME_KEY] = true;
     if (luckyEditorPage()) {
-      // 抽奖配置只对当前这次发帖有效：重新打开或刷新发帖页都从头开始，除非刚刚点过发布（可能被校验拦下重载）
+      // 抽奖配置只对当前这次发帖有效：重新打开或刷新发帖页都从头开始，
+      // 除非 10 分钟内刚配置过 / 刚点过发布（可能被校验拦下重载）
       const stored = luckyReadStorage(LUCKY_ARMED_KEY);
-      if (stored && (!Number(stored.submitAt) || Date.now() - Number(stored.submitAt) > LUCKY_SUBMIT_WINDOW)) luckyRemoveStorage(LUCKY_ARMED_KEY);
+      const fresh = Number(stored?.createdAt) && Date.now() - Number(stored.createdAt) <= LUCKY_SUBMIT_WINDOW;
+      const submitted = Number(stored?.submitAt) && Date.now() - Number(stored.submitAt) <= LUCKY_SUBMIT_WINDOW;
+      if (stored && !fresh && !submitted) luckyRemoveStorage(LUCKY_ARMED_KEY);
     }
     document.addEventListener('click', (event) => {
       const action = event.target.closest('[data-nsit-lucky-action]')?.dataset.nsitLuckyAction || '';
@@ -4034,6 +4045,879 @@ function formValues(app) {
       if (event.target.closest?.(`#${APP_ID}`)) return;
       markLuckySubmitAttempt();
     }, true);
+  }
+
+  /* 抽奖通知 ---------------------------------------------------------------
+   * 只记录本脚本经手发起的抽奖（发布时写入），不回溯历史帖子。
+   * - 「抽奖」：徽标 = 已开奖但正文里还没 @ 中奖人的帖子数
+   * - 「中奖」：徽标 = 已开奖且我在中奖名单里、还没点开看过的帖子数
+   * 中奖名单直接读 NS 自己的开奖页面（同源 iframe），不复刻抽奖算法。
+   * ------------------------------------------------------------------------- */
+
+  let luckyNotifyStylesReady = false;
+  let luckyNotifyRecordsCache;
+  let luckyNotifyChecking = false;
+
+  // lucky 页也匹配本脚本，读名单用的隐藏 iframe 会让脚本在里层再跑一遍。
+  // 不加这道判断，就会不断套娃创建 iframe。
+  function luckyNotifyTopFrame() {
+    try {
+      return window.top === window.self;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function luckyNotifyReadStorage() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(LUCKY_RECORDS_KEY) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  // 每次都直接读 localStorage：渲染函数挂在 MutationObserver 上，
+  // 内存缓存会和另一页签/发布流程的写入形成竞态，把刚亮起的徽标又擦掉。
+  // 记录只有几条 JSON，直接读没有性能问题。
+  function luckyNotifyRecords() {
+    const fresh = luckyNotifyReadStorage();
+    luckyNotifyRecordsCache = fresh;
+    return fresh;
+  }
+
+  function luckyNotifyWriteRecords(records) {
+    luckyNotifyRecordsCache = records;
+    try { localStorage.setItem(LUCKY_RECORDS_KEY, JSON.stringify(records)); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  // 发布成功后记一条，供右侧面板使用；重复发布同一帖子时刷新参数
+  function recordOwnLuckyDraw(config, postId) {
+    const id = String(postId || '').trim();
+    if (!/^\d+$/.test(id)) return;
+    const next = luckyNormalized(config);
+    const records = { ...luckyNotifyRecords() };
+    const previous = records[id] || {};
+    const sameParams = previous.time === next.time && previous.count === next.count
+      && previous.start === next.start && previous.dedupe === next.dedupe;
+    records[id] = {
+      postId: id,
+      time: next.time,
+      count: next.count,
+      start: next.start,
+      dedupe: next.dedupe,
+      participated: false,
+      // 参数变了就作废已缓存的开奖结果
+      winners: sameParams && Array.isArray(previous.winners) ? previous.winners : null,
+      checkedAt: sameParams ? Number(previous.checkedAt) || 0 : 0,
+      wonAt: sameParams ? Number(previous.wonAt) || 0 : 0,
+      wonSeen: sameParams ? Number(previous.wonSeen) || 0 : 0,
+      announced: sameParams ? Number(previous.announced) || 0 : 0,
+    };
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
+  }
+
+  function luckyNotifyList() {
+    return Object.values(luckyNotifyRecords())
+      .filter((item) => item && /^\d+$/.test(String(item.postId)))
+      .sort((left, right) => Number(right.time || 0) - Number(left.time || 0));
+  }
+
+  function luckyNotifyRevealed(item) {
+    return Number(item?.time || 0) > 0 && Date.now() >= Number(item.time) + LUCKY_NOTIFY_REVEAL_SLACK;
+  }
+
+  function luckyNotifyWinners(item) {
+    return Array.isArray(item?.winners) ? item.winners.filter((winner) => winner && winner.id) : null;
+  }
+
+  function luckyNotifyLuckyUrl(item) {
+    return luckyLink({ time: item.time, count: item.count, start: item.start, dedupe: item.dedupe }, item.postId);
+  }
+
+  // 从当前帖子页 #0 楼正文里解析 lucky 链接（回复参与用）
+  function luckyNotifyParseCurrentPostLink() {
+    const floor = luckyFirstFloor();
+    if (!floor) return null;
+    const href = floor.querySelector('a[href*="/lucky?"]')?.getAttribute('href') || '';
+    const url = href ? new URL(href, location.origin) : null;
+    if (!url || !url.searchParams.get('post')) return null;
+    const getNumber = (key, fallback) => {
+      const value = Number(url.searchParams.get(key));
+      return Number.isFinite(value) ? value : fallback;
+    };
+    return {
+      postId: String(getNumber('post', 0)),
+      time: getNumber('time', 0),
+      count: getNumber('count', 1),
+      start: getNumber('start', 1),
+      dedupe: url.searchParams.get('duplicate') !== 'true',
+    };
+  }
+
+  // 回帖后调用：把参与的抽奖写进通知记录表
+  function recordParticipatedLuckyDraw() {
+    const parsed = luckyNotifyParseCurrentPostLink();
+    if (!parsed || !/^\d+$/.test(parsed.postId) || parsed.time <= Date.now()) return;
+    const records = { ...luckyNotifyRecords() };
+    const previous = records[parsed.postId] || {};
+    const sameParams = previous.time === parsed.time && previous.count === parsed.count
+      && previous.start === parsed.start && previous.dedupe === parsed.dedupe;
+    if (sameParams) return;
+    records[parsed.postId] = {
+      ...parsed,
+      winners: null,
+      checkedAt: 0,
+      wonAt: 0,
+      wonSeen: 0,
+      announced: 0,
+      participated: true,
+    };
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
+  }
+
+  // 徽标：已开奖、有人中奖，但正文里还没 @ 全部中奖人
+  function luckyNotifyPendingAnnounceCount(source = luckyNotifyRecords()) {
+    return Object.values(source)
+      .filter((item) => item && /^\d+$/.test(String(item.postId)) && !item.participated)
+      .filter((item) => {
+      if (!luckyNotifyRevealed(item)) return false;
+      const winners = luckyNotifyWinners(item);
+      if (!winners || !winners.length) return false;
+      return Number(item.announced) !== winners.length;
+    }).length;
+  }
+
+  // 徽标：已开奖、我在名单里，且还没点开看过
+  function luckyNotifyWonUnreadCount(source = luckyNotifyRecords()) {
+    const ownId = String(currentNodeSeekUserId() || '');
+    if (!ownId) return 0;
+    return Object.values(source)
+      .filter((item) => item && /^\d+$/.test(String(item.postId)))
+      .filter((item) => {
+      if (!luckyNotifyRevealed(item)) return false;
+      if (Number(item.wonSeen)) return false;
+      const winners = luckyNotifyWinners(item);
+      return Boolean(winners) && winners.some((winner) => String(winner.id) === ownId);
+    }).length;
+  }
+
+  function luckyNotifyPanel() {
+    return document.querySelector('.user-card .user-stat');
+  }
+
+  function ensureLuckyNotifyStyles() {
+    if (luckyNotifyStylesReady) return;
+    luckyNotifyStylesReady = true;
+    // 通知面板出现在列表页/帖子页，而这些页面不会渲染发帖页的抽奖弹窗，
+    // 所以要自己带上弹窗外壳样式（.nsit-lucky-modal/.nsit-lucky-dialog 等）
+    injectStyles(`
+      /* 站点的 .stat-block / .iconpark-icon / .notify-count 规则都带 data-v 作用域，
+         注入的节点匹配不到，所以这里自带一份等价样式。
+         行距也要照抄，否则我们的两行会比原生条目挤在一起。 */
+      [data-nsit-lucky-notify]{font-size:14px}
+      /* 站点的链接色规则也带 data-v 作用域（.user-stat a[data-v-...]{color:#333}），
+         我们的锚点匹配不到，会掉到全局的 #555，数字看着就比原生浅 */
+      [data-nsit-lucky-notify] a{color:#333}
+      [data-nsit-lucky-notify] a:hover{color:#888}
+      [data-nsit-lucky-notify] .iconpark-icon{width:14px;height:14px;margin-right:3.8px;vertical-align:middle}
+      /* 和站点一致：只有有数字时才画成红色胶囊，0 就是普通文字。
+         站点规则里没有 line-height，这里也不能加，否则数字基线会偏。 */
+      .nsit-lucky-notify-dot.is-hot{display:inline;padding:0 6px;border-radius:6px;font-size:12.6px;vertical-align:middle;background-color:#f01212;color:#fff}
+      .nsit-lucky-modal{position:fixed;z-index:100000;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.42)}
+      .nsit-lucky-modal.is-open{display:flex}
+      .nsit-lucky-dialog{display:flex;flex-direction:column;width:min(560px,100%);min-width:0;max-width:100%;max-height:min(560px,86vh);overflow:hidden;border-radius:12px;background:#fff;color:#27334a;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 20px 48px rgba(15,23,38,.28)}
+      .nsit-lucky-dialog,.nsit-lucky-dialog *{box-sizing:border-box}
+      .nsit-lucky-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
+      .nsit-lucky-head h3{margin:0;font-size:16px}
+      .nsit-lucky-head-copy{display:flex;align-items:baseline;gap:9px;min-width:0}
+      .nsit-lucky-head-title{display:flex;align-items:baseline;gap:9px;min-width:0}
+      /* 弹窗自带 star 行样式：ui.js 的样式只在发帖页注入，列表页打开弹窗时拿不到 */
+      .nsit-lucky-head .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:#718096;font-size:14px;white-space:nowrap}
+      .nsit-lucky-head .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}
+      .nsit-lucky-head .nsit-star-note a:hover{text-decoration:underline}
+      .nsit-lucky-head .nsit-github-icon{width:14px;height:14px;fill:currentColor}
+      .nsit-lucky-close{display:inline-flex;flex:none;align-items:center;justify-content:center;width:28px;height:28px;margin:0;padding:0;border:1px solid transparent;border-radius:7px;background:transparent;color:#7b8798;cursor:pointer}
+      .nsit-lucky-close:hover{border-color:#d8e0eb;background:#fff;color:#40506a}
+      .nsit-lucky-notify-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 0}
+      .nsit-lucky-notify-empty{padding:26px 18px;color:#718096;font-size:13px;text-align:center}
+      .nsit-lucky-notify-item{display:flex;align-items:flex-start;gap:10px;padding:11px 18px;border-bottom:1px solid #eef2f7}
+      .nsit-lucky-notify-item:last-child{border-bottom:0}
+      .nsit-lucky-notify-main{display:grid;gap:3px;min-width:0;flex:1 1 auto}
+      .nsit-lucky-notify-title{display:flex;align-items:center;gap:8px;color:#27334a;font-size:13px;font-weight:600;line-height:1.5;word-break:break-word}
+      .nsit-lucky-notify-title a{min-width:0}
+      .nsit-lucky-notify-title a,.nsit-lucky-notify-meta a,.nsit-lucky-notify-winners a{color:#3976bc}
+      .nsit-lucky-notify-title a:hover,.nsit-lucky-notify-meta a:hover{text-decoration:underline}
+      .nsit-lucky-notify-meta{color:#718096;font-size:12px;line-height:1.6}
+      .nsit-lucky-notify-tag{flex:none;padding:1px 6px;border:1px solid transparent;border-radius:4px;font-size:12px;line-height:18px;white-space:nowrap}
+      .nsit-lucky-notify-tag[data-tone="wait"]{border-color:#f0d49c;background:#fff8e9;color:#8b641e}
+      .nsit-lucky-notify-tag[data-tone="done"]{border-color:#9ad6b1;background:#effaf3;color:#27834a}
+      .nsit-lucky-notify-tag[data-tone="pending"]{border-color:#eec2c2;background:#fff6f6;color:#b34b4b}
+      .nsit-lucky-announce-button{margin:0 8px 0 0;padding:2px 7px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:inherit;font-size:12px;line-height:1.4;vertical-align:middle;cursor:pointer}
+      .nsit-lucky-announce-button:hover{border-color:#b87500;background:#d9961c;color:#fff}
+      .nsit-lucky-announce-button:disabled{cursor:wait;opacity:.55}
+      .nsit-lucky-notify-confirm{position:fixed;z-index:100001;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.28)}
+      .nsit-lucky-notify-confirm.is-open{display:flex}
+      .nsit-lucky-notify-confirm .nsit-lucky-dialog{width:min(400px,100%)}
+      .nsit-lucky-notify-confirm-body{padding:16px 18px 20px;color:#506078;font-size:14px;line-height:1.8}
+      .nsit-lucky-notify-confirm-body p{margin:0}
+      .nsit-lucky-notify-confirm-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid #e5eaf1;background:#fff}
+      .nsit-lucky-notify-confirm-foot button{margin:0;padding:7px 11px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#40506a;font:inherit;font-size:13px;cursor:pointer}
+      .nsit-lucky-notify-confirm-foot button:hover{border-color:#b8c5d5;background:#f6f8fb}
+      .nsit-lucky-notify-confirm-foot button.nsit-lucky-danger{border-color:#e0a5a5;background:#fff;color:#b34b4b}
+      .nsit-lucky-notify-confirm-foot button.nsit-lucky-danger:hover{border-color:#b34b4b;background:#fff0f0}
+      .nsit-lucky-notify-item-actions{display:flex;flex:none;flex-direction:column;align-items:flex-end;gap:5px}
+      .nsit-lucky-notify-actions{margin-top:5px}
+      .nsit-lucky-notify-actions button{margin:0;padding:3px 8px;border:1px solid #d8e0eb;border-radius:5px;background:#fff;color:#40506a;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+      .nsit-lucky-notify-actions button:hover{border-color:#d9961c;color:#8b5c00}
+      .nsit-lucky-notify-actions button.nsit-lucky-primary{border-color:#d9961c;background:#d9961c;color:#fff}
+      .nsit-lucky-notify-actions button.nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12;color:#fff}
+      .nsit-lucky-notify-actions button:disabled{cursor:default;opacity:.6}
+      .nsit-lucky-notify-item-actions .nsit-lucky-primary{margin:0;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#d9961c;color:#fff;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+      .nsit-lucky-notify-item-actions .nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12;color:#fff}
+      .nsit-lucky-notify-delete{margin:0;padding:3px 8px;border:1px solid #eec2c2;border-radius:5px;background:#fff6f6;color:#b34b4b;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+      .nsit-lucky-notify-delete:hover{border-color:#b34b4b;background:#fff0f0;color:#b34b4b}
+      .nsit-lucky-notify-winners{margin:2px 0 0;padding:0;list-style:none;color:#40506a;font-size:12px}
+      .nsit-lucky-notify-winners li{margin:0;padding:0;line-height:1.7}
+    `);
+  }
+
+  // user-stat 是两列（两个 .stat-block）。一个条目放一列：两列行数才齐，
+  // 两个条目正好并排落在末行，左「抽奖」右「中奖」，与原先的上下顺序一致。
+  const LUCKY_NOTIFY_ENTRIES = [
+    ['own', '抽奖', 'box', 0],
+    ['won', '中奖', 'trophy', 1],
+  ];
+
+  function renderLuckyNotifyEntries() {
+    if (!luckyNotifyTopFrame()) return;
+    const panel = luckyNotifyPanel();
+    if (!panel || !currentNodeSeekUserId()) {
+      document.querySelectorAll('[data-nsit-lucky-notify]').forEach((node) => node.remove());
+      return;
+    }
+    ensureLuckyNotifyStyles();
+    const blocks = Array.from(panel.querySelectorAll('.stat-block'));
+    const counts = { own: luckyNotifyPendingAnnounceCount(), won: luckyNotifyWonUnreadCount() };
+    LUCKY_NOTIFY_ENTRIES.forEach(([kind, label, icon, column]) => {
+      // 追加到对应列末尾：其它脚本已注入的条目位置不受影响
+      const host = blocks[column] || blocks[0] || panel;
+      let node = document.querySelector(`[data-nsit-lucky-notify="${kind}"]`);
+      if (!node) {
+        // 和站点原生条目同构：<div><a>图标 文字 数字</a></div>
+        const holder = document.createElement('div');
+        holder.innerHTML = `<div data-nsit-lucky-notify="${kind}"><a href="javascript:void(0)"><svg class="iconpark-icon" aria-hidden="true"><use href="#${icon}"></use></svg><span>${escapeHtml(label)} </span><span class="nsit-lucky-notify-dot" data-nsit-lucky-notify-count>0</span></a></div>`;
+        node = holder.firstElementChild;
+      }
+      if (node.parentElement !== host) host.append(node);
+      const badge = node.querySelector('[data-nsit-lucky-notify-count]');
+      const value = String(counts[kind]);
+      // 只在真的变化时写 DOM：写 textContent 会造成 childList 变动，
+      // 而本函数挂在 MutationObserver 上，无条件写会形成死循环
+      if (badge.textContent !== value) badge.textContent = value;
+      const hot = counts[kind] > 0;
+      if (badge.classList.contains('is-hot') !== hot) badge.classList.toggle('is-hot', hot);
+    });
+  }
+
+  function luckyNotifyModal(kind) {
+    return document.querySelector(`[data-nsit-lucky-notify-modal="${kind}"]`);
+  }
+
+  function luckyNotifyItemMarkup(item, kind) {
+    const revealed = luckyNotifyRevealed(item);
+    const winners = luckyNotifyWinners(item);
+    const ownId = String(currentNodeSeekUserId() || '');
+    const won = Boolean(winners) && winners.some((winner) => String(winner.id) === ownId);
+    const announced = Boolean(winners && winners.length) && Number(item.announced) === winners.length;
+    // 「中奖」弹窗是参与者视角，「我发起的抽奖」是发起者视角，标签不能混用
+    const tone = !revealed ? 'wait' : kind === 'won' ? 'done' : announced ? 'done' : 'pending';
+    const tag = !revealed ? '未开奖' : kind === 'won' ? '已中奖' : announced ? '已公布' : '待公布';
+    const postUrl = `https://www.nodeseek.com/post-${item.postId}-1`;
+    const list = winners && winners.length && kind === 'own'
+      ? `<ul class="nsit-lucky-notify-winners">${winners.map((winner) => `<li><a href="https://www.nodeseek.com/space/${escapeHtml(winner.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(winner.name || winner.id)}</a>${winner.floor ? ` · ${escapeHtml(String(winner.floor))}楼` : ''}</li>`).join('')}</ul>`
+      : '';
+    return `<article class="nsit-lucky-notify-item">
+      <div class="nsit-lucky-notify-main">
+        <div class="nsit-lucky-notify-title">
+          <a href="${postUrl}" target="_blank" rel="noopener noreferrer">帖子 ${escapeHtml(item.postId)}</a>
+          <span class="nsit-lucky-notify-tag" data-tone="${tone}">${escapeHtml(tag)}</span>
+        </div>
+        <div class="nsit-lucky-notify-meta">开奖 ${escapeHtml(luckyTimeText(Number(item.time || 0)))} · 奖品 ${Number(item.count) || 1} 个 · ${escapeHtml(luckyNotifyWinnerText(item, kind))}</div>
+        <div class="nsit-lucky-notify-meta"><a href="${escapeHtml(luckyNotifyLuckyUrl(item))}" target="_blank" rel="noopener noreferrer">开奖链接</a></div>
+        ${list}
+      </div>
+      <div class="nsit-lucky-notify-item-actions">
+        ${kind === 'own' && revealed && winners && winners.length && !announced ? `<button type="button" class="nsit-lucky-primary" data-nsit-lucky-announce-post="${escapeHtml(item.postId)}">${escapeHtml(LUCKY_ANNOUNCE_BUTTON)}</button>` : ''}
+        ${revealed ? `<button type="button" class="nsit-lucky-notify-delete" data-nsit-lucky-delete-post="${escapeHtml(item.postId)}" title="删除这条记录">删除</button>` : ''}
+      </div>
+    </article>`;
+  }
+
+  function luckyNotifyWinnerText(item, kind = 'own') {
+    if (!luckyNotifyRevealed(item)) return '未开奖';
+    const winners = luckyNotifyWinners(item);
+    if (!winners) return '正在获取名单';
+    if (!winners.length) return '无人中奖';
+    if (kind === 'won') return '你中奖了';
+    const ownId = String(currentNodeSeekUserId() || '');
+    return winners.some((winner) => String(winner.id) === ownId) ? `中奖 ${winners.length} 人（包含你）` : `中奖 ${winners.length} 人`;
+  }
+
+  // 「中奖」只列我中了的帖子，「抽奖」列全部我发起或参与过的抽奖
+  function luckyNotifyItemsFor(kind) {
+    const items = luckyNotifyList();
+    // 「我发起的抽奖」只列自己发布的；参与的只在「中奖」里体现
+    if (kind !== 'won') return items.filter((item) => !item.participated);
+    const ownId = String(currentNodeSeekUserId() || '');
+    if (!ownId) return [];
+    return items.filter((item) => {
+      const winners = luckyNotifyWinners(item);
+      return Boolean(winners) && winners.some((winner) => String(winner.id) === ownId);
+    });
+  }
+
+  function luckyNotifyListMarkup(kind) {
+    const items = luckyNotifyItemsFor(kind);
+    if (!items.length) {
+      return `<p class="nsit-lucky-notify-empty">${kind === 'won' ? '还没有中奖记录。' : '还没有用抽奖配置发起过抽奖。'}</p>`;
+    }
+    return items.map((item) => luckyNotifyItemMarkup(item, kind)).join('');
+  }
+
+  function luckyNotifyDialogMarkup(kind) {
+    const title = kind === 'won' ? '中奖记录' : '我发起的抽奖';
+    return `<div class="nsit-lucky-modal nsit-lucky-notify-dialog" data-nsit-lucky-notify-modal="${kind}" aria-hidden="true">
+      <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>${escapeHtml(title)}</h3>${starNoteMarkup()}</div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-notify-action="close" aria-label="关闭${escapeHtml(title)}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-notify-body" data-nsit-lucky-notify-list></div>
+      </section>
+    </div>`;
+  }
+
+  function openLuckyNotifyModal(kind) {
+    ensureLuckyNotifyStyles();
+    let modal = luckyNotifyModal(kind);
+    if (!modal) {
+      const holder = document.createElement('div');
+      holder.innerHTML = luckyNotifyDialogMarkup(kind);
+      modal = holder.firstElementChild;
+      document.body.append(modal);
+    }
+    modal.querySelector('[data-nsit-lucky-notify-list]').innerHTML = luckyNotifyListMarkup(kind);
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    if (kind === 'won') markLuckyNotifyWonSeen();
+  }
+
+  function deleteLuckyNotifyRecord(postId) {
+    const id = String(postId || '').trim();
+    if (!/^\d+$/.test(id)) return;
+    const records = { ...luckyNotifyRecords() };
+    // 未开奖的记录不允许删除：开奖结果还没出来，删了就彻底追踪不到了
+    if (!records[id] || !luckyNotifyRevealed(records[id])) return;
+    delete records[id];
+    luckyNotifyWriteRecords(records);
+    // 刷新两个弹窗和右侧徽标
+    document.querySelectorAll('[data-nsit-lucky-notify-modal]').forEach((modal) => {
+      const kind = modal.getAttribute('data-nsit-lucky-notify-modal');
+      modal.querySelector('[data-nsit-lucky-notify-list]').innerHTML = luckyNotifyListMarkup(kind);
+    });
+    renderLuckyNotifyEntries();
+  }
+
+  // 「待公布」的帖子删掉就找不回来了（通知入口消失），删除前二次确认；
+  // 其他状态的记录直接删，不给用户添麻烦
+  function luckyNotifyRecordNeedsConfirm(postId) {
+    const record = luckyNotifyRecords()[String(postId || '').trim()];
+    if (!record) return false;
+    if (!luckyNotifyRevealed(record)) return false;
+    const winners = luckyNotifyWinners(record);
+    if (!winners || !winners.length) return false;
+    return Number(record.announced) !== winners.length;
+  }
+
+  function ensureLuckyNotifyConfirm() {
+    ensureLuckyNotifyStyles();
+    let confirm = document.querySelector('[data-nsit-lucky-notify-confirm]');
+    if (confirm) return confirm;
+    const holder = document.createElement('div');
+    holder.innerHTML = `<div class="nsit-lucky-notify-confirm" data-nsit-lucky-notify-confirm>
+      <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="确认删除">
+        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>删除这条记录？</h3></div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-notify-confirm-action="cancel" aria-label="关闭"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-notify-confirm-body"><p>这条抽奖还没公布中奖名单，删掉后就没有提醒入口了。确定删除吗？</p></div>
+        <footer class="nsit-lucky-notify-confirm-foot"><button type="button" data-nsit-lucky-notify-confirm-action="cancel">取消</button><button type="button" class="nsit-lucky-danger" data-nsit-lucky-notify-confirm-action="confirm">删除</button></footer>
+      </section>
+    </div>`;
+    confirm = holder.firstElementChild;
+    document.body.append(confirm);
+    return confirm;
+  }
+
+  function closeLuckyNotifyConfirm() {
+    document.querySelector('[data-nsit-lucky-notify-confirm]')?.classList.remove('is-open');
+  }
+
+  function openLuckyNotifyConfirm(postId) {
+    const confirm = ensureLuckyNotifyConfirm();
+    confirm.dataset.nsitLuckyConfirmPost = String(postId);
+    confirm.classList.add('is-open');
+  }
+
+  function closeLuckyNotifyModals() {
+    document.querySelectorAll('[data-nsit-lucky-notify-modal]').forEach((modal) => {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  function markLuckyNotifyWonSeen() {
+    const records = { ...luckyNotifyRecords() };
+    let changed = false;
+    const ownId = String(currentNodeSeekUserId() || '');
+    Object.keys(records).forEach((key) => {
+      const item = records[key];
+      if (!item || Number(item.wonSeen)) return;
+      // 只标记当前名单里确实包含我的记录；旧数据里 wonAt 可能来自上一次检查
+      const winners = Array.isArray(item.winners) ? item.winners : [];
+      const isWinner = Boolean(ownId) && winners.some((winner) => String(winner?.id) === ownId);
+      if (!isWinner) return;
+      item.wonSeen = Date.now();
+      changed = true;
+    });
+    if (!changed) return;
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
+  }
+
+  // 借 NS 自己的开奖页面取名单：同源 iframe，读完即删，不复刻抽奖算法
+  function luckyNotifyReadWinners(item, timeout = 15000) {
+    return new Promise((resolve) => {
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:900px;height:700px;border:0;visibility:hidden';
+      frame.setAttribute('aria-hidden', 'true');
+      let done = false;
+      const finish = (value) => {
+        if (done) return;
+        done = true;
+        clearInterval(timer);
+        clearTimeout(kill);
+        frame.remove();
+        resolve(value);
+      };
+      const read = () => {
+        let doc = null;
+        try { doc = frame.contentDocument; } catch (_) { return null; }
+        if (!doc || !doc.body) return null;
+        const rows = Array.from(doc.querySelectorAll('.rank-row'));
+        if (rows.length) {
+          return rows.map((row) => {
+            const link = row.querySelector('.member-name a[href^="/space/"]');
+            const id = String(link?.getAttribute('href') || '').match(/^\/space\/(\d+)/)?.[1] || '';
+            const floor = String(row.querySelector('.coins')?.textContent || '').match(/(\d+)/)?.[1] || '';
+            return { id, name: (link?.textContent || '').trim(), floor };
+          }).filter((winner) => winner.id);
+        }
+        // 页面已渲染完但没有行：这帖确实没有合格中奖者
+        return doc.body.innerText.includes('中奖名单') ? [] : null;
+      };
+      const timer = setInterval(() => {
+        const winners = read();
+        if (winners) finish(winners);
+      }, 300);
+      const kill = setTimeout(() => finish(null), timeout);
+      frame.src = luckyNotifyLuckyUrl(item);
+      (document.body || document.documentElement).append(frame);
+    });
+  }
+
+  // 只看楼主楼层（#0）的正文里有没有 @ 全部中奖人。
+  // 不能扫整页 HTML：评论区和页脚也会出现 @名字，会误判成已公布。
+  function luckyNotifyAnnounced(postHtml, winners) {
+    const html = String(postHtml || '');
+    if (!html || !winners.length) return false;
+    let text = '';
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const floor = doc.querySelector('.content-item[id="0"] .post-content')
+        || doc.querySelector('.content-item[id="0"]');
+      text = floor?.textContent || '';
+    } catch (_) {
+      return false;
+    }
+    if (!text) return false;
+    return winners.every((winner) => winner.name && text.includes(`@${winner.name}`));
+  }
+
+  async function luckyNotifyFetchPostHtml(postId) {
+    try {
+      const response = await fetch(`/post-${postId}-1`, { credentials: 'same-origin' });
+      if (!response.ok) return null;
+      return await response.text();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function luckyNotifyCheckItem(item) {
+    const winners = await luckyNotifyReadWinners(item);
+    if (!winners) return false;
+    const records = { ...luckyNotifyRecords() };
+    const current = records[String(item.postId)];
+    if (!current) return false;
+    current.winners = winners;
+    current.checkedAt = Date.now();
+    const ownId = String(currentNodeSeekUserId() || '');
+    const wonNow = Boolean(ownId) && winners.some((winner) => String(winner.id) === ownId);
+    current.wonAt = wonNow ? Number(current.wonAt) || Date.now() : 0;
+    // 名单里没有我时才清已读：有我时保留，否则复查会反复清掉 unread 状态
+    if (!wonNow) current.wonSeen = 0;
+    // 已开奖的帖子查一次正文，判断有没有 @ 全部中奖人。
+    // 拉不到正文时保留原状态：网络失败不等于楼主没公布。
+    if (winners.length) {
+      const html = await luckyNotifyFetchPostHtml(current.postId);
+      if (html) current.announced = luckyNotifyAnnounced(html, winners) ? winners.length : 0;
+    }
+    luckyNotifyWriteRecords(records);
+    return true;
+  }
+
+  async function runLuckyNotifyChecks() {
+    if (luckyNotifyChecking) return;
+    // 里层 iframe（lucky 页）不参与检查，否则会无限套娃
+    if (!luckyNotifyTopFrame()) return;
+    const due = luckyNotifyList().filter((item) => {
+      if (!luckyNotifyRevealed(item)) return false;
+      // 拿到名单后每小时复查一次，捕捉楼主后来才 @ 中奖人的情况
+      return Date.now() - Number(item.checkedAt || 0) >= LUCKY_NOTIFY_RECHECK_MS;
+    });
+    if (!due.length) return;
+    luckyNotifyChecking = true;
+    try {
+      for (const item of due) {
+        await luckyNotifyCheckItem(item);
+        renderLuckyNotifyEntries();
+      }
+    } finally {
+      luckyNotifyChecking = false;
+      renderLuckyNotifyEntries();
+    }
+  }
+
+  function installLuckyNotifyRuntime() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[LUCKY_NOTIFY_RUNTIME_KEY]) return;
+    if (!luckyNotifyTopFrame()) return;
+    pageWindow[LUCKY_NOTIFY_RUNTIME_KEY] = true;
+    document.addEventListener('click', (event) => {
+      // 确认弹窗里的按钮
+      const confirmAction = event.target.closest('[data-nsit-lucky-notify-confirm-action]')?.dataset.nsitLuckyNotifyConfirmAction;
+      if (confirmAction) {
+        event.preventDefault();
+        event.stopPropagation();
+        const confirm = document.querySelector('[data-nsit-lucky-notify-confirm]');
+        const postId = confirm?.dataset.nsitLuckyConfirmPost || '';
+        closeLuckyNotifyConfirm();
+        if (confirmAction === 'confirm' && postId) deleteLuckyNotifyRecord(postId);
+        return;
+      }
+      if (event.target.matches('[data-nsit-lucky-notify-confirm]')) {
+        closeLuckyNotifyConfirm();
+        return;
+      }
+      const deleteButton = event.target.closest('[data-nsit-lucky-delete-post]');
+      if (deleteButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const postId = deleteButton.getAttribute('data-nsit-lucky-delete-post');
+        // 「待公布」删掉就没有提醒入口了，先二次确认
+        if (luckyNotifyRecordNeedsConfirm(postId)) openLuckyNotifyConfirm(postId);
+        else deleteLuckyNotifyRecord(postId);
+        return;
+      }
+      if (event.target.closest('[data-nsit-lucky-notify-action="close"]')) {
+        closeLuckyNotifyModals();
+        return;
+      }
+      const entry = event.target.closest('[data-nsit-lucky-notify]');
+      if (entry) {
+        event.preventDefault();
+        const kind = entry.getAttribute('data-nsit-lucky-notify');
+        if (luckyNotifyModal(kind)?.classList.contains('is-open')) closeLuckyNotifyModals();
+        else openLuckyNotifyModal(kind);
+        return;
+      }
+      if (event.target.matches('[data-nsit-lucky-notify-modal]')) closeLuckyNotifyModals();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && document.querySelector('[data-nsit-lucky-notify-confirm].is-open')) { closeLuckyNotifyConfirm(); return; }
+      if (event.key === 'Escape' && document.querySelector('[data-nsit-lucky-notify-modal].is-open')) closeLuckyNotifyModals();
+    });
+    // 开奖时间可能在这之后才到，到点了自动复查一次
+    setInterval(() => runLuckyNotifyChecks(), LUCKY_NOTIFY_RECHECK_MS);
+  }
+
+  /* 开奖公告 ---------------------------------------------------------------
+   * 把标题改成【已开奖】并把中奖名单回填到正文，走和「交易状态」「抽奖回写」
+   * 一样的静默编辑：借楼主的编辑入口，隐藏浮层再提交。
+   * 公告文案沿用 NS 自己的「生成@消息」格式。
+   * ------------------------------------------------------------------------- */
+
+  // 标题里写的标记
+  const LUCKY_ANNOUNCE_STATUS = '已开奖';
+  // 按钮上的文案（动作，不是状态）
+  const LUCKY_ANNOUNCE_BUTTON = '公布中奖名单';
+  const LUCKY_ANNOUNCE_KEY = 'nsit-lucky-announce-v1';
+  const LUCKY_ANNOUNCE_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyAnnounce__';
+
+  let luckyAnnounceRunning = false;
+
+  // 沿用 NS 抽奖页的格式：@名字 [#楼层](/post-xxx-N#楼层)
+  function luckyNotifyMentionMarkdown(item, winner) {
+    const floor = Number(winner.floor);
+    if (!Number.isInteger(floor) || floor < 0) return `@${winner.name}`;
+    const page = floor <= 10 ? 1 : Math.floor((floor - 1) / 10) + 1;
+    return `@${winner.name} [#${floor}](https://www.nodeseek.com/post-${item.postId}-${page}#${floor})`;
+  }
+
+  function luckyAnnounceBlock(item, winners) {
+    const mentions = winners.map((winner) => luckyNotifyMentionMarkdown(item, winner)).join(' ');
+    return `${mentions} 恭喜中奖🎁`;
+  }
+
+  function luckyAnnounceTitle(title) {
+    const base = String(title || '').trim()
+      .replace(/^[【\[]\s*(?:已开奖|开奖)\s*[】\]]\s*/, '')
+      .trim();
+    return `【${LUCKY_ANNOUNCE_STATUS}】${base ? ` ${base}` : ''}`;
+  }
+
+  function luckyAnnounceTargetTitle() {
+    const element = document.querySelector('.post-title');
+    return element?.textContent?.trim() || document.title.replace(/\s*[-–]\s*NodeSeek\s*$/i, '').trim();
+  }
+
+  // 两次静默编辑开销不小，用一次性记录把结果回传给渲染层
+  function luckyAnnounceWriteRecord(payload) {
+    try { sessionStorage.setItem(LUCKY_ANNOUNCE_KEY, JSON.stringify(payload)); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  function luckyAnnounceReadRecord() {
+    try {
+      const raw = sessionStorage.getItem(LUCKY_ANNOUNCE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function luckyAnnounceClearRecord() {
+    try { sessionStorage.removeItem(LUCKY_ANNOUNCE_KEY); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  // 借楼主的「编辑」入口做一次静默提交；title/insert 二选一
+  // 通过编辑接口一次性改标题和正文；返回是否真的提交了
+  async function luckyAnnounceEdit({ title = '', append = '' } = {}) {
+    const postId = currentPostId();
+    if (!postId) throw new Error('未找到帖子 ID');
+    const fromConfig = luckyPostMarkdownFromConfig(postId);
+    const current = fromConfig || luckyFirstFloor()?.querySelector('.post-content')?.textContent || '';
+    if (!current) throw new Error('没有取到正文内容');
+    const content = append ? luckyInsertContent(current, append, 'end') : current;
+    await luckyEditPostViaApi({ postId, title, content });
+    return true;
+  }
+
+  async function runLuckyAnnounce(item, winners) {
+    if (luckyAnnounceRunning) return;
+    if (!winners || !winners.length) return;
+    luckyAnnounceRunning = true;
+    const postId = String(item.postId);
+    try {
+      const currentTitle = luckyAnnounceTargetTitle();
+      const nextTitle = luckyAnnounceTitle(currentTitle);
+      const block = luckyAnnounceBlock(item, winners);
+      const html = await luckyNotifyFetchPostHtml(postId);
+      const already = html && luckyNotifyAnnounced(html, winners);
+      // NS 的 edit-discussion 一次提交同时带上 title + content，
+      // 所以标题和正文必须一次改完：提交成功后 NS 会 location.reload()，
+      // 拆成两次的话第二次编辑会被页面重载打断、永远执行不到。
+      const needTitle = nextTitle !== currentTitle;
+      const didEdit = needTitle || !already;
+      if (didEdit) {
+        await luckyAnnounceEdit({ title: needTitle ? nextTitle : '', append: already ? '' : block });
+      }
+      // 同步本地状态：右侧「抽奖」徽标要立刻清零，弹窗按钮也要变成已完成
+      const records = { ...luckyNotifyRecords() };
+      const current = records[postId];
+      if (current) {
+        current.announced = winners.length;
+        current.checkedAt = Date.now();
+        luckyNotifyWriteRecords(records);
+      }
+      luckyAnnounceWriteRecord({ postId, at: Date.now(), ok: true });
+      // 只有真的改过才刷新：否则「已公布」时每次进页面都会重载一次
+      if (didEdit) luckyRefreshPostView();
+      return true;
+    } catch (error) {
+      console.warn('[NSIT] 开奖公告失败', error);
+      const message = String(error?.message || error);
+      luckyAnnounceWriteRecord({ postId, at: Date.now(), ok: false, message });
+      showLuckyNotice('开奖公告没有完成，请稍后重试；也可以打开帖子手动编辑标题和正文。', { sticky: true, tone: 'error' });
+      return false;
+    } finally {
+      luckyAnnounceRunning = false;
+    }
+  }
+
+  // 按钮的有无只看帖子本身，不看本地记录：
+  // ① 当前页是抽奖贴（#0 楼有开奖链接）② 楼主是当前用户 ③ 还没公布名单
+  function luckyAnnounceContext() {
+    const postId = currentPostId();
+    if (!postId) return null;
+    // 编辑弹窗打开时不显示
+    if (document.querySelector('#mde-title')) return null;
+    const firstFloor = luckyFirstFloor();
+    if (!firstFloor) return null;
+    // 只认楼主楼层，避免在别人帖子里误伤
+    const ownId = String(currentNodeSeekUserId() || '');
+    const authorHref = firstFloor.querySelector('a[href^="/space/"]')?.getAttribute('href') || '';
+    const authorId = authorHref.match(/^\/space\/(\d+)/)?.[1] || '';
+    if (!ownId || authorId !== ownId) return null;
+    // 帖子里必须有指向本贴的开奖链接
+    const parsed = luckyNotifyParseCurrentPostLink();
+    if (!parsed || parsed.postId !== postId) return null;
+    // 还没到开奖时间：没有名单可公布，不显示按钮
+    if (!luckyNotifyRevealed(parsed)) return null;
+    // 标题已经标记过【已开奖】→ 视为已公布
+    if (/[【\[]\s*(?:已开奖|开奖)\s*[】\]]/.test(luckyAnnounceTargetTitle())) return null;
+    // 本地已记录且正文已 @ 全部中奖人 → 已公布
+    const record = luckyNotifyRecords()[postId];
+    const winners = luckyNotifyWinners(record);
+    if (winners && winners.length && Number(record.announced) === winners.length) return null;
+    return { postId, record, winners, parsed, firstFloor };
+  }
+
+  // 拿中奖名单：本地有就用本地的，没有就现拉（首次点击时）
+  async function resolveLuckyAnnounceWinners(context) {
+    const cached = luckyNotifyWinners(context.record);
+    if (cached && cached.length) return cached;
+    const source = { ...(context.record || context.parsed) };
+    if (!Number(source.time)) return null;
+    return luckyNotifyReadWinners({ ...source, postId: context.postId });
+  }
+
+  function renderLuckyAnnounceButton() {
+    if (!luckyNotifyTopFrame()) return;
+    const existing = document.querySelector('[data-nsit-lucky-announce]');
+    const context = luckyAnnounceContext();
+    if (!context) {
+      existing?.remove();
+      return;
+    }
+    const floorLink = context.firstFloor.querySelector('.floor-link[href="#0"]');
+    if (!floorLink) return;
+    if (existing?.nextElementSibling === floorLink) return;
+    existing?.remove();
+    ensureLuckyNotifyStyles();
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'nsit-lucky-announce-button';
+    button.setAttribute('data-nsit-lucky-announce', '');
+    button.textContent = LUCKY_ANNOUNCE_BUTTON;
+    button.title = `把标题改成【${LUCKY_ANNOUNCE_STATUS}】并把中奖名单写进正文`;
+    floorLink.before(button);
+  }
+
+  // 从弹窗跨页面跳过来：URL 带 nsit-lucky-announce=1，落地后自动执行
+  function runLuckyAnnounceFromUrl() {
+    if (luckyAnnounceRunning) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('nsit-lucky-announce') !== '1') return;
+    const postId = currentPostId();
+    if (!postId) return;
+    const record = luckyNotifyRecords()[postId];
+    const winners = luckyNotifyWinners(record);
+    if (!record || !winners || !winners.length) return;
+    // 先把标记从 URL 清掉再执行：成功后 runLuckyAnnounce 会 location.reload()，
+    // 若标记还在，重载后会再次触发，形成循环
+    params.delete('nsit-lucky-announce');
+    const rest = params.toString();
+    try {
+      history.replaceState(null, '', rest ? `${location.pathname}?${rest}${location.hash}` : `${location.pathname}${location.hash}`);
+    } catch (_) { /* 测试环境不支持时忽略 */ }
+    // 楼层可能稍后才渲染出来，等一下再执行
+    waitForElement(luckyFirstFloor, 8000).then((firstFloor) => {
+      if (!firstFloor) {
+        showLuckyNotice('页面还没加载完成，开奖公告没有执行；请刷新后重试。', { sticky: true, tone: 'error' });
+        return;
+      }
+      return runLuckyAnnounce(record, winners);
+    });
+  }
+
+  function installLuckyAnnounceRuntime() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[LUCKY_ANNOUNCE_RUNTIME_KEY]) return;
+    pageWindow[LUCKY_ANNOUNCE_RUNTIME_KEY] = true;
+    document.addEventListener('click', (event) => {
+      const modalButton = event.target.closest('[data-nsit-lucky-announce-post]');
+      if (modalButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (modalButton.disabled) return;
+        const postId = modalButton.getAttribute('data-nsit-lucky-announce-post');
+        const record = luckyNotifyRecords()[postId];
+        const winners = luckyNotifyWinners(record);
+        if (!record || !winners || !winners.length) return;
+        // 静默编辑依赖当前页面里的楼主编辑入口；跨页面时先带标记跳过去，落地后自动执行
+        if (String(record.postId) !== currentPostId()) {
+          const target = new URL(`/post-${record.postId}-1`, location.origin);
+          target.searchParams.set('nsit-lucky-announce', '1');
+          location.assign(target);
+          return;
+        }
+        modalButton.disabled = true;
+        const label = modalButton.textContent;
+        modalButton.textContent = '处理中…';
+        runLuckyAnnounce(record, winners).then((ok) => {
+          modalButton.textContent = ok ? '已公布' : label;
+          if (!ok) modalButton.disabled = false;
+          if (ok) {
+            const modal = luckyNotifyModal('own');
+            if (modal) modal.querySelector('[data-nsit-lucky-notify-list]').innerHTML = luckyNotifyListMarkup('own');
+          }
+          renderLuckyNotifyEntries();
+        });
+        return;
+      }
+      const button = event.target.closest('[data-nsit-lucky-announce]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (button.dataset.nsitLuckyBusy) return;
+      const context = luckyAnnounceContext();
+      if (!context) return;
+      button.dataset.nsitLuckyBusy = '1';
+      button.textContent = '处理中…';
+      resolveLuckyAnnounceWinners(context).then((winners) => {
+        if (!winners || !winners.length) {
+          delete button.dataset.nsitLuckyBusy;
+          button.textContent = LUCKY_ANNOUNCE_BUTTON;
+          showLuckyNotice('还没拿到中奖名单，请确认已到开奖时间后重试。', { sticky: true, tone: 'error' });
+          return null;
+        }
+        return runLuckyAnnounce({ ...(context.record || context.parsed), postId: context.postId }, winners);
+      }).then((ok) => {
+        if (ok === null) return;
+        delete button.dataset.nsitLuckyBusy;
+        renderLuckyNotifyEntries();
+        if (ok) renderLuckyAnnounceButton();
+        else button.textContent = LUCKY_ANNOUNCE_BUTTON;
+      });
+    });
   }
 
 function replyEditor() {
@@ -4572,6 +5456,8 @@ function replyEditor() {
     renderLuckyTrigger();
     runLuckyWriteback();
     showLuckyWritebackResult();
+    renderLuckyNotifyEntries();
+    renderLuckyAnnounceButton();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -4582,9 +5468,15 @@ function replyEditor() {
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installLuckyRuntime();
+  installLuckyNotifyRuntime();
+  installLuckyAnnounceRuntime();
   renderLuckyTrigger();
   runLuckyWriteback();
   showLuckyWritebackResult();
+  renderLuckyNotifyEntries();
+  renderLuckyAnnounceButton();
+  runLuckyNotifyChecks();
+  runLuckyAnnounceFromUrl();
   initialize();
   installPostFilters();
   renderRepliedPostMenu();

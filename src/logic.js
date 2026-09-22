@@ -1718,6 +1718,7 @@
     } catch (_) { /* 损坏或不可用的本地存储直接从空记录开始 */ }
 
     let changed = false;
+    const newReplyPostIds = new Set();
     payload.comments.forEach((comment) => {
       const postId = Number(comment?.post_id);
       const floorId = Number(comment?.floor_id);
@@ -1728,12 +1729,15 @@
         floors.push(floorId);
         posts[key] = floors.sort((left, right) => left - right);
         changed = true;
+        if (floorId > 0) newReplyPostIds.add(key);
       }
     });
     if (changed) {
       try { localStorage.setItem(storageKey, JSON.stringify(posts)); } catch (_) { /* 存储不可用时忽略 */ }
       renderRepliedPostMenu();
       renderRepliedPostLabels();
+      // 新增回复且当前页面就是那个帖子：尝试把参与的抽奖记进通知表
+      if (newReplyPostIds.has(currentPostId())) recordParticipatedLuckyDraw();
     }
   }
 
@@ -1789,11 +1793,6 @@
     });
   }
 
-  function findEditDialogRoot() {
-    const dialogs = Array.from(document.querySelectorAll('.mde-modal, .window-modal, [role=dialog], .dialog, .ant-modal, [class*=modal]'));
-    return dialogs.find((dialog) => dialog.querySelector('#mde-title')) || null;
-  }
-
   async function updateTradePostTitle(button, status) {
     if (button.disabled) return;
     const context = tradePostContext();
@@ -1801,36 +1800,18 @@
     const nextTitle = tradeTitleWithStatus(context.title, status);
     if (nextTitle === context.title) return;
     button.disabled = true;
-    const restoreStyles = [];
-    const hideDialogOnSight = () => {
-      const restores = hideEditOverlays(document.querySelector('#mde-title'));
-      if (!restores.length) return;
-      restoreStyles.push(...restores);
-    };
-    // 编辑弹窗一出现就藏掉（早于浏览器绘制），改标题的开关动作不该被看到
-    const watcher = new MutationObserver(hideDialogOnSight);
-    watcher.observe(document.documentElement, { childList: true, subtree: true });
     try {
-      const editAction = Array.from(context.firstFloor.querySelectorAll('.comment-menu .menu-item')).find((item) => item.textContent.trim() === '编辑');
-      if (!editAction) throw new Error('未找到楼主编辑入口');
-      editAction.click();
-      const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
-      hideDialogOnSight();
-      const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
-      if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      if (setter) setter.call(titleInput, nextTitle);
-      else titleInput.value = nextTitle;
-      titleInput.dispatchEvent(new Event('input', { bubbles: true }));
-      titleInput.dispatchEvent(new Event('change', { bubbles: true }));
-      submit.click();
+      // 走编辑接口改标题，不打开编辑器；正文原样回传，避免被清空
+      const postId = currentPostId();
+      const content = luckyPostMarkdownFromConfig(postId)
+        || context.firstFloor.querySelector('.post-content')?.textContent
+        || '';
+      if (!content) throw new Error('没有取到正文内容');
+      await luckyEditPostViaApi({ postId, title: nextTitle, content });
+      luckyRefreshPostView();
     } catch (error) {
       console.warn('[NSIT] 更新交易状态失败', error);
       button.disabled = false;
-      restoreStyles.forEach((fn) => { try { fn(); } catch (_) {} });
-    } finally {
-      // 提交后框架可能再渲染一次，多盯一会儿
-      setTimeout(() => watcher.disconnect(), 1500);
     }
   }
 
@@ -2728,9 +2709,12 @@
     return Boolean(document.querySelector('#mde-title')) && !currentPostId();
   }
 
+  // 用 localStorage 而不是 sessionStorage：发布后 NodeSeek 可能开新页签展示新帖，
+  // sessionStorage 只在同一个浏览上下文里可见，跨页签会丢 armed 配置。
+  // LUCKY_ARMED_KEY 自带 submitAt + 10 分钟窗口，语义仍是“单次有效”。
   function luckyReadStorage(key) {
     try {
-      const raw = sessionStorage.getItem(key);
+      const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
     } catch (_) {
       return null;
@@ -2738,11 +2722,11 @@
   }
 
   function luckyWriteStorage(key, value) {
-    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* 存储不可用时忽略 */ }
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* 存储不可用时忽略 */ }
   }
 
   function luckyRemoveStorage(key) {
-    try { sessionStorage.removeItem(key); } catch (_) { /* 存储不可用时忽略 */ }
+    try { localStorage.removeItem(key); } catch (_) { /* 存储不可用时忽略 */ }
   }
 
   function luckyArmedConfig() {
@@ -2815,6 +2799,8 @@
       insertedText: String(config.insertedText || ''),
       submitAt: Number(config.submitAt) || 0,
       createdAt: Number(config.createdAt) || Date.now(),
+      // 回写重试次数：持久化在配置里，刷新页面后继续累计
+      writebackAttempts: Number(config.writebackAttempts) || 0,
     };
   }
 
@@ -3178,6 +3164,91 @@
     return Array.from(firstFloor?.querySelectorAll('.comment-menu .menu-item') || []).find((item) => item.textContent.trim() === '编辑') || null;
   }
 
+  // NS 的编辑接口是 POST /api/content/edit-discussion，请求头 csrf-token 由前端自行生成
+  // （随机 16 位串，不依赖服务端下发），所以可以直接调接口，不必走
+  // 「点编辑按钮 → 等弹窗 → 填表单 → 点提交」那套脆弱的 UI 自动化。
+  function luckyRandomToken(length = 16) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let index = 0; index < length; index += 1) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
+  }
+
+  function luckyPostRankFromConfig(postId) {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (!postData) return 0;
+    if (postId && String(postData.postId || '') !== String(postId)) return 0;
+    const rank = Number(postData.rank);
+    return Number.isFinite(rank) ? rank : 0;
+  }
+
+  // NS 提交编辑时总会带上 title，这里保持一致：不传空会让接口报错或把标题清掉
+  function luckyPostTitleFromConfig(postId) {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (postData && (!postId || String(postData.postId || '') === String(postId))) {
+      const fromConfig = String(postData.title || '').trim();
+      if (fromConfig) return fromConfig;
+    }
+    return luckyAnnounceTargetTitle();
+  }
+
+  // NS 编辑成功后自己会 location.reload()；走接口改完数据也要刷新，
+  // 否则页面还显示旧的标题/正文，用户以为没生效
+  function luckyRefreshPostView() {
+    try {
+      location.reload();
+    } catch (_) {
+      /* 测试环境不支持导航时忽略 */
+    }
+  }
+
+  // 直接调编辑接口改标题和正文；成功返回 true
+  async function luckyEditPostViaApi({ postId, title = '', content = '' } = {}) {
+    const id = Number(postId);
+    if (!Number.isInteger(id) || id <= 0) throw new Error('帖子 ID 无效');
+    if (!content) throw new Error('正文内容为空');
+    const body = {
+      content,
+      mode: 'edit-discussion',
+      postId: id,
+      // title 必传：沿用当前标题，避免被清空
+      title: title || luckyPostTitleFromConfig(postId),
+      rank: luckyPostRankFromConfig(postId),
+    };
+    const response = await fetch('/api/content/edit-discussion', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'csrf-token': luckyRandomToken(16),
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`编辑接口返回 ${response.status}`);
+    const payload = await response.json().catch(() => null);
+    if (!payload?.success) throw new Error(payload?.message || '编辑接口未返回成功');
+    return true;
+  }
+
+  // NS 把整个帖子的数据挂在页面全局变量上：__config__.postData.comments[0].markdown
+  // 就是 #0 楼正文的 Markdown 源码。直接读它比读编辑弹窗里的编辑器可靠得多：
+  // 编辑器是异步灌内容的，读早了会拿到空串。
+  function luckyPostMarkdownFromConfig(postId) {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (!postData) return '';
+    // 页面 data 可能还是上一篇帖子的（跳转场景），用 postId 校验一下
+    if (postId && String(postData.postId || '') !== String(postId)) return '';
+    const comments = postData.comments;
+    if (!Array.isArray(comments)) return '';
+    const first = comments.find((comment) => Number(comment?.floorIndex) === 0) || comments[0];
+    return typeof first?.markdown === 'string' ? first.markdown : '';
+  }
+
   function luckyEditorWithin(scopeRoot) {
     const scope = scopeRoot || (document.querySelector('#editor-body') ? document : null);
     if (!scope) return null;
@@ -3241,55 +3312,7 @@
     return Boolean(previous) || current.includes(LUCKY_POST_ID_PLACEHOLDER);
   }
 
-  // 按结构找弹窗层：从标题输入框往外找「类名像弹窗」或「定位为浮层」的祖先。
-  // 优先取 body 的直接子节点（layui 这类弹窗的外层容器就是它），否则退回最内层匹配
-  const EDIT_OVERLAY_KEYWORDS = /modal|dialog|layer|popup|overlay|mask|backdrop|shade/i;
-
-  function isPositionedElement(element) {
-    const style = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
-    return Boolean(style && (style.position === 'fixed' || style.position === 'absolute'));
-  }
-
-  function isBackdropElement(element) {
-    if (/shade|mask|backdrop|overlay/i.test(String(element.className || ''))) return true;
-    const style = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
-    if (!style || style.position !== 'fixed') return false;
-    const rect = element.getBoundingClientRect?.();
-    if (!rect || !window.innerWidth || !window.innerHeight) return false;
-    if (rect.width < window.innerWidth * 0.9 || rect.height < window.innerHeight * 0.9) return false;
-    return /rgba\(/.test(style.backgroundColor) || style.opacity !== '1';
-  }
-
-  function editDialogLayer(element) {
-    if (!element) return null;
-    let innermost = null;
-    let bodyChild = null;
-    let node = element;
-    while (node && node !== document.body) {
-      if (EDIT_OVERLAY_KEYWORDS.test(String(node.className || '')) || isPositionedElement(node)) {
-        if (!innermost) innermost = node;
-        if (node.parentElement === document.body) bodyChild = node;
-      }
-      node = node.parentElement;
-    }
-    return bodyChild || innermost;
-  }
-
-  // 弹窗层 + 它旁边的遮罩层（layui 的 shade 是兄弟节点，只藏弹窗会留下黑遮罩）
-  function editDialogOverlays(element) {
-    const layer = editDialogLayer(element);
-    if (!layer) return [];
-    const nodes = [layer];
-    const parent = layer.parentElement;
-    if (parent) {
-      Array.from(parent.children).forEach((sibling) => {
-        if (sibling === layer || sibling.id === APP_ID || nodes.includes(sibling)) return;
-        if (isBackdropElement(sibling)) nodes.push(sibling);
-      });
-    }
-    return nodes;
-  }
-
+  // 发帖页把模板写进正文时用：那里是草稿编辑器，没有接口可调，只能直接写编辑器
   function luckyEditorValue(editor) {
     if (editor?.CodeMirror?.getValue) return editor.CodeMirror.getValue();
     return editor?.value || '';
@@ -3309,80 +3332,57 @@
     return true;
   }
 
-  function hideLayerWithRestore(layer) {
-    injectLuckyStyles();
-    const original = { display: layer.style.display, visibility: layer.style.visibility, pointerEvents: layer.style.pointerEvents };
-    layer.classList.add('nsit-lucky-hidden');
-    layer.style.display = 'none';
-    return () => {
-      layer.classList.remove('nsit-lucky-hidden');
-      layer.style.display = original.display;
-      layer.style.visibility = original.visibility;
-      layer.style.pointerEvents = original.pointerEvents;
-    };
-  }
-
-  function hideEditOverlays(titleInput) {
-    const restores = [];
-    editDialogOverlays(titleInput).forEach((node) => {
-      if (node.style.display === 'none' || node.classList.contains('nsit-lucky-hidden')) return;
-      restores.push(hideLayerWithRestore(node));
-    });
-    return restores;
-  }
-
   function luckyWritebackTarget(config) {
     if (document.querySelector('#mde-title')) return false;
-    const recent = Boolean(config.submitAt) && Date.now() - config.submitAt <= LUCKY_SUBMIT_WINDOW;
+    const now = Date.now();
+    const armedAt = Number(config.createdAt) || 0;
+    const recent = Boolean(config.submitAt) && now - config.submitAt <= LUCKY_SUBMIT_WINDOW;
+    const stillFresh = armedAt && now - armedAt <= LUCKY_SUBMIT_WINDOW;
     const stored = luckyTitleKey(config.title);
-    if (!stored) return recent;
-    return recent || stored === luckyTitleKey(luckyPostTitle());
+    if (!stored) return recent || stillFresh;
+    return recent || stillFresh || stored === luckyTitleKey(luckyPostTitle());
   }
+
+  // 把模板里的 __POST_ID__ 换成真实 ID，或者把模板块追加/插入正文
+  function luckyWritebackContent(config, postId, current) {
+    if (current.includes(LUCKY_POST_ID_PLACEHOLDER)) {
+      return current.split(LUCKY_POST_ID_PLACEHOLDER).join(postId);
+    }
+    if (current.includes(`lucky?post=${postId}`)) return current;
+    return luckyInsertContent(current, luckyBlockMarkdown(config, postId), config.position);
+  }
+
+  // 成功后清配置；失败时保留，刷新页面还能重试（但同一帖最多重试 N 次，避免死循环）
+  const LUCKY_WRITEBACK_MAX_ATTEMPTS = 3;
 
   async function performLuckyWriteback(config, postId) {
     luckyWritebackRunning = true;
-    clearLuckyArmedConfig();
     const link = luckyLink(config, postId);
-    showLuckyNotice('正在把抽奖信息写进正文…', { sticky: true });
-    let restore = null;
-    const hideDialogOnSight = () => {
-      const restores = hideEditOverlays(document.querySelector('#mde-title'));
-      if (!restores.length || restore) return;
-      restore = () => restores.forEach((fn) => fn());
-    };
-    // 弹窗一出现就藏掉（早于浏览器绘制），避免编辑器的开关动作被看到
-    const watcher = new MutationObserver(hideDialogOnSight);
-    watcher.observe(document.documentElement, { childList: true, subtree: true });
     try {
-      const editAction = await waitForElement(luckyEditAction, 4000);
-      if (!editAction) throw new Error('未找到楼主编辑入口');
-      editAction.click();
-      const titleInput = await waitForElement(() => document.querySelector('#mde-title'));
-      hideDialogOnSight();
-      const dialogRoot = editDialogLayer(titleInput) || findEditDialogRoot();
-      const submit = await waitForElement(() => Array.from(document.querySelectorAll('button')).find((item) => item.textContent.trim() === '编辑帖子'));
-      if (!titleInput || !submit) throw new Error('编辑窗口加载失败');
-      const editor = luckyEditorWithin(dialogRoot);
-      if (!editor) throw new Error('未找到正文编辑器');
-      const current = luckyEditorValue(editor);
-      let next = current;
-      if (next.includes(LUCKY_POST_ID_PLACEHOLDER)) {
-        // 模板已经在正文里，发布后只需要把占位符换成真实帖子 ID
-        next = next.split(LUCKY_POST_ID_PLACEHOLDER).join(postId);
-      } else if (!next.includes(`lucky?post=${postId}`)) {
-        next = luckyInsertContent(current, luckyBlockMarkdown(config, postId), config.position);
-      }
-      if (next !== current) luckySetEditorValue(editor, next);
-      luckyWriteStorage(LUCKY_DONE_KEY, { postId, link, at: Date.now() });
-      submit.click();
-      showLuckyNotice('抽奖信息已写进正文。', { link, tone: 'success' });
+      // 正文优先取页面全局变量，拿不到再退回 DOM 文本
+      const fromConfig = luckyPostMarkdownFromConfig(postId);
+      const current = fromConfig || luckyFirstFloor()?.querySelector('.post-content')?.textContent || '';
+      if (!current) throw new Error('没有取到正文内容');
+      const next = luckyWritebackContent(config, postId, current);
+      await luckyEditPostViaApi({ postId, content: next });
+      // 只有真的提交成功才清掉一次性配置
+      clearLuckyArmedConfig();
+      // 记一条自己发起的抽奖，供右侧「抽奖 / 中奖」通知使用
+      recordOwnLuckyDraw(config, postId);
+      // 数据已落库，刷新页面让正文显示出来
+      luckyRefreshPostView();
     } catch (error) {
       console.warn('[NSIT] 抽奖回写失败', error);
-      restore?.();
-      luckyRemoveStorage(LUCKY_DONE_KEY);
-      showLuckyNotice(`抽奖回写失败，请把正文里的 ${LUCKY_POST_ID_PLACEHOLDER} 换成 ${postId}，或用这个链接：`, { link, sticky: true, tone: 'error' });
+      const attempts = Number(config.writebackAttempts || 0) + 1;
+      if (attempts >= LUCKY_WRITEBACK_MAX_ATTEMPTS) {
+        // 重试太多次就放弃并清配置，避免每次开页面都弹提示
+        clearLuckyArmedConfig();
+        showLuckyNotice('抽奖信息没有自动写进帖子，请打开帖子手动补充开奖链接：', { link, sticky: true, tone: 'error' });
+      } else {
+        // 保留配置并在下次进入帖子时再试一次
+        saveLuckyArmedConfig({ ...config, writebackAttempts: attempts });
+      }
     } finally {
-      setTimeout(() => watcher.disconnect(), 1500);
       luckyWritebackRunning = false;
     }
   }
@@ -3404,8 +3404,6 @@
     const record = luckyReadStorage(LUCKY_DONE_KEY);
     if (!record || String(record.postId) !== currentPostId()) return;
     luckyRemoveStorage(LUCKY_DONE_KEY);
-    if (Date.now() - Number(record.at || 0) > 60000) return;
-    showLuckyNotice('抽奖信息已写进正文。', { link: String(record.link || ''), tone: 'success' });
   }
 
   function markLuckySubmitAttempt() {
@@ -3419,9 +3417,12 @@
     if (pageWindow[LUCKY_RUNTIME_KEY]) return;
     pageWindow[LUCKY_RUNTIME_KEY] = true;
     if (luckyEditorPage()) {
-      // 抽奖配置只对当前这次发帖有效：重新打开或刷新发帖页都从头开始，除非刚刚点过发布（可能被校验拦下重载）
+      // 抽奖配置只对当前这次发帖有效：重新打开或刷新发帖页都从头开始，
+      // 除非 10 分钟内刚配置过 / 刚点过发布（可能被校验拦下重载）
       const stored = luckyReadStorage(LUCKY_ARMED_KEY);
-      if (stored && (!Number(stored.submitAt) || Date.now() - Number(stored.submitAt) > LUCKY_SUBMIT_WINDOW)) luckyRemoveStorage(LUCKY_ARMED_KEY);
+      const fresh = Number(stored?.createdAt) && Date.now() - Number(stored.createdAt) <= LUCKY_SUBMIT_WINDOW;
+      const submitted = Number(stored?.submitAt) && Date.now() - Number(stored.submitAt) <= LUCKY_SUBMIT_WINDOW;
+      if (stored && !fresh && !submitted) luckyRemoveStorage(LUCKY_ARMED_KEY);
     }
     document.addEventListener('click', (event) => {
       const action = event.target.closest('[data-nsit-lucky-action]')?.dataset.nsitLuckyAction || '';
@@ -3468,4 +3469,877 @@
       if (event.target.closest?.(`#${APP_ID}`)) return;
       markLuckySubmitAttempt();
     }, true);
+  }
+
+  /* 抽奖通知 ---------------------------------------------------------------
+   * 只记录本脚本经手发起的抽奖（发布时写入），不回溯历史帖子。
+   * - 「抽奖」：徽标 = 已开奖但正文里还没 @ 中奖人的帖子数
+   * - 「中奖」：徽标 = 已开奖且我在中奖名单里、还没点开看过的帖子数
+   * 中奖名单直接读 NS 自己的开奖页面（同源 iframe），不复刻抽奖算法。
+   * ------------------------------------------------------------------------- */
+
+  let luckyNotifyStylesReady = false;
+  let luckyNotifyRecordsCache;
+  let luckyNotifyChecking = false;
+
+  // lucky 页也匹配本脚本，读名单用的隐藏 iframe 会让脚本在里层再跑一遍。
+  // 不加这道判断，就会不断套娃创建 iframe。
+  function luckyNotifyTopFrame() {
+    try {
+      return window.top === window.self;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function luckyNotifyReadStorage() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(LUCKY_RECORDS_KEY) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  // 每次都直接读 localStorage：渲染函数挂在 MutationObserver 上，
+  // 内存缓存会和另一页签/发布流程的写入形成竞态，把刚亮起的徽标又擦掉。
+  // 记录只有几条 JSON，直接读没有性能问题。
+  function luckyNotifyRecords() {
+    const fresh = luckyNotifyReadStorage();
+    luckyNotifyRecordsCache = fresh;
+    return fresh;
+  }
+
+  function luckyNotifyWriteRecords(records) {
+    luckyNotifyRecordsCache = records;
+    try { localStorage.setItem(LUCKY_RECORDS_KEY, JSON.stringify(records)); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  // 发布成功后记一条，供右侧面板使用；重复发布同一帖子时刷新参数
+  function recordOwnLuckyDraw(config, postId) {
+    const id = String(postId || '').trim();
+    if (!/^\d+$/.test(id)) return;
+    const next = luckyNormalized(config);
+    const records = { ...luckyNotifyRecords() };
+    const previous = records[id] || {};
+    const sameParams = previous.time === next.time && previous.count === next.count
+      && previous.start === next.start && previous.dedupe === next.dedupe;
+    records[id] = {
+      postId: id,
+      time: next.time,
+      count: next.count,
+      start: next.start,
+      dedupe: next.dedupe,
+      participated: false,
+      // 参数变了就作废已缓存的开奖结果
+      winners: sameParams && Array.isArray(previous.winners) ? previous.winners : null,
+      checkedAt: sameParams ? Number(previous.checkedAt) || 0 : 0,
+      wonAt: sameParams ? Number(previous.wonAt) || 0 : 0,
+      wonSeen: sameParams ? Number(previous.wonSeen) || 0 : 0,
+      announced: sameParams ? Number(previous.announced) || 0 : 0,
+    };
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
+  }
+
+  function luckyNotifyList() {
+    return Object.values(luckyNotifyRecords())
+      .filter((item) => item && /^\d+$/.test(String(item.postId)))
+      .sort((left, right) => Number(right.time || 0) - Number(left.time || 0));
+  }
+
+  function luckyNotifyRevealed(item) {
+    return Number(item?.time || 0) > 0 && Date.now() >= Number(item.time) + LUCKY_NOTIFY_REVEAL_SLACK;
+  }
+
+  function luckyNotifyWinners(item) {
+    return Array.isArray(item?.winners) ? item.winners.filter((winner) => winner && winner.id) : null;
+  }
+
+  function luckyNotifyLuckyUrl(item) {
+    return luckyLink({ time: item.time, count: item.count, start: item.start, dedupe: item.dedupe }, item.postId);
+  }
+
+  // 从当前帖子页 #0 楼正文里解析 lucky 链接（回复参与用）
+  function luckyNotifyParseCurrentPostLink() {
+    const floor = luckyFirstFloor();
+    if (!floor) return null;
+    const href = floor.querySelector('a[href*="/lucky?"]')?.getAttribute('href') || '';
+    const url = href ? new URL(href, location.origin) : null;
+    if (!url || !url.searchParams.get('post')) return null;
+    const getNumber = (key, fallback) => {
+      const value = Number(url.searchParams.get(key));
+      return Number.isFinite(value) ? value : fallback;
+    };
+    return {
+      postId: String(getNumber('post', 0)),
+      time: getNumber('time', 0),
+      count: getNumber('count', 1),
+      start: getNumber('start', 1),
+      dedupe: url.searchParams.get('duplicate') !== 'true',
+    };
+  }
+
+  // 回帖后调用：把参与的抽奖写进通知记录表
+  function recordParticipatedLuckyDraw() {
+    const parsed = luckyNotifyParseCurrentPostLink();
+    if (!parsed || !/^\d+$/.test(parsed.postId) || parsed.time <= Date.now()) return;
+    const records = { ...luckyNotifyRecords() };
+    const previous = records[parsed.postId] || {};
+    const sameParams = previous.time === parsed.time && previous.count === parsed.count
+      && previous.start === parsed.start && previous.dedupe === parsed.dedupe;
+    if (sameParams) return;
+    records[parsed.postId] = {
+      ...parsed,
+      winners: null,
+      checkedAt: 0,
+      wonAt: 0,
+      wonSeen: 0,
+      announced: 0,
+      participated: true,
+    };
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
+  }
+
+  // 徽标：已开奖、有人中奖，但正文里还没 @ 全部中奖人
+  function luckyNotifyPendingAnnounceCount(source = luckyNotifyRecords()) {
+    return Object.values(source)
+      .filter((item) => item && /^\d+$/.test(String(item.postId)) && !item.participated)
+      .filter((item) => {
+      if (!luckyNotifyRevealed(item)) return false;
+      const winners = luckyNotifyWinners(item);
+      if (!winners || !winners.length) return false;
+      return Number(item.announced) !== winners.length;
+    }).length;
+  }
+
+  // 徽标：已开奖、我在名单里，且还没点开看过
+  function luckyNotifyWonUnreadCount(source = luckyNotifyRecords()) {
+    const ownId = String(currentNodeSeekUserId() || '');
+    if (!ownId) return 0;
+    return Object.values(source)
+      .filter((item) => item && /^\d+$/.test(String(item.postId)))
+      .filter((item) => {
+      if (!luckyNotifyRevealed(item)) return false;
+      if (Number(item.wonSeen)) return false;
+      const winners = luckyNotifyWinners(item);
+      return Boolean(winners) && winners.some((winner) => String(winner.id) === ownId);
+    }).length;
+  }
+
+  function luckyNotifyPanel() {
+    return document.querySelector('.user-card .user-stat');
+  }
+
+  function ensureLuckyNotifyStyles() {
+    if (luckyNotifyStylesReady) return;
+    luckyNotifyStylesReady = true;
+    // 通知面板出现在列表页/帖子页，而这些页面不会渲染发帖页的抽奖弹窗，
+    // 所以要自己带上弹窗外壳样式（.nsit-lucky-modal/.nsit-lucky-dialog 等）
+    injectStyles(`
+      /* 站点的 .stat-block / .iconpark-icon / .notify-count 规则都带 data-v 作用域，
+         注入的节点匹配不到，所以这里自带一份等价样式。
+         行距也要照抄，否则我们的两行会比原生条目挤在一起。 */
+      [data-nsit-lucky-notify]{font-size:14px}
+      /* 站点的链接色规则也带 data-v 作用域（.user-stat a[data-v-...]{color:#333}），
+         我们的锚点匹配不到，会掉到全局的 #555，数字看着就比原生浅 */
+      [data-nsit-lucky-notify] a{color:#333}
+      [data-nsit-lucky-notify] a:hover{color:#888}
+      [data-nsit-lucky-notify] .iconpark-icon{width:14px;height:14px;margin-right:3.8px;vertical-align:middle}
+      /* 和站点一致：只有有数字时才画成红色胶囊，0 就是普通文字。
+         站点规则里没有 line-height，这里也不能加，否则数字基线会偏。 */
+      .nsit-lucky-notify-dot.is-hot{display:inline;padding:0 6px;border-radius:6px;font-size:12.6px;vertical-align:middle;background-color:#f01212;color:#fff}
+      .nsit-lucky-modal{position:fixed;z-index:100000;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.42)}
+      .nsit-lucky-modal.is-open{display:flex}
+      .nsit-lucky-dialog{display:flex;flex-direction:column;width:min(560px,100%);min-width:0;max-width:100%;max-height:min(560px,86vh);overflow:hidden;border-radius:12px;background:#fff;color:#27334a;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 20px 48px rgba(15,23,38,.28)}
+      .nsit-lucky-dialog,.nsit-lucky-dialog *{box-sizing:border-box}
+      .nsit-lucky-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #e5eaf1;background:linear-gradient(110deg,#f9fbff,#fff8ea)}
+      .nsit-lucky-head h3{margin:0;font-size:16px}
+      .nsit-lucky-head-copy{display:flex;align-items:baseline;gap:9px;min-width:0}
+      .nsit-lucky-head-title{display:flex;align-items:baseline;gap:9px;min-width:0}
+      /* 弹窗自带 star 行样式：ui.js 的样式只在发帖页注入，列表页打开弹窗时拿不到 */
+      .nsit-lucky-head .nsit-star-note{display:inline-flex;align-items:center;gap:3px;color:#718096;font-size:14px;white-space:nowrap}
+      .nsit-lucky-head .nsit-star-note a{display:inline-flex;align-items:center;color:#8b641e;text-decoration:none}
+      .nsit-lucky-head .nsit-star-note a:hover{text-decoration:underline}
+      .nsit-lucky-head .nsit-github-icon{width:14px;height:14px;fill:currentColor}
+      .nsit-lucky-close{display:inline-flex;flex:none;align-items:center;justify-content:center;width:28px;height:28px;margin:0;padding:0;border:1px solid transparent;border-radius:7px;background:transparent;color:#7b8798;cursor:pointer}
+      .nsit-lucky-close:hover{border-color:#d8e0eb;background:#fff;color:#40506a}
+      .nsit-lucky-notify-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 0}
+      .nsit-lucky-notify-empty{padding:26px 18px;color:#718096;font-size:13px;text-align:center}
+      .nsit-lucky-notify-item{display:flex;align-items:flex-start;gap:10px;padding:11px 18px;border-bottom:1px solid #eef2f7}
+      .nsit-lucky-notify-item:last-child{border-bottom:0}
+      .nsit-lucky-notify-main{display:grid;gap:3px;min-width:0;flex:1 1 auto}
+      .nsit-lucky-notify-title{display:flex;align-items:center;gap:8px;color:#27334a;font-size:13px;font-weight:600;line-height:1.5;word-break:break-word}
+      .nsit-lucky-notify-title a{min-width:0}
+      .nsit-lucky-notify-title a,.nsit-lucky-notify-meta a,.nsit-lucky-notify-winners a{color:#3976bc}
+      .nsit-lucky-notify-title a:hover,.nsit-lucky-notify-meta a:hover{text-decoration:underline}
+      .nsit-lucky-notify-meta{color:#718096;font-size:12px;line-height:1.6}
+      .nsit-lucky-notify-tag{flex:none;padding:1px 6px;border:1px solid transparent;border-radius:4px;font-size:12px;line-height:18px;white-space:nowrap}
+      .nsit-lucky-notify-tag[data-tone="wait"]{border-color:#f0d49c;background:#fff8e9;color:#8b641e}
+      .nsit-lucky-notify-tag[data-tone="done"]{border-color:#9ad6b1;background:#effaf3;color:#27834a}
+      .nsit-lucky-notify-tag[data-tone="pending"]{border-color:#eec2c2;background:#fff6f6;color:#b34b4b}
+      .nsit-lucky-announce-button{margin:0 8px 0 0;padding:2px 7px;border:1px solid #d9961c;border-radius:5px;background:#fff8ea;color:#875800;font:inherit;font-size:12px;line-height:1.4;vertical-align:middle;cursor:pointer}
+      .nsit-lucky-announce-button:hover{border-color:#b87500;background:#d9961c;color:#fff}
+      .nsit-lucky-announce-button:disabled{cursor:wait;opacity:.55}
+      .nsit-lucky-notify-confirm{position:fixed;z-index:100001;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(24,32,48,.28)}
+      .nsit-lucky-notify-confirm.is-open{display:flex}
+      .nsit-lucky-notify-confirm .nsit-lucky-dialog{width:min(400px,100%)}
+      .nsit-lucky-notify-confirm-body{padding:16px 18px 20px;color:#506078;font-size:14px;line-height:1.8}
+      .nsit-lucky-notify-confirm-body p{margin:0}
+      .nsit-lucky-notify-confirm-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid #e5eaf1;background:#fff}
+      .nsit-lucky-notify-confirm-foot button{margin:0;padding:7px 11px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#40506a;font:inherit;font-size:13px;cursor:pointer}
+      .nsit-lucky-notify-confirm-foot button:hover{border-color:#b8c5d5;background:#f6f8fb}
+      .nsit-lucky-notify-confirm-foot button.nsit-lucky-danger{border-color:#e0a5a5;background:#fff;color:#b34b4b}
+      .nsit-lucky-notify-confirm-foot button.nsit-lucky-danger:hover{border-color:#b34b4b;background:#fff0f0}
+      .nsit-lucky-notify-item-actions{display:flex;flex:none;flex-direction:column;align-items:flex-end;gap:5px}
+      .nsit-lucky-notify-actions{margin-top:5px}
+      .nsit-lucky-notify-actions button{margin:0;padding:3px 8px;border:1px solid #d8e0eb;border-radius:5px;background:#fff;color:#40506a;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+      .nsit-lucky-notify-actions button:hover{border-color:#d9961c;color:#8b5c00}
+      .nsit-lucky-notify-actions button.nsit-lucky-primary{border-color:#d9961c;background:#d9961c;color:#fff}
+      .nsit-lucky-notify-actions button.nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12;color:#fff}
+      .nsit-lucky-notify-actions button:disabled{cursor:default;opacity:.6}
+      .nsit-lucky-notify-item-actions .nsit-lucky-primary{margin:0;padding:3px 8px;border:1px solid #d9961c;border-radius:5px;background:#d9961c;color:#fff;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+      .nsit-lucky-notify-item-actions .nsit-lucky-primary:hover{background:#c98a12;border-color:#c98a12;color:#fff}
+      .nsit-lucky-notify-delete{margin:0;padding:3px 8px;border:1px solid #eec2c2;border-radius:5px;background:#fff6f6;color:#b34b4b;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+      .nsit-lucky-notify-delete:hover{border-color:#b34b4b;background:#fff0f0;color:#b34b4b}
+      .nsit-lucky-notify-winners{margin:2px 0 0;padding:0;list-style:none;color:#40506a;font-size:12px}
+      .nsit-lucky-notify-winners li{margin:0;padding:0;line-height:1.7}
+    `);
+  }
+
+  // user-stat 是两列（两个 .stat-block）。一个条目放一列：两列行数才齐，
+  // 两个条目正好并排落在末行，左「抽奖」右「中奖」，与原先的上下顺序一致。
+  const LUCKY_NOTIFY_ENTRIES = [
+    ['own', '抽奖', 'box', 0],
+    ['won', '中奖', 'trophy', 1],
+  ];
+
+  function renderLuckyNotifyEntries() {
+    if (!luckyNotifyTopFrame()) return;
+    const panel = luckyNotifyPanel();
+    if (!panel || !currentNodeSeekUserId()) {
+      document.querySelectorAll('[data-nsit-lucky-notify]').forEach((node) => node.remove());
+      return;
+    }
+    ensureLuckyNotifyStyles();
+    const blocks = Array.from(panel.querySelectorAll('.stat-block'));
+    const counts = { own: luckyNotifyPendingAnnounceCount(), won: luckyNotifyWonUnreadCount() };
+    LUCKY_NOTIFY_ENTRIES.forEach(([kind, label, icon, column]) => {
+      // 追加到对应列末尾：其它脚本已注入的条目位置不受影响
+      const host = blocks[column] || blocks[0] || panel;
+      let node = document.querySelector(`[data-nsit-lucky-notify="${kind}"]`);
+      if (!node) {
+        // 和站点原生条目同构：<div><a>图标 文字 数字</a></div>
+        const holder = document.createElement('div');
+        holder.innerHTML = `<div data-nsit-lucky-notify="${kind}"><a href="javascript:void(0)"><svg class="iconpark-icon" aria-hidden="true"><use href="#${icon}"></use></svg><span>${escapeHtml(label)} </span><span class="nsit-lucky-notify-dot" data-nsit-lucky-notify-count>0</span></a></div>`;
+        node = holder.firstElementChild;
+      }
+      if (node.parentElement !== host) host.append(node);
+      const badge = node.querySelector('[data-nsit-lucky-notify-count]');
+      const value = String(counts[kind]);
+      // 只在真的变化时写 DOM：写 textContent 会造成 childList 变动，
+      // 而本函数挂在 MutationObserver 上，无条件写会形成死循环
+      if (badge.textContent !== value) badge.textContent = value;
+      const hot = counts[kind] > 0;
+      if (badge.classList.contains('is-hot') !== hot) badge.classList.toggle('is-hot', hot);
+    });
+  }
+
+  function luckyNotifyModal(kind) {
+    return document.querySelector(`[data-nsit-lucky-notify-modal="${kind}"]`);
+  }
+
+  function luckyNotifyItemMarkup(item, kind) {
+    const revealed = luckyNotifyRevealed(item);
+    const winners = luckyNotifyWinners(item);
+    const ownId = String(currentNodeSeekUserId() || '');
+    const won = Boolean(winners) && winners.some((winner) => String(winner.id) === ownId);
+    const announced = Boolean(winners && winners.length) && Number(item.announced) === winners.length;
+    // 「中奖」弹窗是参与者视角，「我发起的抽奖」是发起者视角，标签不能混用
+    const tone = !revealed ? 'wait' : kind === 'won' ? 'done' : announced ? 'done' : 'pending';
+    const tag = !revealed ? '未开奖' : kind === 'won' ? '已中奖' : announced ? '已公布' : '待公布';
+    const postUrl = `https://www.nodeseek.com/post-${item.postId}-1`;
+    const list = winners && winners.length && kind === 'own'
+      ? `<ul class="nsit-lucky-notify-winners">${winners.map((winner) => `<li><a href="https://www.nodeseek.com/space/${escapeHtml(winner.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(winner.name || winner.id)}</a>${winner.floor ? ` · ${escapeHtml(String(winner.floor))}楼` : ''}</li>`).join('')}</ul>`
+      : '';
+    return `<article class="nsit-lucky-notify-item">
+      <div class="nsit-lucky-notify-main">
+        <div class="nsit-lucky-notify-title">
+          <a href="${postUrl}" target="_blank" rel="noopener noreferrer">帖子 ${escapeHtml(item.postId)}</a>
+          <span class="nsit-lucky-notify-tag" data-tone="${tone}">${escapeHtml(tag)}</span>
+        </div>
+        <div class="nsit-lucky-notify-meta">开奖 ${escapeHtml(luckyTimeText(Number(item.time || 0)))} · 奖品 ${Number(item.count) || 1} 个 · ${escapeHtml(luckyNotifyWinnerText(item, kind))}</div>
+        <div class="nsit-lucky-notify-meta"><a href="${escapeHtml(luckyNotifyLuckyUrl(item))}" target="_blank" rel="noopener noreferrer">开奖链接</a></div>
+        ${list}
+      </div>
+      <div class="nsit-lucky-notify-item-actions">
+        ${kind === 'own' && revealed && winners && winners.length && !announced ? `<button type="button" class="nsit-lucky-primary" data-nsit-lucky-announce-post="${escapeHtml(item.postId)}">${escapeHtml(LUCKY_ANNOUNCE_BUTTON)}</button>` : ''}
+        ${revealed ? `<button type="button" class="nsit-lucky-notify-delete" data-nsit-lucky-delete-post="${escapeHtml(item.postId)}" title="删除这条记录">删除</button>` : ''}
+      </div>
+    </article>`;
+  }
+
+  function luckyNotifyWinnerText(item, kind = 'own') {
+    if (!luckyNotifyRevealed(item)) return '未开奖';
+    const winners = luckyNotifyWinners(item);
+    if (!winners) return '正在获取名单';
+    if (!winners.length) return '无人中奖';
+    if (kind === 'won') return '你中奖了';
+    const ownId = String(currentNodeSeekUserId() || '');
+    return winners.some((winner) => String(winner.id) === ownId) ? `中奖 ${winners.length} 人（包含你）` : `中奖 ${winners.length} 人`;
+  }
+
+  // 「中奖」只列我中了的帖子，「抽奖」列全部我发起或参与过的抽奖
+  function luckyNotifyItemsFor(kind) {
+    const items = luckyNotifyList();
+    // 「我发起的抽奖」只列自己发布的；参与的只在「中奖」里体现
+    if (kind !== 'won') return items.filter((item) => !item.participated);
+    const ownId = String(currentNodeSeekUserId() || '');
+    if (!ownId) return [];
+    return items.filter((item) => {
+      const winners = luckyNotifyWinners(item);
+      return Boolean(winners) && winners.some((winner) => String(winner.id) === ownId);
+    });
+  }
+
+  function luckyNotifyListMarkup(kind) {
+    const items = luckyNotifyItemsFor(kind);
+    if (!items.length) {
+      return `<p class="nsit-lucky-notify-empty">${kind === 'won' ? '还没有中奖记录。' : '还没有用抽奖配置发起过抽奖。'}</p>`;
+    }
+    return items.map((item) => luckyNotifyItemMarkup(item, kind)).join('');
+  }
+
+  function luckyNotifyDialogMarkup(kind) {
+    const title = kind === 'won' ? '中奖记录' : '我发起的抽奖';
+    return `<div class="nsit-lucky-modal nsit-lucky-notify-dialog" data-nsit-lucky-notify-modal="${kind}" aria-hidden="true">
+      <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>${escapeHtml(title)}</h3>${starNoteMarkup()}</div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-notify-action="close" aria-label="关闭${escapeHtml(title)}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-notify-body" data-nsit-lucky-notify-list></div>
+      </section>
+    </div>`;
+  }
+
+  function openLuckyNotifyModal(kind) {
+    ensureLuckyNotifyStyles();
+    let modal = luckyNotifyModal(kind);
+    if (!modal) {
+      const holder = document.createElement('div');
+      holder.innerHTML = luckyNotifyDialogMarkup(kind);
+      modal = holder.firstElementChild;
+      document.body.append(modal);
+    }
+    modal.querySelector('[data-nsit-lucky-notify-list]').innerHTML = luckyNotifyListMarkup(kind);
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    if (kind === 'won') markLuckyNotifyWonSeen();
+  }
+
+  function deleteLuckyNotifyRecord(postId) {
+    const id = String(postId || '').trim();
+    if (!/^\d+$/.test(id)) return;
+    const records = { ...luckyNotifyRecords() };
+    // 未开奖的记录不允许删除：开奖结果还没出来，删了就彻底追踪不到了
+    if (!records[id] || !luckyNotifyRevealed(records[id])) return;
+    delete records[id];
+    luckyNotifyWriteRecords(records);
+    // 刷新两个弹窗和右侧徽标
+    document.querySelectorAll('[data-nsit-lucky-notify-modal]').forEach((modal) => {
+      const kind = modal.getAttribute('data-nsit-lucky-notify-modal');
+      modal.querySelector('[data-nsit-lucky-notify-list]').innerHTML = luckyNotifyListMarkup(kind);
+    });
+    renderLuckyNotifyEntries();
+  }
+
+  // 「待公布」的帖子删掉就找不回来了（通知入口消失），删除前二次确认；
+  // 其他状态的记录直接删，不给用户添麻烦
+  function luckyNotifyRecordNeedsConfirm(postId) {
+    const record = luckyNotifyRecords()[String(postId || '').trim()];
+    if (!record) return false;
+    if (!luckyNotifyRevealed(record)) return false;
+    const winners = luckyNotifyWinners(record);
+    if (!winners || !winners.length) return false;
+    return Number(record.announced) !== winners.length;
+  }
+
+  function ensureLuckyNotifyConfirm() {
+    ensureLuckyNotifyStyles();
+    let confirm = document.querySelector('[data-nsit-lucky-notify-confirm]');
+    if (confirm) return confirm;
+    const holder = document.createElement('div');
+    holder.innerHTML = `<div class="nsit-lucky-notify-confirm" data-nsit-lucky-notify-confirm>
+      <section class="nsit-lucky-dialog" role="dialog" aria-modal="true" aria-label="确认删除">
+        <header class="nsit-lucky-head"><div class="nsit-lucky-head-copy"><div class="nsit-lucky-head-title"><h3>删除这条记录？</h3></div></div><button type="button" class="nsit-lucky-close" data-nsit-lucky-notify-confirm-action="cancel" aria-label="关闭"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button></header>
+        <div class="nsit-lucky-notify-confirm-body"><p>这条抽奖还没公布中奖名单，删掉后就没有提醒入口了。确定删除吗？</p></div>
+        <footer class="nsit-lucky-notify-confirm-foot"><button type="button" data-nsit-lucky-notify-confirm-action="cancel">取消</button><button type="button" class="nsit-lucky-danger" data-nsit-lucky-notify-confirm-action="confirm">删除</button></footer>
+      </section>
+    </div>`;
+    confirm = holder.firstElementChild;
+    document.body.append(confirm);
+    return confirm;
+  }
+
+  function closeLuckyNotifyConfirm() {
+    document.querySelector('[data-nsit-lucky-notify-confirm]')?.classList.remove('is-open');
+  }
+
+  function openLuckyNotifyConfirm(postId) {
+    const confirm = ensureLuckyNotifyConfirm();
+    confirm.dataset.nsitLuckyConfirmPost = String(postId);
+    confirm.classList.add('is-open');
+  }
+
+  function closeLuckyNotifyModals() {
+    document.querySelectorAll('[data-nsit-lucky-notify-modal]').forEach((modal) => {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  function markLuckyNotifyWonSeen() {
+    const records = { ...luckyNotifyRecords() };
+    let changed = false;
+    const ownId = String(currentNodeSeekUserId() || '');
+    Object.keys(records).forEach((key) => {
+      const item = records[key];
+      if (!item || Number(item.wonSeen)) return;
+      // 只标记当前名单里确实包含我的记录；旧数据里 wonAt 可能来自上一次检查
+      const winners = Array.isArray(item.winners) ? item.winners : [];
+      const isWinner = Boolean(ownId) && winners.some((winner) => String(winner?.id) === ownId);
+      if (!isWinner) return;
+      item.wonSeen = Date.now();
+      changed = true;
+    });
+    if (!changed) return;
+    luckyNotifyWriteRecords(records);
+    renderLuckyNotifyEntries();
+  }
+
+  // 借 NS 自己的开奖页面取名单：同源 iframe，读完即删，不复刻抽奖算法
+  function luckyNotifyReadWinners(item, timeout = 15000) {
+    return new Promise((resolve) => {
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:900px;height:700px;border:0;visibility:hidden';
+      frame.setAttribute('aria-hidden', 'true');
+      let done = false;
+      const finish = (value) => {
+        if (done) return;
+        done = true;
+        clearInterval(timer);
+        clearTimeout(kill);
+        frame.remove();
+        resolve(value);
+      };
+      const read = () => {
+        let doc = null;
+        try { doc = frame.contentDocument; } catch (_) { return null; }
+        if (!doc || !doc.body) return null;
+        const rows = Array.from(doc.querySelectorAll('.rank-row'));
+        if (rows.length) {
+          return rows.map((row) => {
+            const link = row.querySelector('.member-name a[href^="/space/"]');
+            const id = String(link?.getAttribute('href') || '').match(/^\/space\/(\d+)/)?.[1] || '';
+            const floor = String(row.querySelector('.coins')?.textContent || '').match(/(\d+)/)?.[1] || '';
+            return { id, name: (link?.textContent || '').trim(), floor };
+          }).filter((winner) => winner.id);
+        }
+        // 页面已渲染完但没有行：这帖确实没有合格中奖者
+        return doc.body.innerText.includes('中奖名单') ? [] : null;
+      };
+      const timer = setInterval(() => {
+        const winners = read();
+        if (winners) finish(winners);
+      }, 300);
+      const kill = setTimeout(() => finish(null), timeout);
+      frame.src = luckyNotifyLuckyUrl(item);
+      (document.body || document.documentElement).append(frame);
+    });
+  }
+
+  // 只看楼主楼层（#0）的正文里有没有 @ 全部中奖人。
+  // 不能扫整页 HTML：评论区和页脚也会出现 @名字，会误判成已公布。
+  function luckyNotifyAnnounced(postHtml, winners) {
+    const html = String(postHtml || '');
+    if (!html || !winners.length) return false;
+    let text = '';
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const floor = doc.querySelector('.content-item[id="0"] .post-content')
+        || doc.querySelector('.content-item[id="0"]');
+      text = floor?.textContent || '';
+    } catch (_) {
+      return false;
+    }
+    if (!text) return false;
+    return winners.every((winner) => winner.name && text.includes(`@${winner.name}`));
+  }
+
+  async function luckyNotifyFetchPostHtml(postId) {
+    try {
+      const response = await fetch(`/post-${postId}-1`, { credentials: 'same-origin' });
+      if (!response.ok) return null;
+      return await response.text();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function luckyNotifyCheckItem(item) {
+    const winners = await luckyNotifyReadWinners(item);
+    if (!winners) return false;
+    const records = { ...luckyNotifyRecords() };
+    const current = records[String(item.postId)];
+    if (!current) return false;
+    current.winners = winners;
+    current.checkedAt = Date.now();
+    const ownId = String(currentNodeSeekUserId() || '');
+    const wonNow = Boolean(ownId) && winners.some((winner) => String(winner.id) === ownId);
+    current.wonAt = wonNow ? Number(current.wonAt) || Date.now() : 0;
+    // 名单里没有我时才清已读：有我时保留，否则复查会反复清掉 unread 状态
+    if (!wonNow) current.wonSeen = 0;
+    // 已开奖的帖子查一次正文，判断有没有 @ 全部中奖人。
+    // 拉不到正文时保留原状态：网络失败不等于楼主没公布。
+    if (winners.length) {
+      const html = await luckyNotifyFetchPostHtml(current.postId);
+      if (html) current.announced = luckyNotifyAnnounced(html, winners) ? winners.length : 0;
+    }
+    luckyNotifyWriteRecords(records);
+    return true;
+  }
+
+  async function runLuckyNotifyChecks() {
+    if (luckyNotifyChecking) return;
+    // 里层 iframe（lucky 页）不参与检查，否则会无限套娃
+    if (!luckyNotifyTopFrame()) return;
+    const due = luckyNotifyList().filter((item) => {
+      if (!luckyNotifyRevealed(item)) return false;
+      // 拿到名单后每小时复查一次，捕捉楼主后来才 @ 中奖人的情况
+      return Date.now() - Number(item.checkedAt || 0) >= LUCKY_NOTIFY_RECHECK_MS;
+    });
+    if (!due.length) return;
+    luckyNotifyChecking = true;
+    try {
+      for (const item of due) {
+        await luckyNotifyCheckItem(item);
+        renderLuckyNotifyEntries();
+      }
+    } finally {
+      luckyNotifyChecking = false;
+      renderLuckyNotifyEntries();
+    }
+  }
+
+  function installLuckyNotifyRuntime() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[LUCKY_NOTIFY_RUNTIME_KEY]) return;
+    if (!luckyNotifyTopFrame()) return;
+    pageWindow[LUCKY_NOTIFY_RUNTIME_KEY] = true;
+    document.addEventListener('click', (event) => {
+      // 确认弹窗里的按钮
+      const confirmAction = event.target.closest('[data-nsit-lucky-notify-confirm-action]')?.dataset.nsitLuckyNotifyConfirmAction;
+      if (confirmAction) {
+        event.preventDefault();
+        event.stopPropagation();
+        const confirm = document.querySelector('[data-nsit-lucky-notify-confirm]');
+        const postId = confirm?.dataset.nsitLuckyConfirmPost || '';
+        closeLuckyNotifyConfirm();
+        if (confirmAction === 'confirm' && postId) deleteLuckyNotifyRecord(postId);
+        return;
+      }
+      if (event.target.matches('[data-nsit-lucky-notify-confirm]')) {
+        closeLuckyNotifyConfirm();
+        return;
+      }
+      const deleteButton = event.target.closest('[data-nsit-lucky-delete-post]');
+      if (deleteButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const postId = deleteButton.getAttribute('data-nsit-lucky-delete-post');
+        // 「待公布」删掉就没有提醒入口了，先二次确认
+        if (luckyNotifyRecordNeedsConfirm(postId)) openLuckyNotifyConfirm(postId);
+        else deleteLuckyNotifyRecord(postId);
+        return;
+      }
+      if (event.target.closest('[data-nsit-lucky-notify-action="close"]')) {
+        closeLuckyNotifyModals();
+        return;
+      }
+      const entry = event.target.closest('[data-nsit-lucky-notify]');
+      if (entry) {
+        event.preventDefault();
+        const kind = entry.getAttribute('data-nsit-lucky-notify');
+        if (luckyNotifyModal(kind)?.classList.contains('is-open')) closeLuckyNotifyModals();
+        else openLuckyNotifyModal(kind);
+        return;
+      }
+      if (event.target.matches('[data-nsit-lucky-notify-modal]')) closeLuckyNotifyModals();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && document.querySelector('[data-nsit-lucky-notify-confirm].is-open')) { closeLuckyNotifyConfirm(); return; }
+      if (event.key === 'Escape' && document.querySelector('[data-nsit-lucky-notify-modal].is-open')) closeLuckyNotifyModals();
+    });
+    // 开奖时间可能在这之后才到，到点了自动复查一次
+    setInterval(() => runLuckyNotifyChecks(), LUCKY_NOTIFY_RECHECK_MS);
+  }
+
+  /* 开奖公告 ---------------------------------------------------------------
+   * 把标题改成【已开奖】并把中奖名单回填到正文，走和「交易状态」「抽奖回写」
+   * 一样的静默编辑：借楼主的编辑入口，隐藏浮层再提交。
+   * 公告文案沿用 NS 自己的「生成@消息」格式。
+   * ------------------------------------------------------------------------- */
+
+  // 标题里写的标记
+  const LUCKY_ANNOUNCE_STATUS = '已开奖';
+  // 按钮上的文案（动作，不是状态）
+  const LUCKY_ANNOUNCE_BUTTON = '公布中奖名单';
+  const LUCKY_ANNOUNCE_KEY = 'nsit-lucky-announce-v1';
+  const LUCKY_ANNOUNCE_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyAnnounce__';
+
+  let luckyAnnounceRunning = false;
+
+  // 沿用 NS 抽奖页的格式：@名字 [#楼层](/post-xxx-N#楼层)
+  function luckyNotifyMentionMarkdown(item, winner) {
+    const floor = Number(winner.floor);
+    if (!Number.isInteger(floor) || floor < 0) return `@${winner.name}`;
+    const page = floor <= 10 ? 1 : Math.floor((floor - 1) / 10) + 1;
+    return `@${winner.name} [#${floor}](https://www.nodeseek.com/post-${item.postId}-${page}#${floor})`;
+  }
+
+  function luckyAnnounceBlock(item, winners) {
+    const mentions = winners.map((winner) => luckyNotifyMentionMarkdown(item, winner)).join(' ');
+    return `${mentions} 恭喜中奖🎁`;
+  }
+
+  function luckyAnnounceTitle(title) {
+    const base = String(title || '').trim()
+      .replace(/^[【\[]\s*(?:已开奖|开奖)\s*[】\]]\s*/, '')
+      .trim();
+    return `【${LUCKY_ANNOUNCE_STATUS}】${base ? ` ${base}` : ''}`;
+  }
+
+  function luckyAnnounceTargetTitle() {
+    const element = document.querySelector('.post-title');
+    return element?.textContent?.trim() || document.title.replace(/\s*[-–]\s*NodeSeek\s*$/i, '').trim();
+  }
+
+  // 两次静默编辑开销不小，用一次性记录把结果回传给渲染层
+  function luckyAnnounceWriteRecord(payload) {
+    try { sessionStorage.setItem(LUCKY_ANNOUNCE_KEY, JSON.stringify(payload)); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  function luckyAnnounceReadRecord() {
+    try {
+      const raw = sessionStorage.getItem(LUCKY_ANNOUNCE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function luckyAnnounceClearRecord() {
+    try { sessionStorage.removeItem(LUCKY_ANNOUNCE_KEY); } catch (_) { /* 存储不可用时忽略 */ }
+  }
+
+  // 借楼主的「编辑」入口做一次静默提交；title/insert 二选一
+  // 通过编辑接口一次性改标题和正文；返回是否真的提交了
+  async function luckyAnnounceEdit({ title = '', append = '' } = {}) {
+    const postId = currentPostId();
+    if (!postId) throw new Error('未找到帖子 ID');
+    const fromConfig = luckyPostMarkdownFromConfig(postId);
+    const current = fromConfig || luckyFirstFloor()?.querySelector('.post-content')?.textContent || '';
+    if (!current) throw new Error('没有取到正文内容');
+    const content = append ? luckyInsertContent(current, append, 'end') : current;
+    await luckyEditPostViaApi({ postId, title, content });
+    return true;
+  }
+
+  async function runLuckyAnnounce(item, winners) {
+    if (luckyAnnounceRunning) return;
+    if (!winners || !winners.length) return;
+    luckyAnnounceRunning = true;
+    const postId = String(item.postId);
+    try {
+      const currentTitle = luckyAnnounceTargetTitle();
+      const nextTitle = luckyAnnounceTitle(currentTitle);
+      const block = luckyAnnounceBlock(item, winners);
+      const html = await luckyNotifyFetchPostHtml(postId);
+      const already = html && luckyNotifyAnnounced(html, winners);
+      // NS 的 edit-discussion 一次提交同时带上 title + content，
+      // 所以标题和正文必须一次改完：提交成功后 NS 会 location.reload()，
+      // 拆成两次的话第二次编辑会被页面重载打断、永远执行不到。
+      const needTitle = nextTitle !== currentTitle;
+      const didEdit = needTitle || !already;
+      if (didEdit) {
+        await luckyAnnounceEdit({ title: needTitle ? nextTitle : '', append: already ? '' : block });
+      }
+      // 同步本地状态：右侧「抽奖」徽标要立刻清零，弹窗按钮也要变成已完成
+      const records = { ...luckyNotifyRecords() };
+      const current = records[postId];
+      if (current) {
+        current.announced = winners.length;
+        current.checkedAt = Date.now();
+        luckyNotifyWriteRecords(records);
+      }
+      luckyAnnounceWriteRecord({ postId, at: Date.now(), ok: true });
+      // 只有真的改过才刷新：否则「已公布」时每次进页面都会重载一次
+      if (didEdit) luckyRefreshPostView();
+      return true;
+    } catch (error) {
+      console.warn('[NSIT] 开奖公告失败', error);
+      const message = String(error?.message || error);
+      luckyAnnounceWriteRecord({ postId, at: Date.now(), ok: false, message });
+      showLuckyNotice('开奖公告没有完成，请稍后重试；也可以打开帖子手动编辑标题和正文。', { sticky: true, tone: 'error' });
+      return false;
+    } finally {
+      luckyAnnounceRunning = false;
+    }
+  }
+
+  // 按钮的有无只看帖子本身，不看本地记录：
+  // ① 当前页是抽奖贴（#0 楼有开奖链接）② 楼主是当前用户 ③ 还没公布名单
+  function luckyAnnounceContext() {
+    const postId = currentPostId();
+    if (!postId) return null;
+    // 编辑弹窗打开时不显示
+    if (document.querySelector('#mde-title')) return null;
+    const firstFloor = luckyFirstFloor();
+    if (!firstFloor) return null;
+    // 只认楼主楼层，避免在别人帖子里误伤
+    const ownId = String(currentNodeSeekUserId() || '');
+    const authorHref = firstFloor.querySelector('a[href^="/space/"]')?.getAttribute('href') || '';
+    const authorId = authorHref.match(/^\/space\/(\d+)/)?.[1] || '';
+    if (!ownId || authorId !== ownId) return null;
+    // 帖子里必须有指向本贴的开奖链接
+    const parsed = luckyNotifyParseCurrentPostLink();
+    if (!parsed || parsed.postId !== postId) return null;
+    // 还没到开奖时间：没有名单可公布，不显示按钮
+    if (!luckyNotifyRevealed(parsed)) return null;
+    // 标题已经标记过【已开奖】→ 视为已公布
+    if (/[【\[]\s*(?:已开奖|开奖)\s*[】\]]/.test(luckyAnnounceTargetTitle())) return null;
+    // 本地已记录且正文已 @ 全部中奖人 → 已公布
+    const record = luckyNotifyRecords()[postId];
+    const winners = luckyNotifyWinners(record);
+    if (winners && winners.length && Number(record.announced) === winners.length) return null;
+    return { postId, record, winners, parsed, firstFloor };
+  }
+
+  // 拿中奖名单：本地有就用本地的，没有就现拉（首次点击时）
+  async function resolveLuckyAnnounceWinners(context) {
+    const cached = luckyNotifyWinners(context.record);
+    if (cached && cached.length) return cached;
+    const source = { ...(context.record || context.parsed) };
+    if (!Number(source.time)) return null;
+    return luckyNotifyReadWinners({ ...source, postId: context.postId });
+  }
+
+  function renderLuckyAnnounceButton() {
+    if (!luckyNotifyTopFrame()) return;
+    const existing = document.querySelector('[data-nsit-lucky-announce]');
+    const context = luckyAnnounceContext();
+    if (!context) {
+      existing?.remove();
+      return;
+    }
+    const floorLink = context.firstFloor.querySelector('.floor-link[href="#0"]');
+    if (!floorLink) return;
+    if (existing?.nextElementSibling === floorLink) return;
+    existing?.remove();
+    ensureLuckyNotifyStyles();
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'nsit-lucky-announce-button';
+    button.setAttribute('data-nsit-lucky-announce', '');
+    button.textContent = LUCKY_ANNOUNCE_BUTTON;
+    button.title = `把标题改成【${LUCKY_ANNOUNCE_STATUS}】并把中奖名单写进正文`;
+    floorLink.before(button);
+  }
+
+  // 从弹窗跨页面跳过来：URL 带 nsit-lucky-announce=1，落地后自动执行
+  function runLuckyAnnounceFromUrl() {
+    if (luckyAnnounceRunning) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('nsit-lucky-announce') !== '1') return;
+    const postId = currentPostId();
+    if (!postId) return;
+    const record = luckyNotifyRecords()[postId];
+    const winners = luckyNotifyWinners(record);
+    if (!record || !winners || !winners.length) return;
+    // 先把标记从 URL 清掉再执行：成功后 runLuckyAnnounce 会 location.reload()，
+    // 若标记还在，重载后会再次触发，形成循环
+    params.delete('nsit-lucky-announce');
+    const rest = params.toString();
+    try {
+      history.replaceState(null, '', rest ? `${location.pathname}?${rest}${location.hash}` : `${location.pathname}${location.hash}`);
+    } catch (_) { /* 测试环境不支持时忽略 */ }
+    // 楼层可能稍后才渲染出来，等一下再执行
+    waitForElement(luckyFirstFloor, 8000).then((firstFloor) => {
+      if (!firstFloor) {
+        showLuckyNotice('页面还没加载完成，开奖公告没有执行；请刷新后重试。', { sticky: true, tone: 'error' });
+        return;
+      }
+      return runLuckyAnnounce(record, winners);
+    });
+  }
+
+  function installLuckyAnnounceRuntime() {
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    if (pageWindow[LUCKY_ANNOUNCE_RUNTIME_KEY]) return;
+    pageWindow[LUCKY_ANNOUNCE_RUNTIME_KEY] = true;
+    document.addEventListener('click', (event) => {
+      const modalButton = event.target.closest('[data-nsit-lucky-announce-post]');
+      if (modalButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (modalButton.disabled) return;
+        const postId = modalButton.getAttribute('data-nsit-lucky-announce-post');
+        const record = luckyNotifyRecords()[postId];
+        const winners = luckyNotifyWinners(record);
+        if (!record || !winners || !winners.length) return;
+        // 静默编辑依赖当前页面里的楼主编辑入口；跨页面时先带标记跳过去，落地后自动执行
+        if (String(record.postId) !== currentPostId()) {
+          const target = new URL(`/post-${record.postId}-1`, location.origin);
+          target.searchParams.set('nsit-lucky-announce', '1');
+          location.assign(target);
+          return;
+        }
+        modalButton.disabled = true;
+        const label = modalButton.textContent;
+        modalButton.textContent = '处理中…';
+        runLuckyAnnounce(record, winners).then((ok) => {
+          modalButton.textContent = ok ? '已公布' : label;
+          if (!ok) modalButton.disabled = false;
+          if (ok) {
+            const modal = luckyNotifyModal('own');
+            if (modal) modal.querySelector('[data-nsit-lucky-notify-list]').innerHTML = luckyNotifyListMarkup('own');
+          }
+          renderLuckyNotifyEntries();
+        });
+        return;
+      }
+      const button = event.target.closest('[data-nsit-lucky-announce]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (button.dataset.nsitLuckyBusy) return;
+      const context = luckyAnnounceContext();
+      if (!context) return;
+      button.dataset.nsitLuckyBusy = '1';
+      button.textContent = '处理中…';
+      resolveLuckyAnnounceWinners(context).then((winners) => {
+        if (!winners || !winners.length) {
+          delete button.dataset.nsitLuckyBusy;
+          button.textContent = LUCKY_ANNOUNCE_BUTTON;
+          showLuckyNotice('还没拿到中奖名单，请确认已到开奖时间后重试。', { sticky: true, tone: 'error' });
+          return null;
+        }
+        return runLuckyAnnounce({ ...(context.record || context.parsed), postId: context.postId }, winners);
+      }).then((ok) => {
+        if (ok === null) return;
+        delete button.dataset.nsitLuckyBusy;
+        renderLuckyNotifyEntries();
+        if (ok) renderLuckyAnnounceButton();
+        else button.textContent = LUCKY_ANNOUNCE_BUTTON;
+      });
+    });
   }

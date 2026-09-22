@@ -534,6 +534,8 @@
     renderLuckyTrigger();
     runLuckyWriteback();
     showLuckyWritebackResult();
+    renderLuckyNotifyEntries();
+    renderLuckyAnnounceButton();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -544,9 +546,15 @@
   window[RUNTIME_KEY] = observer;
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installLuckyRuntime();
+  installLuckyNotifyRuntime();
+  installLuckyAnnounceRuntime();
   renderLuckyTrigger();
   runLuckyWriteback();
   showLuckyWritebackResult();
+  renderLuckyNotifyEntries();
+  renderLuckyAnnounceButton();
+  runLuckyNotifyChecks();
+  runLuckyAnnounceFromUrl();
   initialize();
   installPostFilters();
   renderRepliedPostMenu();

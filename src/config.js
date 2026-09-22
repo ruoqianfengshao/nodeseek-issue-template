@@ -1,5 +1,5 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.4.31';
+  const VERSION = '1.4.32';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -114,3 +114,7 @@
   const LUCKY_REPLY_OPTIONS = [['any', '任意回复'], ['contains', '包含回复'], ['exact', '固定回复']];
   const LUCKY_INTERACTION_OPTIONS = [['like', '点赞'], ['chicken', '鸡腿']];
   const LUCKY_POSITION_OPTIONS = [['end', '正文末尾'], ['start', '正文开头']];
+  const LUCKY_RECORDS_KEY = 'nsit-lucky-records-v1';
+  const LUCKY_NOTIFY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyNotify__';
+  const LUCKY_NOTIFY_REVEAL_SLACK = 2000;
+  const LUCKY_NOTIFY_RECHECK_MS = 10 * 60 * 1000;

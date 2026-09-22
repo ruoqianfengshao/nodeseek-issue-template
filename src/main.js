@@ -536,6 +536,7 @@
     showLuckyWritebackResult();
     renderLuckyNotifyEntries();
     renderLuckyAnnounceButton();
+    confirmPendingParticipations();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -553,6 +554,8 @@
   showLuckyWritebackResult();
   renderLuckyNotifyEntries();
   renderLuckyAnnounceButton();
+  confirmPendingParticipations();
+  void resolvePendingDrawOnDeepPage();
   runLuckyNotifyChecks();
   runLuckyAnnounceFromUrl();
   initialize();

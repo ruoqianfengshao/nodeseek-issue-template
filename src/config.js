@@ -1,5 +1,5 @@
   const APP_ID = 'nsit-app';
-  const VERSION = '1.4.33';
+  const VERSION = '1.4.34';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -118,3 +118,6 @@
   const LUCKY_NOTIFY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyNotify__';
   const LUCKY_NOTIFY_REVEAL_SLACK = 2000;
   const LUCKY_NOTIFY_RECHECK_MS = 10 * 60 * 1000;
+  // 参与记录确认窗口：reload 后若一直比对不上，超时或超过次数就清掉
+  const LUCKY_PARTICIPATION_TIMEOUT = 10 * 60 * 1000;
+  const LUCKY_PARTICIPATION_MAX_ATTEMPTS = 5;

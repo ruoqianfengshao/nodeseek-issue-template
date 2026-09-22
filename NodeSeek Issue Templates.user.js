@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.33
+// @version      1.4.34
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.33';
+  const VERSION = '1.4.34';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -140,6 +140,9 @@ const APP_ID = 'nsit-app';
   const LUCKY_NOTIFY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyNotify__';
   const LUCKY_NOTIFY_REVEAL_SLACK = 2000;
   const LUCKY_NOTIFY_RECHECK_MS = 10 * 60 * 1000;
+  // 参与记录确认窗口：reload 后若一直比对不上，超时或超过次数就清掉
+  const LUCKY_PARTICIPATION_TIMEOUT = 10 * 60 * 1000;
+  const LUCKY_PARTICIPATION_MAX_ATTEMPTS = 5;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>'"]/g, (character) => ({
@@ -2311,12 +2314,6 @@ function formValues(app) {
       renderRepliedPostMenu();
       renderRepliedPostLabels();
     }
-    // 当前页是「我回复过的帖子」就尝试记录参与的抽奖。
-    // 不能只认「本次同步发现的新回复」：回帖成功后 NS 会 location.reload()，
-    // 重载时服务端可能还没索引到这条回复，那一次机会错过就永远不会记录了。
-    // recordParticipatedLuckyDraw 自身幂等（开奖时间已过直接返回、参数相同直接返回）。
-    const here = currentPostId();
-    if (here && Array.isArray(posts[here]) && posts[here].length) recordParticipatedLuckyDraw();
   }
 
   function currentPostId() {
@@ -4047,6 +4044,18 @@ function formValues(app) {
       if (event.target.closest?.(`#${APP_ID}`)) return;
       markLuckySubmitAttempt();
     }, true);
+    // 回帖参与：「发布评论」按下的瞬间就记一条未确认的参与记录。
+    // 此时还不知道回帖成不成功 —— 成功后 NS 会跳到回复所在分页，
+    // 由 confirmPendingParticipations 用页面数据核对；核对不上会按超时清理。
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('button, input[type="submit"], a');
+      if (!button || button.closest(`#${APP_ID}`)) return;
+      // 只认回帖场景：当前是帖子页、且不在发帖页
+      if (!currentPostId() || document.querySelector('#mde-title')) return;
+      if (!/^\s*(发布评论|回帖|回复)/.test(button.textContent.trim())) return;
+      const draw = luckyCurrentDraw();
+      if (draw) recordPendingParticipation(draw);
+    }, true);
   }
 
   /* 抽奖通知 ---------------------------------------------------------------
@@ -4138,46 +4147,170 @@ function formValues(app) {
     return luckyLink({ time: item.time, count: item.count, start: item.start, dedupe: item.dedupe }, item.postId);
   }
 
-  // 从当前帖子页 #0 楼正文里解析 lucky 链接（回复参与用）
-  function luckyNotifyParseCurrentPostLink() {
-    const floor = luckyFirstFloor();
-    if (!floor) return null;
-    const href = floor.querySelector('a[href*="/lucky?"]')?.getAttribute('href') || '';
-    const url = href ? new URL(href, location.origin) : null;
-    if (!url || !url.searchParams.get('post')) return null;
-    const getNumber = (key, fallback) => {
+  // 从一段 markdown 里解析开奖链接
+  function luckyParseLinkFromText(text) {
+    const match = String(text || '').match(/https?:\/\/[^\s)]*\/lucky\?[^\s)]*/)
+      || String(text || '').match(/\/lucky\?[^\s)]*/);
+    if (!match) return null;
+    let url = null;
+    try { url = new URL(match[0], location.origin); } catch (_) { return null; }
+    if (!url.searchParams.get('post')) return null;
+    const num = (key, fallback) => {
       const value = Number(url.searchParams.get(key));
       return Number.isFinite(value) ? value : fallback;
     };
     return {
-      postId: String(getNumber('post', 0)),
-      time: getNumber('time', 0),
-      count: getNumber('count', 1),
-      start: getNumber('start', 1),
+      postId: String(num('post', 0)),
+      time: num('time', 0),
+      count: num('count', 1),
+      start: num('start', 1),
       dedupe: url.searchParams.get('duplicate') !== 'true',
     };
   }
 
-  // 回帖后调用：把参与的抽奖写进通知记录表
-  function recordParticipatedLuckyDraw() {
-    const parsed = luckyNotifyParseCurrentPostLink();
-    if (!parsed || !/^\d+$/.test(parsed.postId) || parsed.time <= Date.now()) return;
+  // 判断当前帖子是不是抽奖贴，并取到开奖参数。
+  // ① 优先从 __config__.postData 找楼层 0 的 markdown 解析（进非第一页时没有 0 楼）
+  // ② 没有 0 楼时，用帖子 ID 拼开奖地址补拉第 1 页解析
+  // 关键：postData.postId 在任何分页都可用，所以"是不是抽奖贴"总能判断
+  function luckyCurrentDraw() {
+    const postId = currentPostId();
+    if (!postId) return null;
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    const samePost = postData && String(postData.postId || '') === String(postId);
+    // ① 当前页有 0 楼数据：直接解析
+    if (samePost && Array.isArray(postData.comments)) {
+      const floor0 = postData.comments.find((item) => Number(item?.floorIndex) === 0);
+      const parsed = floor0 ? luckyParseLinkFromText(floor0.markdown) : null;
+      if (parsed && parsed.postId === String(postId)) return parsed;
+    }
+    // ①b 退而用 DOM 里的 0 楼
+    const domFloor = luckyFirstFloor();
+    if (domFloor) {
+      const parsed = luckyParseLinkFromText(domFloor.querySelector('a[href*="/lucky?"]')?.getAttribute('href') || '');
+      if (parsed && parsed.postId === String(postId)) return parsed;
+    }
+    // ② 非第一页：拿不到 0 楼，交给上层补拉
+    return null;
+  }
+
+  // 非第一页时的兜底：补拉第 1 页，解析出完整开奖参数
+  async function luckyFetchDrawFromPostPage(postId) {
+    try {
+      const response = await fetch(`/post-${postId}-1`, { credentials: 'same-origin' });
+      if (!response.ok) return null;
+      const html = await response.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const floor0 = doc.querySelector('.content-item[id="0"] .post-content')
+        || doc.querySelector('.content-item[id="0"]');
+      if (!floor0) return null;
+      // 从 a[href] 读：直接读 innerHTML 会拿到 HTML 实体（&amp;）和尾随标签
+      const href = floor0.querySelector('a[href*="/lucky?"]')?.getAttribute('href') || '';
+      const parsed = luckyParseLinkFromText(href);
+      return parsed && parsed.postId === String(postId) ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // 点击「发布评论」时立刻记一条未确认的参与记录，不依赖任何服务端时序。
+  // 回帖成功后 NS 会跳到「回复所在的分页」(#楼层)，重载后本页 config 里必定含这条回复。
+  function recordPendingParticipation(draw) {
+    if (!draw || !/^\d+$/.test(String(draw.postId))) return;
+    if (Number(draw.time) <= Date.now()) return;
     const records = { ...luckyNotifyRecords() };
-    const previous = records[parsed.postId] || {};
-    const sameParams = previous.time === parsed.time && previous.count === parsed.count
-      && previous.start === parsed.start && previous.dedupe === parsed.dedupe;
-    if (sameParams) return;
-    records[parsed.postId] = {
-      ...parsed,
-      winners: null,
-      checkedAt: 0,
-      wonAt: 0,
-      wonSeen: 0,
-      announced: 0,
+    const previous = records[draw.postId] || {};
+    // 已经确认过就不动
+    if (previous.participated && previous.confirmed) return;
+    records[draw.postId] = {
+      ...previous,
+      ...draw,
+      winners: previous.winners ?? null,
+      checkedAt: Number(previous.checkedAt) || 0,
+      wonAt: Number(previous.wonAt) || 0,
+      wonSeen: Number(previous.wonSeen) || 0,
+      announced: Number(previous.announced) || 0,
       participated: true,
+      confirmed: false,
+      pendingAt: Date.now(),
     };
     luckyNotifyWriteRecords(records);
     renderLuckyNotifyEntries();
+  }
+
+  // 非第一页兜底：本页拿不到 0 楼时，补拉第 1 页解析开奖参数。
+  // 场景：回帖后 NS 跳到 /post-xxx-2#17，本页 comments 是 11 楼起，
+  // 但"是不是抽奖贴"必须能判断，否则会漏掉参与记录。
+  let luckyDeepPageResolving = false;
+  async function resolvePendingDrawOnDeepPage() {
+    if (luckyDeepPageResolving) return;
+    const postId = currentPostId();
+    if (!postId) return;
+    // 说明本页已有 0 楼数据，不需要补拉
+    if (luckyCurrentDraw()) return;
+    const hashFloor = luckyHashFloor();
+    if (!hashFloor) return;
+    const records = luckyNotifyRecords();
+    if (records[postId]) return;
+    luckyDeepPageResolving = true;
+    try {
+      const draw = await luckyFetchDrawFromPostPage(postId);
+      // 只在「到过开奖时间前」的记录才有意义
+      if (draw && Number(draw.time) > Date.now()) recordPendingParticipation(draw);
+    } finally {
+      luckyDeepPageResolving = false;
+    }
+  }
+
+  // 本次回帖落定的楼层（NS 跳转地址形如 /post-xxx-2#17）
+  function luckyHashFloor() {
+    const floor = Number(String(location.hash || '').replace('#', ''));
+    return Number.isInteger(floor) && floor > 0 ? floor : 0;
+  }
+
+  // reload 后用 __config__.postData.comments 确认：有没有我在这帖的回复。
+  // 用 poster.isMe（NS 自带标记）而不是拿 uid 比，更稳。
+  function confirmPendingParticipations() {
+    const postId = currentPostId();
+    if (!postId) return;
+    const records = luckyNotifyRecords();
+    const pending = Object.values(records).filter((item) => item && item.participated && !item.confirmed);
+    if (!pending.length) return;
+    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
+    const postData = pageWindow.__config__?.postData;
+    if (!postData || String(postData.postId || '') !== String(postId)) return;
+    const comments = Array.isArray(postData.comments) ? postData.comments : [];
+    // 评论区还没渲染出数据就再等等，避免误判成"没回复"
+    if (!comments.length) return;
+    const hashFloor = luckyHashFloor();
+    const myFloors = comments
+      .filter((comment) => Number(comment?.floorIndex) > 0)
+      .filter((comment) => comment?.poster?.isMe || String(comment?.poster?.uid || '') === String(currentNodeSeekUserId() || ''))
+      .map((comment) => Number(comment.floorIndex));
+    const current = records[postId];
+    if (!current) return;
+    // 本次带着楼层跳转 → 直接用该楼层判定；否则看本页有没有我的回复
+    const matched = hashFloor ? myFloors.includes(hashFloor) : myFloors.length > 0;
+    if (matched) {
+      const next = { ...records };
+      next[postId] = { ...current, confirmed: true, pendingAt: 0 };
+      luckyNotifyWriteRecords(next);
+      renderLuckyNotifyEntries();
+      return;
+    }
+    // 没匹配到：先不删（可能只是当前页不含那条回复），累计尝试次数，超时才清
+    const attempts = Number(current.confirmAttempts || 0) + 1;
+    const expired = Number(current.pendingAt || 0) && Date.now() - Number(current.pendingAt) > LUCKY_PARTICIPATION_TIMEOUT;
+    if (expired || attempts >= LUCKY_PARTICIPATION_MAX_ATTEMPTS) {
+      const next = { ...records };
+      delete next[postId];
+      luckyNotifyWriteRecords(next);
+      renderLuckyNotifyEntries();
+      return;
+    }
+    const next = { ...records };
+    next[postId] = { ...current, confirmAttempts: attempts };
+    luckyNotifyWriteRecords(next);
   }
 
   // 徽标：已开奖、有人中奖，但正文里还没 @ 全部中奖人
@@ -4789,7 +4922,7 @@ function formValues(app) {
     const authorId = authorHref.match(/^\/space\/(\d+)/)?.[1] || '';
     if (!ownId || authorId !== ownId) return null;
     // 帖子里必须有指向本贴的开奖链接
-    const parsed = luckyNotifyParseCurrentPostLink();
+    const parsed = luckyCurrentDraw();
     if (!parsed || parsed.postId !== postId) return null;
     // 还没到开奖时间：没有名单可公布，不显示按钮
     if (!luckyNotifyRevealed(parsed)) return null;
@@ -5460,6 +5593,7 @@ function replyEditor() {
     showLuckyWritebackResult();
     renderLuckyNotifyEntries();
     renderLuckyAnnounceButton();
+    confirmPendingParticipations();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -5477,6 +5611,8 @@ function replyEditor() {
   showLuckyWritebackResult();
   renderLuckyNotifyEntries();
   renderLuckyAnnounceButton();
+  confirmPendingParticipations();
+  void resolvePendingDrawOnDeepPage();
   runLuckyNotifyChecks();
   runLuckyAnnounceFromUrl();
   initialize();

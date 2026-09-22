@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.34
+// @version      1.4.35
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.34';
+  const VERSION = '1.4.35';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -140,9 +140,6 @@ const APP_ID = 'nsit-app';
   const LUCKY_NOTIFY_RUNTIME_KEY = '__nodeSeekIssueTemplatesLuckyNotify__';
   const LUCKY_NOTIFY_REVEAL_SLACK = 2000;
   const LUCKY_NOTIFY_RECHECK_MS = 10 * 60 * 1000;
-  // 参与记录确认窗口：reload 后若一直比对不上，超时或超过次数就清掉
-  const LUCKY_PARTICIPATION_TIMEOUT = 10 * 60 * 1000;
-  const LUCKY_PARTICIPATION_MAX_ATTEMPTS = 5;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>'"]/g, (character) => ({
@@ -4044,17 +4041,16 @@ function formValues(app) {
       if (event.target.closest?.(`#${APP_ID}`)) return;
       markLuckySubmitAttempt();
     }, true);
-    // 回帖参与：「发布评论」按下的瞬间就记一条未确认的参与记录。
-    // 此时还不知道回帖成不成功 —— 成功后 NS 会跳到回复所在分页，
-    // 由 confirmPendingParticipations 用页面数据核对；核对不上会按超时清理。
+    // 回帖参与：按下「发布评论」就记为参与。未中奖的记录对用户不可见，
+    // 所以不需要确认回帖是否成功；开奖后比对名单，没中奖直接清掉。
     document.addEventListener('click', (event) => {
       const button = event.target.closest('button, input[type="submit"], a');
       if (!button || button.closest(`#${APP_ID}`)) return;
       // 只认回帖场景：当前是帖子页、且不在发帖页
       if (!currentPostId() || document.querySelector('#mde-title')) return;
       if (!/^\s*(发布评论|回帖|回复)/.test(button.textContent.trim())) return;
-      const draw = luckyCurrentDraw();
-      if (draw) recordPendingParticipation(draw);
+      const draw = luckyDrawForReply();
+      if (draw) recordParticipation(draw);
     }, true);
   }
 
@@ -4213,15 +4209,41 @@ function formValues(app) {
     }
   }
 
-  // 点击「发布评论」时立刻记一条未确认的参与记录，不依赖任何服务端时序。
-  // 回帖成功后 NS 会跳到「回复所在的分页」(#楼层)，重载后本页 config 里必定含这条回复。
-  function recordPendingParticipation(draw) {
+  // 非第一页时本页没有 0 楼，补拉第 1 页解析开奖参数，并缓存结果。
+  // 不这样做的话，在 2 页以后回复别人就记不到参与。
+  let luckyDrawCache = { postId: '', draw: null, resolved: false };
+  async function resolveCurrentDraw() {
+    const postId = currentPostId();
+    if (!postId) return null;
+    if (luckyDrawCache.postId !== postId) luckyDrawCache = { postId, draw: null, resolved: false };
+    const direct = luckyCurrentDraw();
+    if (direct) return direct;
+    if (luckyDrawCache.resolved) return luckyDrawCache.draw;
+    luckyDrawCache.resolved = true;
+    const fetched = await luckyFetchDrawFromPostPage(postId);
+    luckyDrawCache.draw = fetched || null;
+    return luckyDrawCache.draw;
+  }
+
+  // 点击回复时用：本页解析得到就直接用，否则用已解析好的缓存
+  function luckyDrawForReply() {
+    const postId = currentPostId();
+    if (!postId) return null;
+    const direct = luckyCurrentDraw();
+    if (direct) return direct;
+    return luckyDrawCache.postId === postId ? luckyDrawCache.draw : null;
+  }
+
+  // 点击「发布评论」就记为参与，不再确认回帖是否真的成功：
+  // 未中奖的参与记录对用户完全不可见（「中奖」弹窗只列名单含我的，「抽奖」徽标只算我发起的），
+  // 所以"记错"没有任何用户可见的代价；开奖后比对名单，没中奖直接清掉。
+  function recordParticipation(draw) {
     if (!draw || !/^\d+$/.test(String(draw.postId))) return;
     if (Number(draw.time) <= Date.now()) return;
     const records = { ...luckyNotifyRecords() };
     const previous = records[draw.postId] || {};
-    // 已经确认过就不动
-    if (previous.participated && previous.confirmed) return;
+    // 已有记录就不动，避免重复点击把已拉到的名单清掉
+    if (previous.participated) return;
     records[draw.postId] = {
       ...previous,
       ...draw,
@@ -4231,86 +4253,10 @@ function formValues(app) {
       wonSeen: Number(previous.wonSeen) || 0,
       announced: Number(previous.announced) || 0,
       participated: true,
-      confirmed: false,
-      pendingAt: Date.now(),
+      participatedAt: Date.now(),
     };
     luckyNotifyWriteRecords(records);
     renderLuckyNotifyEntries();
-  }
-
-  // 非第一页兜底：本页拿不到 0 楼时，补拉第 1 页解析开奖参数。
-  // 场景：回帖后 NS 跳到 /post-xxx-2#17，本页 comments 是 11 楼起，
-  // 但"是不是抽奖贴"必须能判断，否则会漏掉参与记录。
-  let luckyDeepPageResolving = false;
-  async function resolvePendingDrawOnDeepPage() {
-    if (luckyDeepPageResolving) return;
-    const postId = currentPostId();
-    if (!postId) return;
-    // 说明本页已有 0 楼数据，不需要补拉
-    if (luckyCurrentDraw()) return;
-    const hashFloor = luckyHashFloor();
-    if (!hashFloor) return;
-    const records = luckyNotifyRecords();
-    if (records[postId]) return;
-    luckyDeepPageResolving = true;
-    try {
-      const draw = await luckyFetchDrawFromPostPage(postId);
-      // 只在「到过开奖时间前」的记录才有意义
-      if (draw && Number(draw.time) > Date.now()) recordPendingParticipation(draw);
-    } finally {
-      luckyDeepPageResolving = false;
-    }
-  }
-
-  // 本次回帖落定的楼层（NS 跳转地址形如 /post-xxx-2#17）
-  function luckyHashFloor() {
-    const floor = Number(String(location.hash || '').replace('#', ''));
-    return Number.isInteger(floor) && floor > 0 ? floor : 0;
-  }
-
-  // reload 后用 __config__.postData.comments 确认：有没有我在这帖的回复。
-  // 用 poster.isMe（NS 自带标记）而不是拿 uid 比，更稳。
-  function confirmPendingParticipations() {
-    const postId = currentPostId();
-    if (!postId) return;
-    const records = luckyNotifyRecords();
-    const pending = Object.values(records).filter((item) => item && item.participated && !item.confirmed);
-    if (!pending.length) return;
-    const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
-    const postData = pageWindow.__config__?.postData;
-    if (!postData || String(postData.postId || '') !== String(postId)) return;
-    const comments = Array.isArray(postData.comments) ? postData.comments : [];
-    // 评论区还没渲染出数据就再等等，避免误判成"没回复"
-    if (!comments.length) return;
-    const hashFloor = luckyHashFloor();
-    const myFloors = comments
-      .filter((comment) => Number(comment?.floorIndex) > 0)
-      .filter((comment) => comment?.poster?.isMe || String(comment?.poster?.uid || '') === String(currentNodeSeekUserId() || ''))
-      .map((comment) => Number(comment.floorIndex));
-    const current = records[postId];
-    if (!current) return;
-    // 本次带着楼层跳转 → 直接用该楼层判定；否则看本页有没有我的回复
-    const matched = hashFloor ? myFloors.includes(hashFloor) : myFloors.length > 0;
-    if (matched) {
-      const next = { ...records };
-      next[postId] = { ...current, confirmed: true, pendingAt: 0 };
-      luckyNotifyWriteRecords(next);
-      renderLuckyNotifyEntries();
-      return;
-    }
-    // 没匹配到：先不删（可能只是当前页不含那条回复），累计尝试次数，超时才清
-    const attempts = Number(current.confirmAttempts || 0) + 1;
-    const expired = Number(current.pendingAt || 0) && Date.now() - Number(current.pendingAt) > LUCKY_PARTICIPATION_TIMEOUT;
-    if (expired || attempts >= LUCKY_PARTICIPATION_MAX_ATTEMPTS) {
-      const next = { ...records };
-      delete next[postId];
-      luckyNotifyWriteRecords(next);
-      renderLuckyNotifyEntries();
-      return;
-    }
-    const next = { ...records };
-    next[postId] = { ...current, confirmAttempts: attempts };
-    luckyNotifyWriteRecords(next);
   }
 
   // 徽标：已开奖、有人中奖，但正文里还没 @ 全部中奖人
@@ -4714,6 +4660,12 @@ function formValues(app) {
     if (winners.length) {
       const html = await luckyNotifyFetchPostHtml(current.postId);
       if (html) current.announced = luckyNotifyAnnounced(html, winners) ? winners.length : 0;
+    }
+    // 参与别人的抽奖且没中奖 → 记录没有用了，直接清掉。
+    // 它是"点了评论就记"的推测数据，用户看不到，留着只会占地方。
+    // （名单为空说明这帖无人中奖，同样清理）
+    if (current.participated && !wonNow) {
+      delete records[String(current.postId)];
     }
     luckyNotifyWriteRecords(records);
     return true;
@@ -5593,7 +5545,6 @@ function replyEditor() {
     showLuckyWritebackResult();
     renderLuckyNotifyEntries();
     renderLuckyAnnounceButton();
-    confirmPendingParticipations();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -5611,8 +5562,8 @@ function replyEditor() {
   showLuckyWritebackResult();
   renderLuckyNotifyEntries();
   renderLuckyAnnounceButton();
-  confirmPendingParticipations();
-  void resolvePendingDrawOnDeepPage();
+  // 非第一页进帖子时先把开奖参数解析好，用户点回复才能立刻记录
+  void resolveCurrentDraw();
   runLuckyNotifyChecks();
   runLuckyAnnounceFromUrl();
   initialize();

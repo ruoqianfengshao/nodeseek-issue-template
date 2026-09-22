@@ -536,7 +536,6 @@
     showLuckyWritebackResult();
     renderLuckyNotifyEntries();
     renderLuckyAnnounceButton();
-    confirmPendingParticipations();
     initialize();
     renderRepliedPostMenu();
     renderRepliedPostLabels();
@@ -554,8 +553,8 @@
   showLuckyWritebackResult();
   renderLuckyNotifyEntries();
   renderLuckyAnnounceButton();
-  confirmPendingParticipations();
-  void resolvePendingDrawOnDeepPage();
+  // 非第一页进帖子时先把开奖参数解析好，用户点回复才能立刻记录
+  void resolveCurrentDraw();
   runLuckyNotifyChecks();
   runLuckyAnnounceFromUrl();
   initialize();

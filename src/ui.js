@@ -389,7 +389,8 @@
       .nsit-lucky-field{display:grid;gap:5px;min-width:0}
       .nsit-lucky-field>span,.nsit-lucky-group-label{color:#506078;font-size:14px}
       .nsit-lucky-label-row{display:flex;align-items:baseline;gap:8px;min-width:0}
-      .nsit-lucky-countdown{font-style:normal;color:#8b641e;font-size:12px;white-space:nowrap}
+      /* 剩余时间推到这一行最右边 */
+      .nsit-lucky-countdown{margin-left:auto;font-style:normal;color:#8b641e;font-size:12px;white-space:nowrap}
       .nsit-lucky-countdown:empty{display:none}
       .nsit-lucky-dialog input[type="datetime-local"],.nsit-lucky-dialog input[type="number"],.nsit-lucky-dialog input[type="text"],.nsit-lucky-dialog input[type="search"],.nsit-lucky-dialog input:not([type]){width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#27334a;font:inherit;outline:none}
       .nsit-lucky-dialog input:focus{border-color:#d9961c;box-shadow:0 0 0 3px rgba(217,150,28,.14)}

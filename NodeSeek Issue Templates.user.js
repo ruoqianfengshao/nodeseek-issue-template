@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.40
+// @version      1.4.41
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.40';
+  const VERSION = '1.4.41';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -532,7 +532,8 @@ function escapeHtml(value) {
       .nsit-lucky-field{display:grid;gap:5px;min-width:0}
       .nsit-lucky-field>span,.nsit-lucky-group-label{color:#506078;font-size:14px}
       .nsit-lucky-label-row{display:flex;align-items:baseline;gap:8px;min-width:0}
-      .nsit-lucky-countdown{font-style:normal;color:#8b641e;font-size:12px;white-space:nowrap}
+      /* 剩余时间推到这一行最右边 */
+      .nsit-lucky-countdown{margin-left:auto;font-style:normal;color:#8b641e;font-size:12px;white-space:nowrap}
       .nsit-lucky-countdown:empty{display:none}
       .nsit-lucky-dialog input[type="datetime-local"],.nsit-lucky-dialog input[type="number"],.nsit-lucky-dialog input[type="text"],.nsit-lucky-dialog input[type="search"],.nsit-lucky-dialog input:not([type]){width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#27334a;font:inherit;outline:none}
       .nsit-lucky-dialog input:focus{border-color:#d9961c;box-shadow:0 0 0 3px rgba(217,150,28,.14)}

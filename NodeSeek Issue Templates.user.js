@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.39
+// @version      1.4.40
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.39';
+  const VERSION = '1.4.40';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -451,7 +451,7 @@ function escapeHtml(value) {
           <section class="nsit-lucky-section">
             <h4>抽奖信息</h4>
             <div class="nsit-lucky-grid nsit-lucky-time-row">
-              <label class="nsit-lucky-field"><span>开奖时间</span><input type="datetime-local" name="luckyTime" step="60" data-nsit-lucky-time></label>
+              <label class="nsit-lucky-field"><span class="nsit-lucky-label-row">开奖时间<em class="nsit-lucky-countdown" data-nsit-lucky-countdown></em></span><input type="datetime-local" name="luckyTime" step="60" data-nsit-lucky-time></label>
               <label class="nsit-lucky-field"><span>奖品数量</span><input type="number" name="luckyCount" min="1" step="1" inputmode="numeric" value="1"></label>
               <label class="nsit-lucky-field"><span>起始楼层</span><input type="number" name="luckyStart" min="0" step="1" inputmode="numeric" value="1"></label>
             </div>
@@ -531,6 +531,9 @@ function escapeHtml(value) {
       .nsit-lucky-wide{grid-column:1/-1}
       .nsit-lucky-field{display:grid;gap:5px;min-width:0}
       .nsit-lucky-field>span,.nsit-lucky-group-label{color:#506078;font-size:14px}
+      .nsit-lucky-label-row{display:flex;align-items:baseline;gap:8px;min-width:0}
+      .nsit-lucky-countdown{font-style:normal;color:#8b641e;font-size:12px;white-space:nowrap}
+      .nsit-lucky-countdown:empty{display:none}
       .nsit-lucky-dialog input[type="datetime-local"],.nsit-lucky-dialog input[type="number"],.nsit-lucky-dialog input[type="text"],.nsit-lucky-dialog input[type="search"],.nsit-lucky-dialog input:not([type]){width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#27334a;font:inherit;outline:none}
       .nsit-lucky-dialog input:focus{border-color:#d9961c;box-shadow:0 0 0 3px rgba(217,150,28,.14)}
       .nsit-lucky-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}
@@ -3557,9 +3560,31 @@ function formValues(app) {
     };
   }
 
+  // 距开奖时间还有多久，精确到分钟；已过或未填则不显示
+  function luckyCountdownText(timestamp) {
+    const target = Number(timestamp) || 0;
+    if (!target) return '';
+    const diff = target - Date.now();
+    if (diff <= 0) return '';
+    // 向上取整到分钟：还剩几十秒时显示"1 分钟"，不会出现"0 分钟"；
+    // 选整点（比如正好一小时后）也不会因几百毫秒误差显示成"59 分钟"
+    const minutes = Math.ceil(diff / 60000);
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+    // 为 0 的较大单位不显示，避免"1 天 0 小时"这种啰嗦写法
+    if (days > 0) return `还剩 ${days} 天${hours ? ` ${hours} 小时` : ''}`;
+    if (hours > 0) return `还剩 ${hours} 小时${mins ? ` ${mins} 分钟` : ''}`;
+    return `还剩 ${mins} 分钟`;
+  }
+
   function syncLuckyDialog() {
     const dialog = luckyDialogElement();
     if (!dialog) return;
+    const countdown = dialog.querySelector('[data-nsit-lucky-countdown]');
+    if (countdown) {
+      countdown.textContent = luckyCountdownText(luckyTimestampFromInput(dialog.querySelector('[data-nsit-lucky-time]')?.value));
+    }
     const reply = dialog.querySelector('[name="luckyReply"]:checked')?.value || 'any';
     const replyText = dialog.querySelector('[data-nsit-lucky-reply-text]');
     if (replyText) {

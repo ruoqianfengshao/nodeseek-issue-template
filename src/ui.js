@@ -308,7 +308,7 @@
           <section class="nsit-lucky-section">
             <h4>抽奖信息</h4>
             <div class="nsit-lucky-grid nsit-lucky-time-row">
-              <label class="nsit-lucky-field"><span>开奖时间</span><input type="datetime-local" name="luckyTime" step="60" data-nsit-lucky-time></label>
+              <label class="nsit-lucky-field"><span class="nsit-lucky-label-row">开奖时间<em class="nsit-lucky-countdown" data-nsit-lucky-countdown></em></span><input type="datetime-local" name="luckyTime" step="60" data-nsit-lucky-time></label>
               <label class="nsit-lucky-field"><span>奖品数量</span><input type="number" name="luckyCount" min="1" step="1" inputmode="numeric" value="1"></label>
               <label class="nsit-lucky-field"><span>起始楼层</span><input type="number" name="luckyStart" min="0" step="1" inputmode="numeric" value="1"></label>
             </div>
@@ -388,6 +388,9 @@
       .nsit-lucky-wide{grid-column:1/-1}
       .nsit-lucky-field{display:grid;gap:5px;min-width:0}
       .nsit-lucky-field>span,.nsit-lucky-group-label{color:#506078;font-size:14px}
+      .nsit-lucky-label-row{display:flex;align-items:baseline;gap:8px;min-width:0}
+      .nsit-lucky-countdown{font-style:normal;color:#8b641e;font-size:12px;white-space:nowrap}
+      .nsit-lucky-countdown:empty{display:none}
       .nsit-lucky-dialog input[type="datetime-local"],.nsit-lucky-dialog input[type="number"],.nsit-lucky-dialog input[type="text"],.nsit-lucky-dialog input[type="search"],.nsit-lucky-dialog input:not([type]){width:100%;min-width:0;padding:8px 9px;border:1px solid #d8e0eb;border-radius:7px;background:#fff;color:#27334a;font:inherit;outline:none}
       .nsit-lucky-dialog input:focus{border-color:#d9961c;box-shadow:0 0 0 3px rgba(217,150,28,.14)}
       .nsit-lucky-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}

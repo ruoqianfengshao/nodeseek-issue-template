@@ -2981,9 +2981,31 @@
     };
   }
 
+  // 距开奖时间还有多久，精确到分钟；已过或未填则不显示
+  function luckyCountdownText(timestamp) {
+    const target = Number(timestamp) || 0;
+    if (!target) return '';
+    const diff = target - Date.now();
+    if (diff <= 0) return '';
+    // 向上取整到分钟：还剩几十秒时显示"1 分钟"，不会出现"0 分钟"；
+    // 选整点（比如正好一小时后）也不会因几百毫秒误差显示成"59 分钟"
+    const minutes = Math.ceil(diff / 60000);
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+    // 为 0 的较大单位不显示，避免"1 天 0 小时"这种啰嗦写法
+    if (days > 0) return `还剩 ${days} 天${hours ? ` ${hours} 小时` : ''}`;
+    if (hours > 0) return `还剩 ${hours} 小时${mins ? ` ${mins} 分钟` : ''}`;
+    return `还剩 ${mins} 分钟`;
+  }
+
   function syncLuckyDialog() {
     const dialog = luckyDialogElement();
     if (!dialog) return;
+    const countdown = dialog.querySelector('[data-nsit-lucky-countdown]');
+    if (countdown) {
+      countdown.textContent = luckyCountdownText(luckyTimestampFromInput(dialog.querySelector('[data-nsit-lucky-time]')?.value));
+    }
     const reply = dialog.querySelector('[name="luckyReply"]:checked')?.value || 'any';
     const replyText = dialog.querySelector('[data-nsit-lucky-reply-text]');
     if (replyText) {

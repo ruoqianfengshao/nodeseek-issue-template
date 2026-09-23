@@ -3474,7 +3474,9 @@
       if (!currentPostId() || document.querySelector('#mde-title')) return;
       if (!/^\s*(发布评论|回帖|回复)/.test(button.textContent.trim())) return;
       const draw = luckyDrawForReply();
-      if (draw) recordParticipation(draw);
+      // 只记「参与别人的抽奖」。在自己发起的帖子里回复不算参与 ——
+      // 否则会把 participated 改成 true，这条就从「我发起的抽奖」里消失了。
+      if (draw && !luckyIsOwnDraw()) recordParticipation(draw);
     }, true);
   }
 
@@ -3714,6 +3716,8 @@
     const previous = records[draw.postId] || {};
     // 已有记录就不动，避免重复点击把已拉到的名单清掉
     if (previous.participated) return;
+    // 兜底：这条已经标记为「我发起的抽奖」，不能改写成参与（会从弹窗里消失）
+    if (previous.postId && previous.participated === false) return;
     records[draw.postId] = {
       ...previous,
       ...draw,

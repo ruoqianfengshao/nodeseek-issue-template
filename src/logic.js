@@ -3522,31 +3522,45 @@
     try { localStorage.setItem(LUCKY_RECORDS_KEY, JSON.stringify(records)); } catch (_) { /* 存储不可用时忽略 */ }
   }
 
-  // 发布成功后记一条，供右侧面板使用；重复发布同一帖子时刷新参数
-  function recordOwnLuckyDraw(config, postId) {
-    const id = String(postId || '').trim();
-    if (!/^\d+$/.test(id)) return;
-    const next = luckyNormalized(config);
+  // 「我发起的抽奖」统一写入：抽奖配置发布后、以及进帖子从开奖链接解析到，
+  // 两条来源都走这里，保证参数与状态字段的语义完全一致。
+  // 参数没变 → 保留已拉到的名单和已读状态；参数变了 → 整组作废重来。
+  function upsertOwnDraw(draw) {
+    if (!draw || !/^\d+$/.test(String(draw.postId))) return false;
+    const id = String(draw.postId);
     const records = { ...luckyNotifyRecords() };
-    const previous = records[id] || {};
-    const sameParams = previous.time === next.time && previous.count === next.count
-      && previous.start === next.start && previous.dedupe === next.dedupe;
-    records[id] = {
+    const previous = records[id];
+    const next = {
       postId: id,
-      time: next.time,
-      count: next.count,
-      start: next.start,
-      dedupe: next.dedupe,
-      participated: false,
-      // 参数变了就作废已缓存的开奖结果
-      winners: sameParams && Array.isArray(previous.winners) ? previous.winners : null,
-      checkedAt: sameParams ? Number(previous.checkedAt) || 0 : 0,
-      wonAt: sameParams ? Number(previous.wonAt) || 0 : 0,
-      wonSeen: sameParams ? Number(previous.wonSeen) || 0 : 0,
-      announced: sameParams ? Number(previous.announced) || 0 : 0,
+      time: Number(draw.time) || 0,
+      count: Number(draw.count) || 1,
+      start: Number(draw.start) || 1,
+      dedupe: draw.dedupe !== false,
+    };
+    const sameParams = Boolean(previous)
+      && previous.time === next.time && previous.count === next.count
+      && previous.start === next.start && previous.dedupe === next.dedupe;
+    if (sameParams) return false;
+    records[id] = {
+      ...next,
+      // 参与别人的抽奖不会被这里覆盖：那是另一条来源，participated 语义不同
+      participated: previous?.participated === true,
+      winners: null,
+      checkedAt: 0,
+      wonAt: 0,
+      wonSeen: 0,
+      announced: 0,
     };
     luckyNotifyWriteRecords(records);
     renderLuckyNotifyEntries();
+    return true;
+  }
+
+  // 抽奖配置发布成功后调用
+  function recordOwnLuckyDraw(config, postId) {
+    const id = String(postId || '').trim();
+    if (!/^\d+$/.test(id)) return;
+    upsertOwnDraw({ postId: id, ...luckyNormalized(config) });
   }
 
   function luckyNotifyList() {
@@ -3666,40 +3680,9 @@
     return draw;
   }
 
-  // 从帖子页面直接补记「我发起的抽奖」。
-  // 和抽奖配置那条路写入的字段保持一致，只是来源不同。
+  // 进帖子解析到开奖链接时补记「我发起的抽奖」；参数一致时不重复写
   function trackOwnDrawFromPage(draw) {
-    if (!draw || !/^\d+$/.test(String(draw.postId))) return;
-    const records = { ...luckyNotifyRecords() };
-    const previous = records[draw.postId];
-    if (previous) {
-      // 已有记录：只补齐缺失的开奖参数，不动已有名单/已读状态
-      const sameParams = previous.time === draw.time && previous.count === draw.count
-        && previous.start === draw.start && previous.dedupe === draw.dedupe;
-      if (sameParams) return;
-      records[draw.postId] = {
-        ...previous,
-        time: draw.time,
-        count: draw.count,
-        start: draw.start,
-        dedupe: draw.dedupe,
-        winners: null,
-        checkedAt: 0,
-        announced: 0,
-      };
-    } else {
-      records[draw.postId] = {
-        ...draw,
-        participated: false,
-        winners: null,
-        checkedAt: 0,
-        wonAt: 0,
-        wonSeen: 0,
-        announced: 0,
-      };
-    }
-    luckyNotifyWriteRecords(records);
-    renderLuckyNotifyEntries();
+    upsertOwnDraw(draw);
   }
 
   // 点击回复时用：本页解析得到就直接用，否则用已解析好的缓存

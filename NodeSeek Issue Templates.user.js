@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek Issue Templates
 // @namespace    https://www.nodeseek.com/
-// @version      1.4.37
+// @version      1.4.38
 // @description  在 NodeSeek 发帖或编辑帖页面用表单生成交易帖，并回填 Markdown 编辑器。
 // @author       vico
 // @updateURL    https://github.com/ruoqianfengshao/nodeseek-issue-template/releases/latest/download/NodeSeek.Issue.Templates.min.user.js
@@ -21,7 +21,7 @@
   'use strict';
 
 const APP_ID = 'nsit-app';
-  const VERSION = '1.4.37';
+  const VERSION = '1.4.38';
   const NODEIMAGE_KEY = 'nsit-nodeimage-api-key';
   const RUNTIME_KEY = '__nodeSeekIssueTemplatesRuntime__';
   const STORAGE_KEY = 'nsit-single-server-draft-v1';
@@ -4108,7 +4108,8 @@ function formValues(app) {
     const previous = records[id];
     const next = {
       postId: id,
-      time: Number(draw.time) || 0,
+      // 归一化放在汇合点：无论来自抽奖配置还是链接解析，存进记录的都是毫秒
+      time: luckyNormalizeTimestamp(draw.time),
       count: Number(draw.count) || 1,
       start: Number(draw.start) || 1,
       dedupe: draw.dedupe !== false,
@@ -4158,6 +4159,15 @@ function formValues(app) {
   }
 
   // 从一段 markdown 里解析开奖链接
+  // 开奖时间统一成毫秒。NS 官方链接用 13 位毫秒，但手动贴的链接常见 10 位秒级，
+  // 直接当毫秒用会让「还没开奖」被判断成「已开奖」。
+  function luckyNormalizeTimestamp(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return 0;
+    // 10 位（秒）→ 毫秒；13 位及以上原样返回
+    return num < 1e11 ? Math.round(num * 1000) : Math.round(num);
+  }
+
   function luckyParseLinkFromText(text) {
     const match = String(text || '').match(/https?:\/\/[^\s)]*\/lucky\?[^\s)]*/)
       || String(text || '').match(/\/lucky\?[^\s)]*/);
@@ -4171,7 +4181,7 @@ function formValues(app) {
     };
     return {
       postId: String(num('post', 0)),
-      time: num('time', 0),
+      time: luckyNormalizeTimestamp(url.searchParams.get('time')),
       count: num('count', 1),
       start: num('start', 1),
       dedupe: url.searchParams.get('duplicate') !== 'true',

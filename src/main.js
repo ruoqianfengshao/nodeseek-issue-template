@@ -528,6 +528,7 @@
     });
   }
 
+  injectBaseStyles();
   window[RUNTIME_KEY]?.disconnect?.();
   installCommentListResponseListener();
   const observer = new MutationObserver(() => {

@@ -4807,7 +4807,11 @@
   function luckyNotifyReadWinners(item, timeout = 15000) {
     return new Promise((resolve) => {
       const frame = document.createElement('iframe');
-      frame.style.cssText = 'position:fixed;left:-9999px;top:0;width:900px;height:700px;border:0;visibility:hidden';
+      // 必须真正移出布局并禁止聚焦，不能只用 visibility:hidden：iframe 加载时
+      // 会把编辑器里的焦点抢走一次。
+      frame.style.cssText = 'display:none';
+      frame.tabIndex = -1;
+      frame.setAttribute('inert', '');
       frame.setAttribute('aria-hidden', 'true');
       let done = false;
       const finish = (value) => {
